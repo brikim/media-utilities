@@ -1,13 +1,13 @@
 ---
 services:
-  media-server-sync:
-    image: media-server-sync:latest
-    container_name: media-server-sync
+  media-utilities:
+    image: media-utilities:latest
+    container_name: media-utilities
     security_opt:
       - no-new-privileges:true
     environment:
       - TZ=America/Chicago
     volumes:
-      - /docker/media-server-sync/config:/config
-      - /docker/media-server-sync/logs:/logs
+      - /docker/media-utilities/config:/config
+      - /docker/media-utilities/logs:/logs
     restart: unless-stopped
