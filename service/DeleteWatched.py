@@ -113,6 +113,7 @@ class DeleteWatched:
         return returnFileNames
         
     def check_delete_media(self):
+        self.logger.info('{} Run Started'.format(self.__module__))
         media_to_delete = []
         
         # Find media to delete

@@ -113,6 +113,7 @@ class SyncWatched:
     
     
     def sync_watch_status(self):
+        self.logger.info('{} Run Started'.format(self.__module__))
         dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
         for user in self.user_list:
             self.sync_plex_watch_status(user, dateTimeStringForHistory)

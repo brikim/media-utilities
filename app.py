@@ -21,6 +21,17 @@ from service.DvrMaintainer import DvrMaintainer
 # Global Variables #######
 logger = logging.getLogger(__name__)
 scheduler = BlockingScheduler()
+
+# Api
+plex_api = None
+tautulli_api = None
+emby_api = None
+jellystat_api = None
+        
+# Available Services
+sync_watched_service = None
+delete_watched_service = None
+dvr_maintainer_service = None
 ##########################
 
 def handle_sigterm(signum, frame):
@@ -73,11 +84,6 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         jellystat_api = JellystatServer(data['jellystat_url'], data['jellystat_api_key'], logger)
         
         logger.info('Starting Run *************************************')
-        
-        # Available Services
-        sync_watched_service = None
-        delete_watched_service = None
-        dvr_maintainer_service = None
         
         # Create the services ####################################
         
