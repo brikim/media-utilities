@@ -1,21 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""
-Sync media server watch status
-"""
-import requests
-import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-
-@dataclass
-class UserInfo:
-    plex_user_name: str
-    plex_user_id: int
-    emby_user_name: str
-    emby_user_id: str
-
+from datetime import datetime, timezone
+from common.user_stats import UserInfo
+from common.time_utils import get_datetime_for_history_plex_string
 class SyncWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
         self.plex_api = plex_api
@@ -47,7 +34,6 @@ class SyncWatched:
                     else:
                         self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plexUserName))
 
-            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cronHours, self.cronMinutes))
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
     
@@ -55,9 +41,6 @@ class SyncWatched:
         currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
         time_difference = currentDateTime - playDateTime
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
-    
-    def get_datetime_for_history(self):
-        return datetime.now() - timedelta(1)
 
     def set_emby_watched_item(self, user, itemId, fullTitle):
         try:
@@ -130,17 +113,13 @@ class SyncWatched:
     
     
     def sync_watch_status(self):
-        self.logger.info('{}: Sync Watch Status Running'.format(self.__module__))
-
-        dateTimeStringForHistory = self.get_datetime_for_history().strftime('%Y-%m-%d')
-
+        dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
         for user in self.user_list:
             self.sync_plex_watch_status(user, dateTimeStringForHistory)
             self.sync_emby_watch_status(user)
-
-        self.logger.info('{}: Sync Watch Status Completed'.format(self.__module__))
         
     def init_scheduler_jobs(self):
+        self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cronHours, self.cronMinutes))
         self.logger.info('{}: Running start up sync'.format(self.__module__))
         self.sync_watch_status()
         self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cronHours, minute=self.cronMinutes)

@@ -15,6 +15,8 @@ from api.tautulli import TautulliServer
 from api.emby import EmbyServer
 from api.jellystat import JellystatServer
 from service.SyncWatched import SyncWatched
+from service.DeleteWatched import DeleteWatched
+from service.DvrMaintainer import DvrMaintainer
 
 # Global Variables #######
 logger = logging.getLogger(__name__)
@@ -74,17 +76,28 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         
         # Available Services
         sync_watched_service = None
+        delete_watched_service = None
+        dvr_maintainer_service = None
         
         # Create the services ####################################
         
         # Create the Sync Watched Status Service
         if data['sync_watched']['enabled'] == 'True':
             sync_watched_service = SyncWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler)
+        if data['delete_watched']['enabled'] == 'True':
+            delete_watched_service = DeleteWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['delete_watched'], logger, scheduler)
+        if data['dvr_maintainer']['enabled'] == 'True':
+            dvr_maintainer_service = DvrMaintainer(plex_api, emby_api, data['dvr_maintainer'], logger, scheduler)
+        
         # ########################################################
         
         # Init the services ######################################
         if sync_watched_service is not None:
             sync_watched_service.init_scheduler_jobs()
+        if delete_watched_service is not None:
+            delete_watched_service.init_scheduler_jobs()
+        if dvr_maintainer_service is not None:
+            dvr_maintainer_service.init_scheduler_jobs()
         # ########################################################
         
         # Add a job to do nothing to keep the script alive

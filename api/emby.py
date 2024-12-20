@@ -42,9 +42,9 @@ class EmbyServer:
     def get_episode_item_id(self, seriesName, episodeName):
         # Remove any year from the series name ... example (2017)
         cleanedSeriesName = seriesName
-        openIndex = seriesName.index(" (")
+        openIndex = seriesName.find(" (")
         if openIndex >= 0:
-            closeIndex = seriesName.index(")")
+            closeIndex = seriesName.find(")")
             if closeIndex > openIndex:
                 cleanedSeriesName = seriesName[0:openIndex] + seriesName[closeIndex+1:len(cleanedSeriesName)]
         cleanedSeriesName = cleanedSeriesName.lower()
@@ -91,3 +91,10 @@ class EmbyServer:
             requests.post(embyUrl, headers=headers)
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
+            
+    def set_library_refresh(self):
+        try:
+            embyRefreshUrl = self.get_api_url() + '/Library/Refresh?api_key=' + self.api_key
+            requests.post(embyRefreshUrl)
+        except Exception as e:
+            self.logger.error("{}: Set Emby library refresh ERROR:{}".format(self.__module__, e))

@@ -34,8 +34,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Copy the source code into the container.
 COPY app.py /app
-COPY service/ /app/service
 COPY api/ /app/api
+COPY common/ /app/common
+COPY service/ /app/service
 
 VOLUME ["/config"]
 VOLUME ["/logs"]
