@@ -5,6 +5,7 @@ import sys
 import os
 import json
 import logging
+import colorlog
 import signal
 import time
 from logging.handlers import RotatingFileHandler
@@ -47,23 +48,34 @@ def do_nothing():
 # Set up signal termination handle
 signal.signal(signal.SIGTERM, handle_sigterm)
 
+#date format
+data_format = '%Y-%m-%d %H:%M:%S'
+
 # Set up the logger
 logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', data_format)
 
 # Create a file handler to write logs to a file
-rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=10000, backupCount=5)
+rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)
 rotating_handler.setLevel(logging.DEBUG)
 rotating_handler.setFormatter(formatter)
 
+log_colors = {
+    'DEBUG': 'cyan',
+    'INFO': 'light_green',
+    'WARNING': 'light_yellow',
+    'ERROR': 'light_red',
+    'CRITICAL': 'bold_red'}
+
 # Create a stream handler to print logs to the console
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)  # You can set the desired log level for console output
-console_handler.setFormatter(formatter)
+console_info_handler = colorlog.StreamHandler()
+console_info_handler.setLevel(logging.INFO)  # You can set the desired log level for console output
+console_info_handler.setFormatter(colorlog.ColoredFormatter(
+	'%(white)s%(asctime)s %(light_white)s- %(log_color)s%(levelname)s %(light_white)s- %(message)s', data_format, log_colors=log_colors))
 
 # Add the handlers to the logger
 logger.addHandler(rotating_handler)
-logger.addHandler(console_handler)
+logger.addHandler(console_info_handler)
 
 config_file_valid = True
 if "CONFIG_PATH" in os.environ:

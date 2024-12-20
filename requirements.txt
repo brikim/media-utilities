@@ -1,3 +1,4 @@
 requests
 plexapi
 apscheduler
+colorlog
