@@ -3,8 +3,7 @@ import os
 import glob
 from datetime import datetime
 from dataclasses import dataclass
-from common.delete_empty_folders import delete_empty_folders
-
+from common.utils import delete_empty_folders
 @dataclass
 class ShowConfig:
     name: str
@@ -151,7 +150,7 @@ class DvrMaintainer:
                 plexLibrariesToRefresh.append(show)
 
         # Clean up any empty folders
-        delete_empty_folders(list(set(physicalPathsToCheckForDelete)), self.__module__)
+        delete_empty_folders(list(set(physicalPathsToCheckForDelete)), self.logger, self.__module__)
 
         # Notify media servers of a refresh
         if len(plexLibrariesToRefresh) > 0:

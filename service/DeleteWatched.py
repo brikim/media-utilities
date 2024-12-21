@@ -2,9 +2,8 @@ import os
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from common.delete_empty_folders import delete_empty_folders
 from common.user_stats import UserInfo
-from common.utils import get_datetime_for_history_plex_string
+from common.utils import delete_empty_folders, get_datetime_for_history_plex_string
 
 @dataclass
 class LibraryInfo:
@@ -137,7 +136,7 @@ class DeleteWatched:
                 checkEmptyFolderPaths = []
                 for lib in self.libraries:
                     checkEmptyFolderPaths.append(lib.utilities_path)
-                delete_empty_folders(checkEmptyFolderPaths, self.__module__)
+                delete_empty_folders(checkEmptyFolderPaths, self.logger, self.__module__)
 
                 # Notify Plex to refresh
                 for lib in self.libraries:
