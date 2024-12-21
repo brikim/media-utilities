@@ -15,6 +15,7 @@ from plexapi.server import PlexServer
 from api.tautulli import TautulliServer
 from api.emby import EmbyServer
 from api.jellystat import JellystatServer
+from common.gotify_handler import GotifyHandler
 from service.SyncWatched import SyncWatched
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
@@ -43,40 +44,7 @@ def handle_sigterm(signum, frame):
 def do_nothing():
     time.sleep(1)
 
-# Main script run ####################################################
-
-# Set up signal termination handle
-signal.signal(signal.SIGTERM, handle_sigterm)
-
-#date format
-data_format = '%Y-%m-%d %H:%M:%S'
-
-# Set up the logger
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', data_format)
-
-# Create a file handler to write logs to a file
-rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)
-rotating_handler.setLevel(logging.DEBUG)
-rotating_handler.setFormatter(formatter)
-
-log_colors = {
-    'DEBUG': 'cyan',
-    'INFO': 'light_green',
-    'WARNING': 'light_yellow',
-    'ERROR': 'light_red',
-    'CRITICAL': 'bold_red'}
-
-# Create a stream handler to print logs to the console
-console_info_handler = colorlog.StreamHandler()
-console_info_handler.setLevel(logging.INFO)  # You can set the desired log level for console output
-console_info_handler.setFormatter(colorlog.ColoredFormatter(
-	'%(white)s%(asctime)s %(light_white)s- %(log_color)s%(levelname)s %(light_white)s- %(message)s', data_format, log_colors=log_colors))
-
-# Add the handlers to the logger
-logger.addHandler(rotating_handler)
-logger.addHandler(console_info_handler)
-
+conf_loc_path_file = ""
 config_file_valid = True
 if "CONFIG_PATH" in os.environ:
     conf_loc_path_file = os.environ['CONFIG_PATH'].rstrip('/')
@@ -88,6 +56,48 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         # Opening JSON file
         f = open(conf_loc_path_file, 'r')
         data = json.load(f)
+
+        # Main script run ####################################################
+
+        # Set up signal termination handle
+        signal.signal(signal.SIGTERM, handle_sigterm)
+
+        #date format
+        date_format = '%Y-%m-%d %H:%M:%S'
+
+        # Set up the logger
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', date_format)
+
+        # Create a file handler to write logs to a file
+        rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)
+        rotating_handler.setLevel(logging.DEBUG)
+        rotating_handler.setFormatter(formatter)
+
+        log_colors = {
+            'DEBUG': 'cyan',
+            'INFO': 'light_green',
+            'WARNING': 'light_yellow',
+            'ERROR': 'light_red',
+            'CRITICAL': 'bold_red'}
+
+        # Create a stream handler to print logs to the console
+        console_info_handler = colorlog.StreamHandler()
+        console_info_handler.setLevel(logging.INFO)
+        console_info_handler.setFormatter(colorlog.ColoredFormatter(
+            '%(white)s%(asctime)s %(light_white)s- %(log_color)s%(levelname)s %(light_white)s- %(message)s', date_format, log_colors=log_colors))
+
+        gotify_handler = None
+        if data['enable_gotify_logger'] == 'True':
+            gotify_handler = GotifyHandler(data['gotify_url'], data['gotify_app_token'], data['gotify_priority'])
+            gotify_handler.setLevel(logging.WARNING)
+            gotify_handler.setFormatter(formatter)
+            
+        # Add the handlers to the logger
+        logger.addHandler(rotating_handler)
+        logger.addHandler(console_info_handler)
+        if gotify_handler is not None:
+            logger.addHandler(gotify_handler)
         
         # Create all the api servers
         plex_api = PlexServer(data['plex_url'], data['plex_api_key'])
@@ -126,5 +136,7 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         
     except Exception as e:
         logger.error("Error starting: {}".format(e))
+else:
+    sys.stderr.write("Error opening config file {}\n".format(conf_loc_path_file))
 
 # END Main script run ####################################################

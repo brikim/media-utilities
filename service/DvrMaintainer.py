@@ -140,7 +140,6 @@ class DvrMaintainer:
             library.refresh()
 
     def do_maintenance(self):
-        self.logger.info('{} Run Started'.format(self.__module__))
         physicalPathsToCheckForDelete = []
         plexLibrariesToRefresh = []
         
