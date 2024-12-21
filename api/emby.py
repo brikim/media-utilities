@@ -1,6 +1,6 @@
 import requests
 import json
-
+from common.utils import remove_year_from_name
 class EmbyServer:
     def __init__(self, url, api_key, logger):
         self.url = url.rstrip('/')
@@ -57,12 +57,7 @@ class EmbyServer:
             
     def get_series_id(self, series_name):
         # Remove any year from the series name ... example (2017)
-        cleaned_series_name = series_name
-        open_par_index = series_name.find(" (")
-        if open_par_index >= 0:
-            close_par_index = series_name.find(")")
-            if close_par_index > open_par_index:
-                cleaned_series_name = series_name[0:open_par_index] + series_name[close_par_index+1:len(series_name)]
+        cleaned_series_name = remove_year_from_name(series_name)
         cleaned_series_name = cleaned_series_name.lower()
 
         try:
@@ -98,29 +93,6 @@ class EmbyServer:
                 if episode['ParentIndexNumber'] == season_num and episode['IndexNumber'] == episode_num:
                     return episode['Id']
         
-        return self.invalid_item_id
-    
-    def get_episode_item_id(self, seriesName, episodeName):
-        # Remove any year from the series name ... example (2017)
-        cleanedSeriesName = seriesName
-        openIndex = seriesName.find(" (")
-        if openIndex >= 0:
-            closeIndex = seriesName.find(")")
-            if closeIndex > openIndex:
-                cleanedSeriesName = seriesName[0:openIndex] + seriesName[closeIndex+1:len(cleanedSeriesName)]
-        cleanedSeriesName = cleanedSeriesName.lower()
-
-        try:
-            searchItems = self.search(cleanedSeriesName + ' ' + episodeName, 'Episode')
-            for item in searchItems:
-                lowerItemSeriesName = item['SeriesName'].lower()
-                lowerItemEpisodeName = item['Name'].lower()
-                if (lowerItemSeriesName.find(cleanedSeriesName) >= 0 or seriesName.lower().find(lowerItemSeriesName) >= 0) and (lowerItemEpisodeName.find(episodeName.lower()) >= 0 or episodeName.lower().find(lowerItemEpisodeName) >= 0):
-                    return item['Id']
-        except Exception as e:
-            self.logger.error("{}: Get Emby Episode Items({}) ERROR:{}".format(self.__module__, seriesName + ' ' + episodeName, e))
-            
-        # return an invalid id if not found
         return self.invalid_item_id
     
     def get_movie_item_id(self, name):

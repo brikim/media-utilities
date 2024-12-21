@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from common.delete_empty_folders import delete_empty_folders
 from common.user_stats import UserInfo
-from common.time_utils import get_datetime_for_history_plex_string
+from common.utils import get_datetime_for_history_plex_string
 
 @dataclass
 class LibraryInfo:

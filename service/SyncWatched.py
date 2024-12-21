@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from common.user_stats import UserInfo
-from common.time_utils import get_datetime_for_history_plex_string
+from common.utils import get_datetime_for_history_plex_string, remove_year_from_name
 class SyncWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
         self.plex_api = plex_api
@@ -73,29 +73,31 @@ class SyncWatched:
         except Exception as e:
             self.logger.error("{}: Get Plex History ERROR:{}".format(self.__module__, e))
     
-    def set_plex_show_watched(self, showName, seasonNum, episodeNum, user):
+    def set_plex_show_watched(self, show_name, season_num, episode_num, user):
         try:
-            results = self.plex_api.search(showName)
+            cleaned_show_name = remove_year_from_name(show_name).lower()
+            results = self.plex_api.search(cleaned_show_name, 'show')
             for item in results:
-                if item.title == showName:
+                if item.title.lower().find(cleaned_show_name) >= 0:
                     # Search for the show
                     show = self.plex_api.library.section(item.librarySectionTitle).get(item.title)
-                    episode = show.episode(season=seasonNum, episode=episodeNum)
+                    episode = show.episode(season=season_num, episode=episode_num)
                     if episode and episode.isWatched == False:
                         episode.markWatched()
-                        self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, showName + ' - ' + episode.title))
+                        self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
                     break
         except Exception as e:
             self.logger.error("Error with plex movie watched: {}".format(e))
 
     def set_plex_movie_watched(self, title, user):
         try:
-            results = self.plex_api.search(title)
-            for item in results:
-                if item.title == title:
-                    mediaItem = self.plex_api.library.section(item.librarySectionTitle).get(item.title)
-                    if mediaItem and mediaItem.isWatched == False:
-                        mediaItem.markWatched()
+            lower_title = title.lower()
+            result_items = self.plex_api.search(lower_title, 'movie')
+            for item in result_items:
+                if item.title.lower() == lower_title:
+                    media_Item = self.plex_api.library.section(item.librarySectionTitle).get(item.title)
+                    if media_Item and media_Item.isWatched == False:
+                        media_Item.markWatched()
                         self.logger.info('{}: {} watched {} on Emby Sync Plex Watch Status'.format(self.__module__, user.emby_user_name, title))
                     break
         except Exception as e:
@@ -103,14 +105,14 @@ class SyncWatched:
         
     def sync_emby_watch_status(self, user):
         try:
-            historyItems = self.jellystat_api.get_user_watch_history(user.emby_user_id)
-            if len(historyItems) > 0:
+            history_items = self.jellystat_api.get_user_watch_history(user.emby_user_id)
+            if len(history_items) > 0:
                 current_user = self.plex_api.myPlexAccount()
                 if current_user.username != user.plex_user_name:
                     self.plex_api.switchUser(user.plex_user_name)
 
                 # Search through the list and find items to sync
-                for item in historyItems:
+                for item in history_items:
                     if self.get_hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted'])) < 24:
                         if item['SeriesName'] is None:
                             self.set_plex_movie_watched(item['NowPlayingItemName'], user)
