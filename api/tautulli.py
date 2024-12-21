@@ -7,6 +7,12 @@ class TautulliServer:
         self.api_key = api_key
         self.logger = logger
 
+    def get_media_type_episode_name(self):
+        return 'episode'
+    
+    def get_media_type_movie_name(self):
+        return 'movie'
+    
     def get_api_url(self):
         return self.url + '/api/v2'
     

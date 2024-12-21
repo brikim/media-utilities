@@ -1,7 +1,6 @@
 
 import os
 import shutil
-import sys
 from datetime import datetime, timedelta
 
 def get_datetime_for_history(deltaDays):
@@ -28,5 +27,5 @@ def delete_empty_folders(paths_to_check, logger, module_name):
             for dirpath, dirnames, filenames in os.walk(path, topdown=False):
                 if not dirnames and not filenames:
                     shutil.rmtree(dirpath, ignore_errors=True)
-                    logger.info("{}: Deleting Empty Folder: {}\n".format(module_name, dirpath))
+                    logger.info("{}: Deleting Empty Folder: {}".format(module_name, dirpath))
                     folder_removed = True

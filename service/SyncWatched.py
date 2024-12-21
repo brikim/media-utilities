@@ -62,14 +62,15 @@ class SyncWatched:
             watchHistoryData = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, dateTimeStringForHistory)
             for historyItem in watchHistoryData:
                 if (historyItem['watched_status'] == 1):
-                    if historyItem['media_type'] == 'episode':
-                        embyItemId = self.get_emby_tv_show_episode_id(historyItem)
-                    else:
-                        embyItemId = self.emby_api.get_movie_item_id(historyItem['full_title'])
+                    emby_item_id = self.emby_api.get_invalid_item_id()
+                    if historyItem['media_type'] == self.tautulli_api.get_media_type_episode_name():
+                        emby_item_id = self.get_emby_tv_show_episode_id(historyItem)
+                    elif historyItem['media_type'] == self.tautulli_api.get_media_type_movie_name():
+                        emby_item_id = self.emby_api.get_movie_item_id(historyItem['full_title'])
                     
                     # If the item id is valid and the user has not already watched the item
-                    if embyItemId != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, embyItemId) == False:
-                        self.set_emby_watched_item(user, embyItemId, historyItem['full_title'])
+                    if emby_item_id != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, emby_item_id) == False:
+                        self.set_emby_watched_item(user, emby_item_id, historyItem['full_title'])
         except Exception as e:
             self.logger.error("{}: Get Plex History ERROR:{}".format(self.__module__, e))
     
