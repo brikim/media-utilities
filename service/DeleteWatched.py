@@ -29,6 +29,7 @@ class DeleteWatched:
         self.cronHours = ''
         self.cronMinutes = ''
         self.delete_time_hours = 24
+        self.log_pending_delete_time_hours = 0
         
         try:
             cronParams = config['cron_run_rate'].split()
@@ -59,6 +60,7 @@ class DeleteWatched:
                                                     library['utilitiesPath']))
 
             self.delete_time_hours = config['delete_time_hours']
+            self.log_pending_delete_time_hours = self.delete_time_hours * 0.7
             
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
@@ -76,13 +78,13 @@ class DeleteWatched:
                 watchedItems = self.tautulli_api.get_watch_history_for_user_and_library(user.plex_user_id, lib.plex_library_id, dateTimeStringForHistory)
                 for item in watchedItems:
                     if item['watched_status'] == 1:
-                        fileName = self.get_filename(item['rating_key'])
+                        fileName = self.tautulli_api.get_filename(item['rating_key'])
                         if len(fileName) > 0:
                             hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                             if hoursSincePlay >= self.delete_time_hours:
                                 returnFileNames.append(fileName.replace(lib.plex_media_path, lib.utilities_path))
                             else:
-                                if hoursSincePlay >= (self.delete_time_hours * 0.7):
+                                if hoursSincePlay >= self.log_pending_delete_time_hours:
                                     self.logger.info("{}: Pending Delete. Plex watched {:.1f} hours ago will delete at {} hours. {}".format(self.__module__, hoursSincePlay, self.delete_time_hours, fileName))
 
             return returnFileNames
@@ -105,7 +107,7 @@ class DeleteWatched:
                                     fileName = item['Path']
                                     returnFileNames.append(fileName.replace(lib.emby_media_path, lib.utilities_path))
                             else:
-                                if hoursSincePlay >= (self.delete_time_hours * 0.7):
+                                if hoursSincePlay >= self.log_pending_delete_time_hours:
                                     self.logger.info("{}: Pending Delete. Emby watched {:.1f} hours ago will delete at {} hours. {}".format(self.__module__, hoursSincePlay, self.delete_time_hours, fileName))
         except Exception as e:
             self.logger.error("{}: Find Emby Watched Media ERROR: {}.".format(self.__module__, e))

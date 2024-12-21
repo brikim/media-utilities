@@ -72,3 +72,21 @@ class TautulliServer:
             return response['response']['data']['data']
         except Exception as e:
             self.logger.error("{}: Get Watch Status ERROR:{}".format(self.__module__, e))
+            
+    def get_filename(self, key):
+        try:
+            payload = {
+                'apikey': self.api_key,
+                'rating_key': str(key),
+                'cmd': 'get_metadata'}
+            r = requests.get(self.get_api_url(), params=payload)
+            response = r.json()
+
+            res_data = response['response']['data']
+            if (len(res_data) > 0):
+                return res_data['media_info'][0]['parts'][0]['file']
+            else:
+                return ""
+
+        except Exception as e:
+            self.logger.error("{}: Tautulli API 'get_metadata' request failed: {}.\n".format(self.__module__, e))

@@ -14,7 +14,7 @@ class SyncWatched:
         self.user_list = []
         self.cronHours = ''
         self.cronMinutes = ''
-
+        
         try:
             cronParams = config['cron_run_rate'].split()
             if len(cronParams) >= 2 and len(cronParams) <= 5:
@@ -29,7 +29,7 @@ class SyncWatched:
                     embyUserName = user['embyName']
                     plexUserId = self.tautulli_api.get_user_id(plexUserName)
                     embyUserId = self.emby_api.get_user_id(embyUserName)
-                    if plexUserId != 0 and embyUserId != '0':
+                    if plexUserId != 0 and embyUserId != self.emby_api.get_invalid_item_id():
                         self.user_list.append(UserInfo(plexUserName, plexUserId, embyUserName, embyUserId))
                     else:
                         self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plexUserName))
@@ -48,19 +48,27 @@ class SyncWatched:
             self.logger.info('{}: {} watched {} on Plex sync Emby watch status'.format(self.__module__, user.plex_user_name, fullTitle))
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
-            
+    
+    def get_emby_tv_show_episode_id(self, plex_history_item):
+        try:
+            plex_item = self.plex_api.fetchItem(plex_history_item['rating_key'])
+            return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, plex_item.seasonNumber, plex_item.episodeNumber)
+        except Exception as e:
+            # plex_api fetchItem throws an exception if not found so just return an invalid id
+            return self.emby_api.get_invalid_item_id()
+        
     def sync_plex_watch_status(self, user, dateTimeStringForHistory):
         try:
             watchHistoryData = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, dateTimeStringForHistory)
             for historyItem in watchHistoryData:
                 if (historyItem['watched_status'] == 1):
                     if historyItem['media_type'] == 'episode':
-                        embyItemId = self.emby_api.get_episode_item_id(historyItem['grandparent_title'], historyItem['title'])
+                        embyItemId = self.get_emby_tv_show_episode_id(historyItem)
                     else:
                         embyItemId = self.emby_api.get_movie_item_id(historyItem['full_title'])
                     
                     # If the item id is valid and the user has not already watched the item
-                    if embyItemId != '0' and self.emby_api.get_watched_status(user.emby_user_name, embyItemId) == False:
+                    if embyItemId != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, embyItemId) == False:
                         self.set_emby_watched_item(user, embyItemId, historyItem['full_title'])
         except Exception as e:
             self.logger.error("{}: Get Plex History ERROR:{}".format(self.__module__, e))

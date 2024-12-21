@@ -6,7 +6,11 @@ class EmbyServer:
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
-
+        self.invalid_item_id = '0'
+    
+    def get_invalid_item_id(self):
+        return self.invalid_item_id
+    
     def get_api_url(self):
         return self.url + '/emby'
     
@@ -22,7 +26,7 @@ class EmbyServer:
         except Exception as e:
             self.logger.error("{}: Get Emby Users({}) ERROR:{}".format(self.__module__, userName, e))
 
-        return '0'
+        return self.invalid_item_id
     
     def search(self, searchString, mediaType):
         try:
@@ -38,7 +42,64 @@ class EmbyServer:
             return response['Items']
         except Exception as e:
             self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
+    
+    def search_all(self, searchString):
+        try:
+            payload = {
+            'api_key': self.api_key,
+            'Recursive': 'true',
+            'SearchTerm': searchString}
             
+            r = requests.get(self.get_api_url() + '/Items', params=payload)
+            return r.json()['Items']
+        except Exception as e:
+            self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
+            
+    def get_series_id(self, series_name):
+        # Remove any year from the series name ... example (2017)
+        cleaned_series_name = series_name
+        open_par_index = series_name.find(" (")
+        if open_par_index >= 0:
+            close_par_index = series_name.find(")")
+            if close_par_index > open_par_index:
+                cleaned_series_name = series_name[0:open_par_index] + series_name[close_par_index+1:len(series_name)]
+        cleaned_series_name = cleaned_series_name.lower()
+
+        try:
+            search_items = self.search(cleaned_series_name, 'Series')
+            for item in search_items:
+                lower_series_name = item['Name'].lower()
+                if (lower_series_name.find(cleaned_series_name) >= 0 or series_name.lower().find(lower_series_name) >= 0):
+                    return item['Id']
+        except Exception as e:
+            self.logger.error("{}: Get Emby Series Items({}) ERROR:{}".format(self.__module__, series_name, e))
+            
+        # return an invalid id if not found
+        return self.invalid_item_id
+    
+    def get_series_episodes(self, series_id, season_num):
+        try:
+            payload = {
+            'api_key': self.api_key,
+            'Recursive': 'true',
+            'Id': series_id,
+            'Season': season_num}
+            
+            r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes' , params=payload)
+            return r.json()['Items']
+        except Exception as e:
+            self.logger.error("{}: Get Emby Series Episodes {} ERROR:{}".format(self.__module__, series_id, e))
+    
+    def get_series_episode_id(self, series_name, season_num, episode_num):
+        series_id = self.get_series_id(series_name)
+        if series_id != self.invalid_item_id:
+            series_episodes = self.get_series_episodes(series_id, season_num)
+            for episode in series_episodes:
+                if episode['ParentIndexNumber'] == season_num and episode['IndexNumber'] == episode_num:
+                    return episode['Id']
+        
+        return self.invalid_item_id
+    
     def get_episode_item_id(self, seriesName, episodeName):
         # Remove any year from the series name ... example (2017)
         cleanedSeriesName = seriesName
@@ -53,13 +114,14 @@ class EmbyServer:
             searchItems = self.search(cleanedSeriesName + ' ' + episodeName, 'Episode')
             for item in searchItems:
                 lowerItemSeriesName = item['SeriesName'].lower()
-                if (lowerItemSeriesName == cleanedSeriesName or lowerItemSeriesName == seriesName.lower()) and (item['Name'].lower() == episodeName.lower()):
+                lowerItemEpisodeName = item['Name'].lower()
+                if (lowerItemSeriesName.find(cleanedSeriesName) >= 0 or seriesName.lower().find(lowerItemSeriesName) >= 0) and (lowerItemEpisodeName.find(episodeName.lower()) >= 0 or episodeName.lower().find(lowerItemEpisodeName) >= 0):
                     return item['Id']
         except Exception as e:
             self.logger.error("{}: Get Emby Episode Items({}) ERROR:{}".format(self.__module__, seriesName + ' ' + episodeName, e))
             
         # return an invalid id if not found
-        return '0'
+        return self.invalid_item_id
     
     def get_movie_item_id(self, name):
         try:
@@ -71,7 +133,7 @@ class EmbyServer:
             self.logger.error("{}: Get Emby Movie Items({}) ERROR:{}".format(self.__module__, name, e))
 
         # return an invalid id if not found
-        return '0'
+        return self.invalid_item_id
     
     def get_watched_status(self, userName, itemId):
         payload = {
