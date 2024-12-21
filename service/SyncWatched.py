@@ -50,11 +50,10 @@ class SyncWatched:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
     
     def get_emby_tv_show_episode_id(self, plex_history_item):
-        try:
-            plex_item = self.plex_api.fetchItem(plex_history_item['rating_key'])
+        plex_item = self.plex_api.fetchItem(plex_history_item['rating_key'])
+        if plex_item is not self.plex_api.get_invalid_type():
             return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, plex_item.seasonNumber, plex_item.episodeNumber)
-        except Exception as e:
-            # plex_api fetchItem throws an exception if not found so just return an invalid id
+        else:
             return self.emby_api.get_invalid_item_id()
         
     def sync_plex_watch_status(self, user, dateTimeStringForHistory):
@@ -81,12 +80,13 @@ class SyncWatched:
             for item in results:
                 if item.title.lower().find(cleaned_show_name) >= 0:
                     # Search for the show
-                    show = self.plex_api.library.section(item.librarySectionTitle).get(item.title)
-                    episode = show.episode(season=season_num, episode=episode_num)
-                    if episode and episode.isWatched == False:
-                        episode.markWatched()
-                        self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
-                    break
+                    show = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
+                    if show is not self.plex_api.get_invalid_type():
+                        episode = show.episode(season=season_num, episode=episode_num)
+                        if episode and episode.isWatched == False:
+                            episode.markWatched()
+                            self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
+                        break
         except Exception as e:
             self.logger.error("Error with plex movie watched: {}".format(e))
 
@@ -96,11 +96,12 @@ class SyncWatched:
             result_items = self.plex_api.search(lower_title, 'movie')
             for item in result_items:
                 if item.title.lower() == lower_title:
-                    media_Item = self.plex_api.library.section(item.librarySectionTitle).get(item.title)
-                    if media_Item and media_Item.isWatched == False:
-                        media_Item.markWatched()
-                        self.logger.info('{}: {} watched {} on Emby Sync Plex Watch Status'.format(self.__module__, user.emby_user_name, title))
-                    break
+                    media_Item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
+                    if media_Item is not self.plex_api.get_invalid_type():
+                        if media_Item and media_Item.isWatched == False:
+                            media_Item.markWatched()
+                            self.logger.info('{}: {} watched {} on Emby Sync Plex Watch Status'.format(self.__module__, user.emby_user_name, title))
+                        break
         except Exception as e:
             self.logger.error("{}: Error with plex movie watched: {}".format(self.__module__, e))
         
@@ -108,10 +109,8 @@ class SyncWatched:
         try:
             history_items = self.jellystat_api.get_user_watch_history(user.emby_user_id)
             if len(history_items) > 0:
-                current_user = self.plex_api.myPlexAccount()
-                if current_user.username != user.plex_user_name:
-                    self.plex_api.switchUser(user.plex_user_name)
-
+                self.plex_api.switch_plex_account(user.plex_user_name)
+                
                 # Search through the list and find items to sync
                 for item in history_items:
                     if self.get_hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted'])) < 24:

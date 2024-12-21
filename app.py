@@ -11,10 +11,10 @@ import time
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from plexapi.server import PlexServer
-from api.tautulli import TautulliServer
-from api.emby import EmbyServer
-from api.jellystat import JellystatServer
+from api.plex import PlexAPI
+from api.tautulli import TautulliAPI
+from api.emby import EmbyAPI
+from api.jellystat import JellystatAPI
 from common.gotify_handler import GotifyHandler
 from service.SyncWatched import SyncWatched
 from service.DeleteWatched import DeleteWatched
@@ -100,10 +100,10 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
             logger.addHandler(gotify_handler)
         
         # Create all the api servers
-        plex_api = PlexServer(data['plex_url'], data['plex_api_key'])
-        tautulli_api = TautulliServer(data['tautulli_url'], data['tautulli_api_key'], logger)
-        emby_api = EmbyServer(data['emby_url'], data['emby_api_key'], logger)
-        jellystat_api = JellystatServer(data['jellystat_url'], data['jellystat_api_key'], logger)
+        plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], logger)
+        tautulli_api = TautulliAPI(data['tautulli_url'], data['tautulli_api_key'], logger)
+        emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], logger)
+        jellystat_api = JellystatAPI(data['jellystat_url'], data['jellystat_api_key'], logger)
         
         logger.info('Starting Run *************************************')
         

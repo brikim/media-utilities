@@ -25,7 +25,6 @@ class DvrMaintainer:
         self.scheduler = scheduler
         self.cron_hours = ''
         self.cron_minutes = ''
-        self.plex_admin_user_name = ''
         self.show_configurations = []
         self.run_test = False
         
@@ -36,8 +35,6 @@ class DvrMaintainer:
                 self.cron_hours = cronParams[1]
             else:
                 self.logger.error('{}: Invalid Cron Expression {}'.format(self.__module__, config['cron_run_rate']))
-        
-            self.plex_admin_user_name = config['plex_admin_user_name']
             
             for show in config['show_details']:
                 action = ''
@@ -130,13 +127,9 @@ class DvrMaintainer:
         return deletedShowPlexLibraries
     
     def notify_plex_refresh(self, deletedShowLibs):
-        current_user = self.plex_api.myPlexAccount()
-        if current_user.username != self.plex_admin_user_name:
-            self.plex_api.switchUser(self.plex_admin_user_name)
-        
+        self.plex_api.switch_plex_account_admin()
         for lib in deletedShowLibs:
-            library = self.plex_api.library.section(lib.lib)
-            library.refresh()
+            self.plex_api.set_library_refresh(lib.lib)
 
     def do_maintenance(self):
         physicalPathsToCheckForDelete = []

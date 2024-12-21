@@ -1,7 +1,7 @@
 import requests
 import json
 from common.utils import remove_year_from_name
-class EmbyServer:
+class EmbyAPI:
     def __init__(self, url, api_key, logger):
         self.url = url.rstrip('/')
         self.api_key = api_key

@@ -139,9 +139,9 @@ class DeleteWatched:
                 delete_empty_folders(checkEmptyFolderPaths, self.logger, self.__module__)
 
                 # Notify Plex to refresh
+                self.plex_api.switch_plex_account_admin()
                 for lib in self.libraries:
-                    library = self.plex_api.library.section(lib.plex_library_name)
-                    library.refresh()
+                    self.plex_api.set_library_refresh(lib.plex_library_name)
                 
                 # Notify Emby to refresh
                 self.emby_api.set_library_refresh()

@@ -1,7 +1,7 @@
 import requests
 import json
 
-class JellystatServer:
+class JellystatAPI:
     def __init__(self, url, api_key, logger):
         self.url = url.rstrip('/')
         self.api_key = api_key
