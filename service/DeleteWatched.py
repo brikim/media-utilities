@@ -28,7 +28,6 @@ class DeleteWatched:
         self.cronHours = ''
         self.cronMinutes = ''
         self.delete_time_hours = 24
-        self.log_pending_delete_time_hours = 0
         
         try:
             cronParams = config['cron_run_rate'].split()
@@ -59,7 +58,6 @@ class DeleteWatched:
                                                     library['utilitiesPath']))
 
             self.delete_time_hours = config['delete_time_hours']
-            self.log_pending_delete_time_hours = self.delete_time_hours * 0.7
             
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
@@ -82,9 +80,6 @@ class DeleteWatched:
                             hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                             if hoursSincePlay >= self.delete_time_hours:
                                 returnFileNames.append(fileName.replace(lib.plex_media_path, lib.utilities_path))
-                            else:
-                                if hoursSincePlay >= self.log_pending_delete_time_hours:
-                                    self.logger.info("{}: Pending Delete. Plex watched {:.1f} hours ago will delete at {} hours. {}".format(self.__module__, hoursSincePlay, self.delete_time_hours, fileName))
 
             return returnFileNames
 
@@ -98,16 +93,20 @@ class DeleteWatched:
             for item in watchedItems:
                 for user in self.user_list:
                     if item['UserName'] == user.emby_user_name:
-                        if self.emby_api.get_watched_status(user.emby_user_name, item['NowPlayingItemId']) == True:
-                            hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
-                            if hoursSincePlay >= self.delete_time_hours:
-                                itemDetails = self.jellystat_api.get_item_details(item['NowPlayingItemId'])
-                                for item in itemDetails:
-                                    fileName = item['Path']
-                                    returnFileNames.append(fileName.replace(lib.emby_media_path, lib.utilities_path))
-                            else:
-                                if hoursSincePlay >= self.log_pending_delete_time_hours:
-                                    self.logger.info("{}: Pending Delete. Emby watched {:.1f} hours ago will delete at {} hours. {}".format(self.__module__, hoursSincePlay, self.delete_time_hours, fileName))
+                        item_id = '0'
+                        if 'EpisodeId' in item and item['EpisodeId'] is not None:
+                            item_id = item['EpisodeId']
+                        else:
+                            item_id = item['NowPlayingItemId']
+                        self.emby_api.get_watched_status(user.emby_user_name, item_id) == True
+                        
+                        hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
+                        if hoursSincePlay >= self.delete_time_hours:
+                            emby_item = self.emby_api.search_item(item_id)
+                            fileName = emby_item['Path']
+                            returnFileNames.append(fileName.replace(lib.emby_media_path, lib.utilities_path))
+                        break
+        
         except Exception as e:
             self.logger.error("{}: Find Emby Watched Media ERROR: {}.".format(self.__module__, e))
             

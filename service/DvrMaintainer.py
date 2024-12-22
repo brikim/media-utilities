@@ -75,11 +75,11 @@ class DvrMaintainer:
         showsDeleted = False
         fileInfo = self.get_files_in_path(path)
         if len(fileInfo) > keepLast:
-            showsToDelete = len(fileInfo) - keepLast
             self.logger.info("{}: KEEP_LAST_{} - Show {} has {} episodes".format(self.__module__, keepLast, path, len(fileInfo)))
             try:
                 sortedFileInfo = sorted(fileInfo, key=lambda item: item.ageDays, reverse=True)
 
+                showsToDelete = len(fileInfo) - keepLast
                 deletedShows = 0
                 for file in sortedFileInfo:
                     self.logger.info("{}: KEEP_LAST_{} - Deleting Show-{}".format(self.__module__, keepLast, file.path))
