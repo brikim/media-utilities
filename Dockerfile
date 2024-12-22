@@ -7,7 +7,7 @@
 # Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
 ARG PYTHON_VERSION=3.13.1
-FROM python:${PYTHON_VERSION}-slim AS base
+FROM python:${PYTHON_VERSION}-alpine AS base
 LABEL maintainer="Brian <bkimmle@gmail.com>"
 
 # Prevents Python from writing pyc files.
@@ -27,6 +27,7 @@ ENV CONFIG_PATH='/config/config.conf'
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install -r requirements.txt && \
+    apk upgrade --no-cache && \
     ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && \
     mkdir /config && \
     mkdir /logs && \

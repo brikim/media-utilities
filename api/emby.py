@@ -8,6 +8,12 @@ class EmbyAPI:
         self.logger = logger
         self.invalid_item_id = '0'
     
+    def get_media_type_episode_name(self):
+        return 'Episode'
+    
+    def get_media_type_movie_name(self):
+        return 'Movie'
+    
     def get_invalid_item_id(self):
         return self.invalid_item_id
     
@@ -34,7 +40,8 @@ class EmbyAPI:
             'api_key': self.api_key,
             'Recursive': 'true',
             'SearchTerm': searchString,
-            'IncludeItemTypes': mediaType}
+            'IncludeItemTypes': mediaType,
+            'Fields': 'Path'}
             
             r = requests.get(self.get_api_url() + '/Items', params=payload)
             response = r.json()
@@ -43,19 +50,40 @@ class EmbyAPI:
         except Exception as e:
             self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
     
+    def search_item(self, id):
+        try:
+            payload = {
+            'api_key': self.api_key,
+            'Ids': id,
+            'Fields': 'Path'}
+            
+            r = requests.get(self.get_api_url() + '/Items', params=payload)
+            response = r.json()['Items']
+            response_length = len(response)
+            if response_length > 0:
+                if (response_length > 1):
+                    self.logger.warning('{}: item id {} search returned multiple items'.format(self.__module__, id))
+                return response[0]
+            else:
+                self.logger.warning('{}: item id {} returned no results'.format(self.__module__, id))
+                return None
+        except Exception as e:
+            self.logger.error("{}: Get Emby Item {} ERROR:{}".format(self.__module__, id, e))
+            
     def search_all(self, searchString):
         try:
             payload = {
             'api_key': self.api_key,
             'Recursive': 'true',
-            'SearchTerm': searchString}
+            'SearchTerm': searchString,
+            'Fields': 'Path'}
             
             r = requests.get(self.get_api_url() + '/Items', params=payload)
             return r.json()['Items']
         except Exception as e:
             self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
             
-    def get_series_id(self, series_name):
+    def get_series_id(self, series_name, series_path):
         # Remove any year from the series name ... example (2017)
         cleaned_series_name = remove_year_from_name(series_name)
         cleaned_series_name = cleaned_series_name.lower()
@@ -63,8 +91,7 @@ class EmbyAPI:
         try:
             search_items = self.search(cleaned_series_name, 'Series')
             for item in search_items:
-                lower_series_name = item['Name'].lower()
-                if (lower_series_name.find(cleaned_series_name) >= 0 or series_name.lower().find(lower_series_name) >= 0):
+                if series_path == item['Path']:
                     return item['Id']
         except Exception as e:
             self.logger.error("{}: Get Emby Series Items({}) ERROR:{}".format(self.__module__, series_name, e))
@@ -78,28 +105,29 @@ class EmbyAPI:
             'api_key': self.api_key,
             'Recursive': 'true',
             'Id': series_id,
-            'Season': season_num}
+            'Season': season_num,
+            'Fields': 'Path'}
             
             r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes' , params=payload)
             return r.json()['Items']
         except Exception as e:
             self.logger.error("{}: Get Emby Series Episodes {} ERROR:{}".format(self.__module__, series_id, e))
     
-    def get_series_episode_id(self, series_name, season_num, episode_num):
-        series_id = self.get_series_id(series_name)
+    def get_series_episode_id(self, series_name, series_path, season_num, episode_path):
+        series_id = self.get_series_id(series_name, series_path)
         if series_id != self.invalid_item_id:
             series_episodes = self.get_series_episodes(series_id, season_num)
             for episode in series_episodes:
-                if episode['ParentIndexNumber'] == season_num and episode['IndexNumber'] == episode_num:
+                if episode['Path'] == episode_path:
                     return episode['Id']
         
         return self.invalid_item_id
     
-    def get_movie_item_id(self, name):
+    def get_movie_item_id(self, name, path):
         try:
             searchItems = self.search(name, 'Movie')
             for item in searchItems:
-                if item['Name'].lower() == name.lower():
+                if path == item['Path']:
                     return item['Id']
         except Exception as e:
             self.logger.error("{}: Get Emby Movie Items({}) ERROR:{}".format(self.__module__, name, e))
