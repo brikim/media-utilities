@@ -41,6 +41,7 @@ COPY service/ /app/service
 
 VOLUME ["/config"]
 VOLUME ["/logs"]
+VOLUME ["/media"]
 
 # Run the application.
 CMD [ "python", "/app/app.py"]

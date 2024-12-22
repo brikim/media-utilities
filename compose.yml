@@ -10,4 +10,5 @@ services:
     volumes:
       - /docker/media-utilities/config:/config
       - /docker/media-utilities/logs:/logs
+      - /pathToMedia:/media
     restart: unless-stopped
