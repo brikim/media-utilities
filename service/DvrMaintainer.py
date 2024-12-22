@@ -126,10 +126,10 @@ class DvrMaintainer:
 
         return deletedShowPlexLibraries
     
-    def notify_plex_refresh(self, deletedShowLibs):
+    def notify_plex_refresh(self, library_list):
         self.plex_api.switch_plex_account_admin()
-        for lib in deletedShowLibs:
-            self.plex_api.set_library_refresh(lib.lib)
+        for library in library_list:
+            self.plex_api.set_library_refresh(library)
 
     def do_maintenance(self):
         physicalPathsToCheckForDelete = []
