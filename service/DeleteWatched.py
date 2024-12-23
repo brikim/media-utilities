@@ -15,6 +15,12 @@ class LibraryInfo:
     emby_media_path: str
     utilities_path: str
 
+@dataclass
+class DeleteFileInfo:
+    file_path: str
+    user_name: str
+    player_name: str
+
 class DeleteWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
         self.plex_api = plex_api
@@ -68,8 +74,8 @@ class DeleteWatched:
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
     def find_plex_watched_media(self, lib):
+        returnFileNames = []
         try:
-            returnFileNames = []
             dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
             for user in self.user_list:
                 watchedItems = self.tautulli_api.get_watch_history_for_user_and_library(user.plex_user_id, lib.plex_library_id, dateTimeStringForHistory)
@@ -79,12 +85,12 @@ class DeleteWatched:
                         if len(fileName) > 0:
                             hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                             if hoursSincePlay >= self.delete_time_hours:
-                                returnFileNames.append(fileName.replace(lib.plex_media_path, lib.utilities_path))
-
-            return returnFileNames
+                                returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex'))
 
         except Exception as e:
             self.logger.error("{}: Find Plex Watched Media ERROR: {}.".format(self.__module__, e))
+            
+        return returnFileNames
             
     def find_emby_watched_media(self, lib):
         returnFileNames = []
@@ -98,13 +104,13 @@ class DeleteWatched:
                             item_id = item['EpisodeId']
                         else:
                             item_id = item['NowPlayingItemId']
-                        self.emby_api.get_watched_status(user.emby_user_name, item_id) == True
-                        
-                        hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
-                        if hoursSincePlay >= self.delete_time_hours:
-                            emby_item = self.emby_api.search_item(item_id)
-                            fileName = emby_item['Path']
-                            returnFileNames.append(fileName.replace(lib.emby_media_path, lib.utilities_path))
+                            
+                        if self.emby_api.get_watched_status(user.emby_user_name, item_id) == True:
+                            hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
+                            if hoursSincePlay >= self.delete_time_hours:
+                                emby_item = self.emby_api.search_item(item_id)
+                                if emby_item is not None:
+                                    returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, 'Emby')
                         break
         
         except Exception as e:
@@ -125,11 +131,11 @@ class DeleteWatched:
         for media_container in media_to_delete:
             for media in media_container:
                 try:
-                    os.remove(media)
-                    self.logger.info("{}: DELETED File: {}".format(self.__module__, media))
+                    os.remove(media.file_path)
+                    self.logger.info("{}: {} watched on {} DELETED File: {}".format(self.__module__, media.user_name, media.player_name, media.file_path))
                     number_of_deleted_media += 1
                 except Exception as e:
-                    self.logger.error("{}: Failed to delete file {} Error: {}".format(self.__module__, media, e))
+                    self.logger.error("{}: Failed to delete file {} Error: {}".format(self.__module__, media.file_path, e))
                 
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:

@@ -126,14 +126,18 @@ class SyncWatched:
                 for item in history_items:
                     if self.get_hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted'])) < 24:
                         if item['SeriesName'] is not None:
-                            emby_series_item = self.emby_api.search_item(item['NowPlayingItemId'])
-                            emby_episode_item = self.emby_api.search_item(item['EpisodeId'])
-                            if emby_series_item is not None and emby_episode_item is not None:
-                                self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
+                            # Check that the episode has been marked as watched by emby
+                            if self.emby_api.get_watched_status(user.emby_user_name, item['EpisodeId']) == True:
+                                emby_series_item = self.emby_api.search_item(item['NowPlayingItemId'])
+                                emby_episode_item = self.emby_api.search_item(item['EpisodeId'])
+                                if emby_series_item is not None and emby_episode_item is not None:
+                                    self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
                         else:
-                            emby_item = self.emby_api.search_item(item['NowPlayingItemId'])
-                            if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
-                                self.set_plex_movie_watched(emby_item, user)
+                            # Check that the item has been marked as watched by emby
+                            if self.emby_api.get_watched_status(user.emby_user_name, item['NowPlayingItemId']) == True:
+                                emby_item = self.emby_api.search_item(item['NowPlayingItemId'])
+                                if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
+                                    self.set_plex_movie_watched(emby_item, user)
                             
         except Exception as e:
             self.logger.error("{}: Error in emby watch status: {}".format(self.__module__, e))
