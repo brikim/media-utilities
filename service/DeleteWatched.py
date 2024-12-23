@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
@@ -140,6 +141,9 @@ class DeleteWatched:
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:
             try:
+                # Sleep and allow os path to clean up from delete
+                time.sleep(2)
+                
                 # Clean up empty folders in paths
                 checkEmptyFolderPaths = []
                 for lib in self.libraries:

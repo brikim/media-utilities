@@ -3,12 +3,22 @@ import json
 from plexapi.server import PlexServer
 
 class PlexAPI:
-    def __init__(self, url, api_key, admin_user_name, logger):
+    def __init__(self, url, api_key, admin_user_name, media_path, logger):
         self.plex_server = PlexServer(url.rstrip('/'), api_key)
         self.admin_user_name = admin_user_name
+        self.media_path = media_path
         self.logger = logger
         self.item_invalid_type = None
         
+    def get_media_type_show_name(self):
+        return 'show'
+    
+    def get_media_type_movie_name(self):
+        return 'movie'
+    
+    def get_media_path(self):
+        return self.media_path
+    
     def get_invalid_type(self):
         return self.item_invalid_type
     

@@ -2,9 +2,10 @@ import requests
 import json
 from common.utils import remove_year_from_name
 class EmbyAPI:
-    def __init__(self, url, api_key, logger):
+    def __init__(self, url, api_key, media_path, logger):
         self.url = url.rstrip('/')
         self.api_key = api_key
+        self.media_path = media_path
         self.logger = logger
         self.invalid_item_id = '0'
     
@@ -13,6 +14,9 @@ class EmbyAPI:
     
     def get_media_type_movie_name(self):
         return 'Movie'
+    
+    def get_media_path(self):
+        return self.media_path
     
     def get_invalid_item_id(self):
         return self.invalid_item_id

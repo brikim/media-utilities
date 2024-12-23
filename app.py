@@ -100,9 +100,9 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
             logger.addHandler(gotify_handler)
         
         # Create all the api servers
-        plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], logger)
+        plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], data['plex_media_path'], logger)
         tautulli_api = TautulliAPI(data['tautulli_url'], data['tautulli_api_key'], logger)
-        emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], logger)
+        emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], data['emby_media_path'], logger)
         jellystat_api = JellystatAPI(data['jellystat_url'], data['jellystat_api_key'], logger)
         
         logger.info('Starting Run *************************************')

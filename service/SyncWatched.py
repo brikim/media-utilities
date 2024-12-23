@@ -49,52 +49,65 @@ class SyncWatched:
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
     
-    def get_emby_tv_show_episode_id(self, plex_history_item):
-        plex_item = self.plex_api.fetchItem(plex_history_item['rating_key'])
+    def get_emby_path(self, plex_path):
+        return plex_path.replace(self.plex_api.get_media_path(), self.emby_api.get_media_path(), 1)
+        
+    def get_plex_path(self, emby_path):
+        return emby_path.replace(self.emby_api.get_media_path(), self.plex_api.get_media_path(), 1)
+        
+    def get_emby_tv_show_episode_id(self, tautulli_item):
+        plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
-            series_item = self.plex_api.fetchItem(plex_history_item['grandparent_rating_key'])
+            series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
             if series_item is not None:
-                return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, plex_item.locations[0])
+                emby_file_location = self.get_emby_path(plex_item.locations[0])
+                return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, emby_file_location)
             else:
                 return self.emby_api.get_invalid_item_id()
         else:
             return self.emby_api.get_invalid_item_id()
     
-    def get_emby_movie_id(self, plex_history_item):
-        plex_item = self.plex_api.fetchItem(plex_history_item['rating_key'])
+    def get_emby_movie_id(self, tautulli_item):
+        plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
-            return self.emby_api.get_movie_item_id(plex_item.title, plex_item.locations[0])
+            emby_file_location = self.get_emby_path(plex_item.locations[0])
+            return self.emby_api.get_movie_item_id(plex_item.title, emby_file_location)
         else:
             return self.emby_api.get_invalid_item_id()
+    
+    def sync_emby_with_plex_watch_status(self, tautulli_item, user):
+        emby_item_id = self.emby_api.get_invalid_item_id()
+        if tautulli_item['media_type'] == self.tautulli_api.get_media_type_episode_name():
+            emby_item_id = self.get_emby_tv_show_episode_id(tautulli_item)
+        elif tautulli_item['media_type'] == self.tautulli_api.get_media_type_movie_name():
+            emby_item_id = self.get_emby_movie_id(tautulli_item)
+        
+        # If the item id is valid and the user has not already watched the item
+        if emby_item_id != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, emby_item_id) == False:
+            self.set_emby_watched_item(user, emby_item_id, tautulli_item['full_title'])
         
     def sync_plex_watch_status(self, user, dateTimeStringForHistory):
         try:
             watchHistoryData = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, dateTimeStringForHistory)
             for historyItem in watchHistoryData:
                 if (historyItem['watched_status'] == 1):
-                    emby_item_id = self.emby_api.get_invalid_item_id()
-                    if historyItem['media_type'] == self.tautulli_api.get_media_type_episode_name():
-                        emby_item_id = self.get_emby_tv_show_episode_id(historyItem)
-                    elif historyItem['media_type'] == self.tautulli_api.get_media_type_movie_name():
-                        emby_item_id = self.get_emby_movie_id(historyItem)
-                    
-                    # If the item id is valid and the user has not already watched the item
-                    if emby_item_id != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, emby_item_id) == False:
-                        self.set_emby_watched_item(user, emby_item_id, historyItem['full_title'])
+                    self.sync_emby_with_plex_watch_status(historyItem, user)
         except Exception as e:
             self.logger.error("{}: Get Plex History ERROR:{}".format(self.__module__, e))
     
     def set_plex_show_watched(self, emby_series_path, emby_episode_item, user):
         try:
             cleaned_show_name = remove_year_from_name(emby_episode_item['SeriesName']).lower()
-            results = self.plex_api.search(cleaned_show_name, 'show')
+            results = self.plex_api.search(cleaned_show_name, self.plex_api.get_media_type_show_name())
             for item in results:
-                if item.locations[0] == emby_series_path:
+                plex_show_path = self.get_plex_path(emby_series_path)
+                if plex_show_path == item.locations[0]:
                     # Search for the show
                     show = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
                     if show is not self.plex_api.get_invalid_type():
                         episode = show.episode(season=emby_episode_item['ParentIndexNumber'], episode=emby_episode_item['IndexNumber'])
-                        if episode is not None and episode.isWatched == False and episode.locations[0] == emby_episode_item['Path']:
+                        plex_episode_location = self.get_plex_path(emby_episode_item['Path'])
+                        if episode is not None and episode.isWatched == False and episode.locations[0] == plex_episode_location:
                             episode.markWatched()
                             self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
                         break
@@ -104,9 +117,10 @@ class SyncWatched:
     def set_plex_movie_watched(self, emby_item, user):
         try:
             lower_title = emby_item['Name'].lower()
-            result_items = self.plex_api.search(lower_title, 'movie')
+            result_items = self.plex_api.search(lower_title, self.plex_api.get_media_type_movie_name())
             for item in result_items:
-                if item.locations[0] == emby_item['Path']:
+                plex_movie_location = self.get_plex_path(emby_item['Path'])
+                if plex_movie_location == item.locations[0]:
                     if item.isWatched == False:
                         media_Item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
                         if media_Item is not self.plex_api.get_invalid_type():
@@ -115,6 +129,22 @@ class SyncWatched:
                     break
         except Exception as e:
             self.logger.error("{}: Error with plex movie watched: {}".format(self.__module__, e))
+    
+    def sync_plex_with_emby_watch_status(self, jellystat_item, user):
+        if self.get_hours_since_play(True, datetime.fromisoformat(jellystat_item['ActivityDateInserted'])) < 24:
+            if jellystat_item['SeriesName'] is not None:
+                # Check that the episode has been marked as watched by emby
+                if self.emby_api.get_watched_status(user.emby_user_name, jellystat_item['EpisodeId']) == True:
+                    emby_series_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
+                    emby_episode_item = self.emby_api.search_item(jellystat_item['EpisodeId'])
+                    if emby_series_item is not None and emby_episode_item is not None:
+                        self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
+            else:
+                # Check that the item has been marked as watched by emby
+                if self.emby_api.get_watched_status(user.emby_user_name, jellystat_item['NowPlayingItemId']) == True:
+                    emby_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
+                    if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
+                        self.set_plex_movie_watched(emby_item, user)
         
     def sync_emby_watch_status(self, user):
         try:
@@ -124,21 +154,8 @@ class SyncWatched:
                 
                 # Search through the list and find items to sync
                 for item in history_items:
-                    if self.get_hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted'])) < 24:
-                        if item['SeriesName'] is not None:
-                            # Check that the episode has been marked as watched by emby
-                            if self.emby_api.get_watched_status(user.emby_user_name, item['EpisodeId']) == True:
-                                emby_series_item = self.emby_api.search_item(item['NowPlayingItemId'])
-                                emby_episode_item = self.emby_api.search_item(item['EpisodeId'])
-                                if emby_series_item is not None and emby_episode_item is not None:
-                                    self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
-                        else:
-                            # Check that the item has been marked as watched by emby
-                            if self.emby_api.get_watched_status(user.emby_user_name, item['NowPlayingItemId']) == True:
-                                emby_item = self.emby_api.search_item(item['NowPlayingItemId'])
-                                if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
-                                    self.set_plex_movie_watched(emby_item, user)
-                            
+                    self.sync_plex_with_emby_watch_status(item, user)
+                
         except Exception as e:
             self.logger.error("{}: Error in emby watch status: {}".format(self.__module__, e))
     
