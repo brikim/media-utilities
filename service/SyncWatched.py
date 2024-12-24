@@ -1,8 +1,8 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from common.types import UserInfo
-from common.utils import get_datetime_for_history_plex_string, remove_year_from_name
+from common.types import CronInfo, UserInfo
+from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, remove_year_from_name
 
 class SyncWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
@@ -12,17 +12,11 @@ class SyncWatched:
         self.jellystat_api = jellystat_api
         self.logger = logger
         self.scheduler = scheduler
+        self.cron = None
         self.user_list = []
-        self.cronHours = ''
-        self.cronMinutes = ''
         
         try:
-            cronParams = config['cron_run_rate'].split()
-            if len(cronParams) >= 2 and len(cronParams) <= 5:
-                self.cronMinutes = cronParams[0]
-                self.cronHours = cronParams[1]
-            else:
-                self.logger.error('{}: Invalid Cron Expression {}'.format(self.__module__, config['cron_run_rate']))
+            self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
             for user in config['users']:
                 if ('plexName' in user and 'embyName' in user):
@@ -168,7 +162,11 @@ class SyncWatched:
             self.sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
-        self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cronHours, self.cronMinutes))
         self.logger.info('{}: Running start up sync'.format(self.__module__))
         self.sync_watch_status()
-        self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cronHours, minute=self.cronMinutes)
+        
+        if self.cron is not None:
+            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
+            self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+        else:
+            self.logger.warning('{} Enabled but will not Run. Cron is not valid!'.format(self.__module__))

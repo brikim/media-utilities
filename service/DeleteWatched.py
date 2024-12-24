@@ -3,8 +3,8 @@ import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from common.types import UserInfo
-from common.utils import delete_empty_folders, get_datetime_for_history_plex_string
+from common.types import CronInfo, UserInfo
+from common.utils import get_cron_from_string, get_datetime_for_history_plex_string
 
 @dataclass
 class LibraryInfo:
@@ -30,19 +30,13 @@ class DeleteWatched:
         self.jellystat_api = jellystat_api
         self.logger = logger
         self.scheduler = scheduler
+        self.cron = None
         self.user_list = []
         self.libraries = []
-        self.cronHours = ''
-        self.cronMinutes = ''
         self.delete_time_hours = 24
         
         try:
-            cronParams = config['cron_run_rate'].split()
-            if len(cronParams) >= 2 and len(cronParams) <= 5:
-                self.cronMinutes = cronParams[0]
-                self.cronHours = cronParams[1]
-            else:
-                self.logger.error('{}: Invalid Cron Expression {}'.format(self.__module__, config['cron_run_rate']))
+            self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
             for user in config['users']:
                 if ('plexName' in user and 'embyName' in user):
@@ -141,15 +135,6 @@ class DeleteWatched:
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:
             try:
-                # Sleep and allow os path to clean up from delete
-                time.sleep(2)
-                
-                # Clean up empty folders in paths
-                checkEmptyFolderPaths = []
-                for lib in self.libraries:
-                    checkEmptyFolderPaths.append(lib.utilities_path)
-                delete_empty_folders(checkEmptyFolderPaths, self.logger, self.__module__)
-
                 # Notify Plex to refresh
                 self.plex_api.switch_plex_account_admin()
                 for lib in self.libraries:
@@ -163,5 +148,8 @@ class DeleteWatched:
                 self.logger.error("{}: Clean up failed ERROR: {}.".format(self.__module__, e))
         
     def init_scheduler_jobs(self):
-        self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cronHours, self.cronMinutes))
-        self.scheduler.add_job(self.check_delete_media, trigger='cron', hour=self.cronHours, minute=self.cronMinutes)
+        if self.cron is not None:
+            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
+            self.scheduler.add_job(self.check_delete_media, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+        else:
+            self.logger.warning('{} Enabled but will not Run. Cron is not valid!'.format(self.__module__))

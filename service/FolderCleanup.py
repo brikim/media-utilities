@@ -117,7 +117,6 @@ class FolderCleanup:
                 self.logger.info('{}: Notifying Media Servers to Refresh'.format(self.__module__))
     
     def init_scheduler_jobs(self):
-        self.check_delete_empty_folders()
         if self.cron is not None:
             self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
             self.scheduler.add_job(self.check_delete_empty_folders, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)

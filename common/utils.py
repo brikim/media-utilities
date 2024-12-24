@@ -19,18 +19,6 @@ def remove_year_from_name(name):
             return name[0:open_par_index] + name[close_par_index+1:len(name)]
     return name
 
-def delete_empty_folders(paths_to_check, logger, module_name):
-    # Delete empty folders in physical path if any exist
-    for path in paths_to_check:
-        folder_removed = True
-        while folder_removed == True:
-            folder_removed = False
-            for dirpath, dirnames, filenames in os.walk(path, topdown=False):
-                if not dirnames and not filenames:
-                    shutil.rmtree(dirpath, ignore_errors=True)
-                    logger.info("{}: Deleting Empty Folder: {}".format(module_name, dirpath))
-                    folder_removed = True
-                    
 def get_cron_from_string(cron_string, logger, module_name):
     cron_params = cron_string.split()
     if len(cron_params) >= 2 and len(cron_params) <= 5:
