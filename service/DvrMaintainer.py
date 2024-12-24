@@ -4,6 +4,7 @@ import glob
 from datetime import datetime
 from dataclasses import dataclass
 from common.utils import delete_empty_folders
+
 @dataclass
 class ShowConfig:
     name: str

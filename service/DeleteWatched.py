@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from common.user_stats import UserInfo
+from common.types import UserInfo
 from common.utils import delete_empty_folders, get_datetime_for_history_plex_string
 
 @dataclass

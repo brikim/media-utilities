@@ -1,8 +1,9 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from common.user_stats import UserInfo
+from common.types import UserInfo
 from common.utils import get_datetime_for_history_plex_string, remove_year_from_name
+
 class SyncWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
         self.plex_api = plex_api

@@ -2,6 +2,7 @@
 import os
 import shutil
 from datetime import datetime, timedelta
+from common.types import CronInfo
 
 def get_datetime_for_history(deltaDays):
         return datetime.now() - timedelta(deltaDays)
@@ -29,3 +30,11 @@ def delete_empty_folders(paths_to_check, logger, module_name):
                     shutil.rmtree(dirpath, ignore_errors=True)
                     logger.info("{}: Deleting Empty Folder: {}".format(module_name, dirpath))
                     folder_removed = True
+                    
+def get_cron_from_string(cron_string, logger, module_name):
+    cron_params = cron_string.split()
+    if len(cron_params) >= 2 and len(cron_params) <= 5:
+        return CronInfo(cron_params[1], cron_params[0])
+    else:
+        logger.error('{}: Invalid Cron Expression {}'.format(module_name, cron_string))
+    return None

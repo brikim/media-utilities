@@ -16,9 +16,10 @@ from api.tautulli import TautulliAPI
 from api.emby import EmbyAPI
 from api.jellystat import JellystatAPI
 from common.gotify_handler import GotifyHandler
-from service.SyncWatched import SyncWatched
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
+from service.FolderCleanup import FolderCleanup
+from service.SyncWatched import SyncWatched
 
 # Global Variables #######
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ jellystat_api = None
 sync_watched_service = None
 delete_watched_service = None
 dvr_maintainer_service = None
+folder_cleanup_service = None
 ##########################
 
 def handle_sigterm(signum, frame):
@@ -116,6 +118,8 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
             delete_watched_service = DeleteWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['delete_watched'], logger, scheduler)
         if data['dvr_maintainer']['enabled'] == 'True':
             dvr_maintainer_service = DvrMaintainer(plex_api, emby_api, data['dvr_maintainer'], logger, scheduler)
+        if data['folder_cleanup']['enabled'] == 'True':
+            folder_cleanup_service = FolderCleanup(plex_api, emby_api, data['folder_cleanup'], logger, scheduler)
         
         # ########################################################
         
@@ -126,6 +130,8 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
             delete_watched_service.init_scheduler_jobs()
         if dvr_maintainer_service is not None:
             dvr_maintainer_service.init_scheduler_jobs()
+        if folder_cleanup_service is not None:
+            folder_cleanup_service.init_scheduler_jobs()
         # ########################################################
         
         # Add a job to do nothing to keep the script alive
