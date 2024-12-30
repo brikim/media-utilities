@@ -43,7 +43,7 @@ class DvrMaintainer:
                     actionValue = int(show['action'].replace('KEEP_LENGTH_DAYS_', ''))
                 
                 if action != '':
-                    self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show['plexLibraryName'], show['utilitiesPath'].rstrip('/')))
+                    self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show['plex_library_name'], show['utilities_path'].rstrip('/')))
                 else:
                     self.logger.error('{}: Unknown show action {}. Skipping show detail'.format(self.__module__, show['action']))
         

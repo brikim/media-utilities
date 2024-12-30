@@ -39,24 +39,24 @@ class DeleteWatched:
             self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
             for user in config['users']:
-                if ('plexName' in user and 'embyName' in user):
-                    plexUserName = user['plexName']
-                    embyUserName = user['embyName']
-                    plexUserId = self.tautulli_api.get_user_id(plexUserName)
-                    embyUserId = self.emby_api.get_user_id(embyUserName)
-                    if plexUserId != 0 and embyUserId != '0':
-                        self.user_list.append(UserInfo(plexUserName, plexUserId, embyUserName, embyUserId))
+                if ('plex_name' in user and 'emby_name' in user):
+                    plex_user_name = user['plex_name']
+                    emby_user_name = user['emby_name']
+                    plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                    emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                    if plex_user_id != self.tautulli_api.get_invalid_user_id() and emby_user_id != self.emby_api.get_invalid_item_id():
+                        self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
                     else:
-                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plexUserName))
+                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plex_user_name))
                         
             for library in config['libraries']:
-                plexLibraryName = library['plexLibraryName']
-                embyLibraryName = library['embyLibraryName']
-                plexLibraryId = self.tautulli_api.get_library_id(plexLibraryName)
-                embyLibraryId = self.jellystat_api.get_library_id(embyLibraryName)
-                self.libraries.append(LibraryInfo(plexLibraryName, plexLibraryId, library['plexMediaPath'], 
-                                                    embyLibraryName, embyLibraryId, library['embyMediaPath'],
-                                                    library['utilitiesPath']))
+                plex_library_name = library['plex_library_name']
+                emby_library_name = library['emby_library_name']
+                plex_library_id = self.tautulli_api.get_library_id(plex_library_name)
+                emby_library_id = self.jellystat_api.get_library_id(emby_library_name)
+                self.libraries.append(LibraryInfo(plex_library_name, plex_library_id, library['plex_media_path'], 
+                                                    emby_library_name, emby_library_id, library['emby_media_path'],
+                                                    library['utilities_path']))
 
             self.delete_time_hours = config['delete_time_hours']
             

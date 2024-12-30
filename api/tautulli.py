@@ -6,12 +6,16 @@ class TautulliAPI:
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
+        self.invalid_user_id = 0
 
     def get_media_type_episode_name(self):
         return 'episode'
     
     def get_media_type_movie_name(self):
         return 'movie'
+    
+    def get_invalid_user_id(self):
+        return self.invalid_user_id
     
     def get_api_url(self):
         return self.url + '/api/v2'
@@ -46,7 +50,7 @@ class TautulliAPI:
         except Exception as e:
             self.logger.error("{}: Get Plex Users({}) ERROR:{}".format(self.__module__, userName, e))
 
-        return 0
+        return self.invalid_user_id
     
     def get_watch_history_for_user(self, userId, dateTimeStringForHistory):
         payload = {

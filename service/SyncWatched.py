@@ -19,15 +19,16 @@ class SyncWatched:
             self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
             for user in config['users']:
-                if ('plexName' in user and 'embyName' in user):
-                    plexUserName = user['plexName']
-                    embyUserName = user['embyName']
-                    plexUserId = self.tautulli_api.get_user_id(plexUserName)
-                    embyUserId = self.emby_api.get_user_id(embyUserName)
-                    if plexUserId != 0 and embyUserId != self.emby_api.get_invalid_item_id():
-                        self.user_list.append(UserInfo(plexUserName, plexUserId, embyUserName, embyUserId))
+                if ('plex_name' in user and 'emby_name' in user):
+                    plex_user_name = user['plex_name']
+                    can_sync_plex_watch = ('can_sync_plex_watch' in user and user['can_sync_plex_watch'] == 'True')
+                    emby_user_name = user['emby_name']
+                    plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                    emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                    if plex_user_id != 0 and emby_user_id != self.emby_api.get_invalid_item_id():
+                        self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
                     else:
-                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plexUserName))
+                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plex_user_name))
 
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
@@ -159,7 +160,8 @@ class SyncWatched:
         dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
         for user in self.user_list:
             self.sync_plex_watch_status(user, dateTimeStringForHistory)
-            self.sync_emby_watch_status(user)
+            if user.can_sync_plex_watch == True:
+                self.sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
         self.logger.info('{}: Running start up sync'.format(self.__module__))

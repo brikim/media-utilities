@@ -42,7 +42,7 @@ class FolderCleanup:
                     plex_library = path['plex_library']
                 else:
                     if self.notify_plex_of_delete == True:
-                        self.logger.warning('{}: Set to notify plex to delete but path {} has not Plex Library defined!'.format(self.__module__, path['path']))
+                        self.logger.warning('{}: Set to notify plex to delete but path {} has no Plex Library defined!'.format(self.__module__, path['path']))
                 self.paths.append(PathInfo(path['path'], plex_library))
                 
             for folder in config['ignore_folder_in_empty_check']:
