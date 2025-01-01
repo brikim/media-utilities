@@ -32,7 +32,12 @@ class JellystatAPI:
             payload = {
                 'userid': userId}
             r = requests.post(self.get_api_url() + '/getUserHistory', headers=self.get_headers(), data=json.dumps(payload))
-            return r.json()
+            
+            response = r.json()
+            if 'results' in response:
+                return response['results']
+            else:
+                return response
         except Exception as e:
             self.logger.error("{}: Error getting user history ERROR: {}".format(self.__module__, e))
             
@@ -41,7 +46,12 @@ class JellystatAPI:
             payload = {
                 'libraryid': libId}
             r = requests.post(self.get_api_url() + '/getLibraryHistory', headers=self.get_headers(), data=json.dumps(payload))
-            return r.json()
+            
+            response = r.json()
+            if 'results' in response:
+                return response['results']
+            else:
+                return response
         except Exception as e:
             self.logger.error("{}: Error getting library history ERROR: {}".format(self.__module__, e))
             
