@@ -52,16 +52,15 @@ class SyncWatched:
         return emby_path.replace(self.emby_api.get_media_path(), self.plex_api.get_media_path(), 1)
         
     def get_emby_tv_show_episode_id(self, tautulli_item):
-        plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
-        if plex_item is not self.plex_api.get_invalid_type():
-            series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
-            if series_item is not None:
-                emby_file_location = self.get_emby_path(plex_item.locations[0])
-                return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, emby_file_location)
-            else:
-                return self.emby_api.get_invalid_item_id()
-        else:
-            return self.emby_api.get_invalid_item_id()
+        if 'grandparent_rating_key' in tautulli_item and 'rating_key' in tautulli_item and tautulli_item['grandparent_rating_key'] != '' and tautulli_item['rating_key'] != '':
+            plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
+            if plex_item is not self.plex_api.get_invalid_type():
+                series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
+                if series_item is not None and series_item.id is not None:
+                    emby_file_location = self.get_emby_path(plex_item.locations[0])
+                    return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, emby_file_location)
+        
+        return self.emby_api.get_invalid_item_id()
     
     def get_emby_movie_id(self, tautulli_item):
         plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
