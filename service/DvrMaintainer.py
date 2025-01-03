@@ -96,7 +96,7 @@ class DvrMaintainer:
         fileInfo = self.get_files_in_path(path)
         for file in fileInfo:
             if file.ageDays >= keepDays:
-                self.logger.info("{}: KEEP_DAYS_{} - Age-{} Days Deleting Show-{}".format(self.__module__, keepDays, file.ageDays, file.path))
+                self.logger.info("{}: KEEP_DAYS_{} - Age-{:.1f} Days Deleting Show-{}".format(self.__module__, keepDays, file.ageDays, file.path))
                 self.delete_file(file.path)
                 showsDeleted = True
         return showsDeleted
