@@ -34,7 +34,7 @@ class PlexAPI:
         self.switch_plex_account(self.admin_user_name)
         
     def fetchItem(self, rating_key):
-        returnItem = None
+        returnItem = self.get_invalid_type()
         try:
             returnItem = self.plex_server.fetchItem(rating_key)
         except Exception as e:
@@ -45,7 +45,7 @@ class PlexAPI:
         return self.plex_server.search(searchStr, media_type)
     
     def get_library_item(self, library_name, title):
-        return_show = None
+        return_show = self.get_invalid_type()
         try:
             return_show = self.plex_server.library.section(library_name).get(title)
         except Exception as e:

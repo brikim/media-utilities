@@ -56,7 +56,7 @@ class SyncWatched:
             plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
             if plex_item is not self.plex_api.get_invalid_type():
                 series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
-                if series_item is not None and series_item.id is not None:
+                if series_item is not self.plex_api.get_invalid_type():
                     emby_file_location = self.get_emby_path(plex_item.locations[0])
                     return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, emby_file_location)
         
