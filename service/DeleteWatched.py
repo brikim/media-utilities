@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from common.types import CronInfo, UserInfo
-from common.utils import get_cron_from_string, get_datetime_for_history_plex_string
+from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, get_log_ansi_code
 
 @dataclass
 class LibraryInfo:
@@ -24,6 +24,7 @@ class DeleteFileInfo:
 
 class DeleteWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
+        self.service_ansi_code = '\33[32m'
         self.plex_api = plex_api
         self.tautulli_api = tautulli_api
         self.emby_api = emby_api
@@ -47,7 +48,7 @@ class DeleteWatched:
                     if plex_user_id != self.tautulli_api.get_invalid_user_id() and emby_user_id != self.emby_api.get_invalid_item_id():
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
                     else:
-                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plex_user_name))
+                        self.logger.error('{}{}{}: No Plex user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), plex_user_name))
                         
             for library in config['libraries']:
                 plex_library_name = library['plex_library_name']
@@ -61,7 +62,7 @@ class DeleteWatched:
             self.delete_time_hours = config['delete_time_hours']
             
         except Exception as e:
-            self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
+            self.logger.error("{}{}{}: Read config ERROR:{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
     
     def hours_since_play(self, useUtcTime, playDateTime):
         currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
@@ -83,7 +84,7 @@ class DeleteWatched:
                                 returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex'))
 
         except Exception as e:
-            self.logger.error("{}: Find Plex Watched Media ERROR: {}.".format(self.__module__, e))
+            self.logger.error("{}{}{}: Find Plex Watched Media ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
             
         return returnFileNames
             
@@ -109,7 +110,7 @@ class DeleteWatched:
                         break
         
         except Exception as e:
-            self.logger.error("{}: Find Emby Watched Media ERROR: {}.".format(self.__module__, e))
+            self.logger.error("{}{}{}: Find Emby Watched Media ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
             
         return returnFileNames
         
@@ -127,10 +128,10 @@ class DeleteWatched:
             for media in media_container:
                 try:
                     os.remove(media.file_path)
-                    self.logger.info("{}: {} watched on {} DELETED File: {}".format(self.__module__, media.user_name, media.player_name, media.file_path))
+                    self.logger.info("{}{}{}: {} watched on {} DELETED File: {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), media.user_name, media.player_name, media.file_path))
                     number_of_deleted_media += 1
                 except Exception as e:
-                    self.logger.error("{}: Failed to delete file {} Error: {}".format(self.__module__, media.file_path, e))
+                    self.logger.error("{}{}{}: Failed to delete file {} Error: {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), media.file_path, e))
                 
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:
@@ -138,18 +139,18 @@ class DeleteWatched:
                 # Notify Plex to refresh
                 self.plex_api.switch_plex_account_admin()
                 for lib in self.libraries:
-                    self.plex_api.set_library_refresh(lib.plex_library_name)
+                    self.plex_api.set_library_scan(lib.plex_library_name)
                 
                 # Notify Emby to refresh
-                self.emby_api.set_library_refresh()
+                self.emby_api.set_library_scan()
                 
-                self.logger.info("{}: Notifying Media Servers to Refresh".format(self.__module__))
+                self.logger.info("{}{}{}: Notifying Media Servers to Refresh".format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
             except Exception as e:
-                self.logger.error("{}: Clean up failed ERROR: {}.".format(self.__module__, e))
+                self.logger.error("{}{}{}: Clean up failed ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
         
     def init_scheduler_jobs(self):
         if self.cron is not None:
-            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
+            self.logger.info('{}{}{} Enabled. Running every hour:{} minute:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.cron.hours, self.cron.minutes))
             self.scheduler.add_job(self.check_delete_media, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{} Enabled but will not Run. Cron is not valid!'.format(self.__module__))
+            self.logger.warning('{}{}{} Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))

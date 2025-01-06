@@ -17,6 +17,7 @@ from api.emby import EmbyAPI
 from api.jellystat import JellystatAPI
 
 from common.gotify_handler import GotifyHandler
+from common.plain_text_formatter import PlainTextFormatter
 
 from service.AutoScan import AutoScan
 from service.DeleteWatched import DeleteWatched
@@ -75,7 +76,7 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
 
         # Set up the logger
         logger.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', date_format)
+        formatter = PlainTextFormatter()
 
         # Create a file handler to write logs to a file
         rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)

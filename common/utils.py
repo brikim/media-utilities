@@ -1,9 +1,10 @@
-
-import os
-import shutil
+import logging
 from datetime import datetime, timedelta
 from common.types import CronInfo
 
+def get_log_ansi_code():
+    return '\33[97m'
+    
 def get_datetime_for_history(deltaDays):
         return datetime.now() - timedelta(deltaDays)
 

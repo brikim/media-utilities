@@ -158,9 +158,25 @@ class EmbyAPI:
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
             
-    def set_library_refresh(self):
+    def set_library_scan(self):
         try:
             embyRefreshUrl = self.get_api_url() + '/Library/Refresh?api_key=' + self.api_key
             requests.post(embyRefreshUrl)
         except Exception as e:
             self.logger.error("{}: Set Emby library refresh ERROR:{}".format(self.__module__, e))
+            
+    def get_library_name_from_path(self, path):
+        try:
+            payload = {'api_key': self.api_key}
+            r = requests.get(self.get_api_url() + '/Library/SelectableMediaFolders', params=payload)
+            response = r.json()
+
+            for library in response:
+                for subfolder in library['SubFolders']:
+                    if subfolder['Path'] == path:
+                        return subfolder['Name']
+        except Exception as e:
+            self.logger.error("{}: Get library name from path ERROR:{}".format(self.__module__, e))
+        
+        self.logger.warning("{}: Emby does not contain a library with path {}".format(self.__module__, path))
+        return ''

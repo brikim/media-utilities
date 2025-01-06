@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
 from common.types import CronInfo
-from common.utils import get_cron_from_string
+from common.utils import get_cron_from_string, get_log_ansi_code
 
 @dataclass
 class PathInfo:
@@ -16,6 +16,7 @@ class PathInfo:
 
 class FolderCleanup:
     def __init__(self, plex_api, emby_api, config, logger, scheduler):
+        self.service_ansi_code = '\33[33m'
         self.plex_api = plex_api
         self.emby_api = emby_api
         self.logger = logger
@@ -42,7 +43,7 @@ class FolderCleanup:
                     plex_library = path['plex_library']
                 else:
                     if self.notify_plex_of_delete == True:
-                        self.logger.warning('{}: Set to notify plex to delete but path {} has no Plex Library defined!'.format(self.__module__, path['path']))
+                        self.logger.warning('{}{}{}: Set to notify plex to delete but path {} has no Plex Library defined!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), path['path']))
                 self.paths.append(PathInfo(path['path'], plex_library))
                 
             for folder in config['ignore_folder_in_empty_check']:
@@ -52,7 +53,7 @@ class FolderCleanup:
                 self.ignore_folder_in_empty_check.append(file['ignore_file'])
             
         except Exception as e:
-            self.logger.error('{}: Read config ERROR:{}'.format(self.__module__ , e))
+            self.logger.error('{}{}{}: Read config ERROR:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
 
     def is_dir_empty(self, dirnames):
         dir_empty = True
@@ -94,7 +95,7 @@ class FolderCleanup:
                 keep_running = False
                 for dirpath, dirnames, filenames in os.walk(path.path, topdown=False):
                     if self.is_dir_empty(dirnames) == True and self.is_files_empty(filenames) == True:
-                        self.logger.info('{}: Deleting Empty Folder: {}'.format(self.__module__, dirpath))
+                        self.logger.info('{}{}{}: Deleting Empty Folder: {}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), dirpath))
                         shutil.rmtree(dirpath, ignore_errors=True)
                         keep_running = True
                         folders_deleted = True
@@ -106,19 +107,19 @@ class FolderCleanup:
         for deleted_path in deleted_paths:
             if self.notify_plex_of_delete == True and deleted_path.plex_library != '':
                 self.plex_api.switch_plex_account_admin()
-                self.plex_api.set_library_refresh(deleted_path.plex_library)
+                self.plex_api.set_library_scan(deleted_path.plex_library)
                 notified_media_servers = True
             
             if self.notify_emby_of_delete == True:
-                self.emby_api.set_library_refresh()
+                self.emby_api.set_library_scan()
                 notified_media_servers = True
         
         if notified_media_servers == True:
-                self.logger.info('{}: Notifying Media Servers to Refresh'.format(self.__module__))
+                self.logger.info('{}{}{}: Notifying Media Servers to Refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(),))
     
     def init_scheduler_jobs(self):
         if self.cron is not None:
-            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
+            self.logger.info('{}{}{} Enabled. Running every hour:{} minute:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.cron.hours, self.cron.minutes))
             self.scheduler.add_job(self.check_delete_empty_folders, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{} Enabled but will not Run. Cron is not valid!'.format(self.__module__))
+            self.logger.warning('{}{}{} Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(),))

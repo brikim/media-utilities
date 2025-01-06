@@ -42,7 +42,6 @@ COPY service/ /app/service
 VOLUME ["/config"]
 VOLUME ["/logs"]
 VOLUME ["/media"]
-VOLUME ["/auto-scan-path"]
 
 # Run the application.
 CMD [ "python", "/app/app.py"]

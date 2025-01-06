@@ -52,9 +52,20 @@ class PlexAPI:
             pass
         return return_show
     
-    def set_library_refresh(self, library_name):
+    def set_library_scan(self, library_name):
         try:
             library = self.plex_server.library.section(library_name)
-            library.refresh()
+            library.update()
         except Exception as e:
             self.logger.error('{}: Failed to refresh Plex library {} Error: {}'.format(self.__module__, library_name, e))
+            
+    def get_library_name_from_path(self, path):
+        # Get all libraries
+        libraries = self.plex_server.library.sections()
+        for library in libraries:
+            for location in library.locations:
+                if location == path:
+                    return library.title
+        
+        self.logger.warning("{}: Plex does not contain a library with path {}".format(self.__module__, path))
+        return ''

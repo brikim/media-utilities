@@ -2,10 +2,10 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from common.types import CronInfo, UserInfo
-from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, remove_year_from_name
-
+from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, remove_year_from_name, get_log_ansi_code
 class SyncWatched:
     def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
+        self.service_ansi_code = '\33[96m'
         self.plex_api = plex_api
         self.tautulli_api = tautulli_api
         self.emby_api = emby_api
@@ -28,7 +28,7 @@ class SyncWatched:
                     if plex_user_id != 0 and emby_user_id != self.emby_api.get_invalid_item_id():
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
                     else:
-                        self.logger.error('{}: No Plex user found for {} ... Skipping User'.format(self.__module__ , plex_user_name))
+                        self.logger.error('{}{}{}: No Plex user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), plex_user_name))
 
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
@@ -41,9 +41,9 @@ class SyncWatched:
     def set_emby_watched_item(self, user, itemId, fullTitle):
         try:
             self.emby_api.set_watched_item(user.emby_user_id, itemId)
-            self.logger.info('{}: {} watched {} on Plex sync Emby watch status'.format(self.__module__, user.plex_user_name, fullTitle))
+            self.logger.info('{}{}{}: {} watched {} on Plex sync Emby watch status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.plex_user_name, fullTitle))
         except Exception as e:
-            self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: Set Emby watched ERROR:{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
     
     def get_emby_path(self, plex_path):
         return plex_path.replace(self.plex_api.get_media_path(), self.emby_api.get_media_path(), 1)
@@ -88,7 +88,7 @@ class SyncWatched:
                 if (historyItem['watched_status'] == 1):
                     self.sync_emby_with_plex_watch_status(historyItem, user)
         except Exception as e:
-            self.logger.error("{}: Get Plex History ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: Get Plex History ERROR:{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
     
     def set_plex_show_watched(self, emby_series_path, emby_episode_item, user):
         try:
@@ -104,7 +104,7 @@ class SyncWatched:
                         plex_episode_location = self.get_plex_path(emby_episode_item['Path'])
                         if episode is not None and episode.isWatched == False and episode.locations[0] == plex_episode_location:
                             episode.markWatched()
-                            self.logger.info('{}: {} watched {} on Emby sync Plex watch status'.format(self.__module__, user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
+                            self.logger.info('{}{}{}: {} watched {} on Emby sync Plex watch status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title))
                         break
         except Exception as e:
             self.logger.error("Error with plex movie watched: {}".format(e))
@@ -120,7 +120,7 @@ class SyncWatched:
                         media_Item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
                         if media_Item is not self.plex_api.get_invalid_type():
                             media_Item.markWatched()
-                            self.logger.info('{}: {} watched {} on Emby Sync Plex Watch Status'.format(self.__module__, user.emby_user_name, emby_item['Name']))
+                            self.logger.info('{}{}{}: {} watched {} on Emby Sync Plex Watch Status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.emby_user_name, emby_item['Name']))
                     break
         except Exception as e:
             self.logger.error("{}: Error with plex movie watched: {}".format(self.__module__, e))
@@ -152,7 +152,7 @@ class SyncWatched:
                     self.sync_plex_with_emby_watch_status(item, user)
                 
         except Exception as e:
-            self.logger.error("{}: Error in emby watch status: {}".format(self.__module__, e))
+            self.logger.error("{}{}{}: Error in emby watch status: {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
     
     
     def sync_watch_status(self):
@@ -163,11 +163,11 @@ class SyncWatched:
                 self.sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
-        self.logger.info('{}: Running start up sync'.format(self.__module__))
+        self.logger.info('{}{}{}: Running start up sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
         self.sync_watch_status()
         
         if self.cron is not None:
-            self.logger.info('{} Enabled. Running every hour:{} minute:{}'.format(self.__module__, self.cron.hours, self.cron.minutes))
+            self.logger.info('{}{}{} Enabled. Running every hour:{} minute:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.cron.hours, self.cron.minutes))
             self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{} Enabled but will not Run. Cron is not valid!'.format(self.__module__))
+            self.logger.warning('{}{}{} Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
