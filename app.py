@@ -15,7 +15,10 @@ from api.plex import PlexAPI
 from api.tautulli import TautulliAPI
 from api.emby import EmbyAPI
 from api.jellystat import JellystatAPI
+
 from common.gotify_handler import GotifyHandler
+
+from service.AutoScan import AutoScan
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
 from service.FolderCleanup import FolderCleanup
@@ -32,6 +35,7 @@ emby_api = None
 jellystat_api = None
         
 # Available Services
+auto_scan_service = None
 sync_watched_service = None
 delete_watched_service = None
 dvr_maintainer_service = None
@@ -40,6 +44,8 @@ folder_cleanup_service = None
 
 def handle_sigterm(signum, frame):
     logger.info("SIGTERM received, shutting down ...")
+    if auto_scan_service is not None:
+        auto_scan_service.shutdown()
     scheduler.shutdown(wait=True)
     sys.exit(0)
 
@@ -112,18 +118,22 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         # Create the services ####################################
         
         # Create the Sync Watched Status Service
-        if data['sync_watched']['enabled'] == 'True':
+        if 'auto_scan' in data and data['auto_scan']['enabled'] == 'True':
+            auto_scan_service = AutoScan(plex_api, emby_api, data['auto_scan'], logger)
+        if 'sync_watched' in data and data['sync_watched']['enabled'] == 'True':
             sync_watched_service = SyncWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler)
-        if data['delete_watched']['enabled'] == 'True':
+        if 'delete_watched' in data and data['delete_watched']['enabled'] == 'True':
             delete_watched_service = DeleteWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['delete_watched'], logger, scheduler)
-        if data['dvr_maintainer']['enabled'] == 'True':
+        if 'dvr_maintainer' in data and data['dvr_maintainer']['enabled'] == 'True':
             dvr_maintainer_service = DvrMaintainer(plex_api, emby_api, data['dvr_maintainer'], logger, scheduler)
-        if data['folder_cleanup']['enabled'] == 'True':
+        if 'folder_cleanup' in data and data['folder_cleanup']['enabled'] == 'True':
             folder_cleanup_service = FolderCleanup(plex_api, emby_api, data['folder_cleanup'], logger, scheduler)
         
         # ########################################################
         
         # Init the services ######################################
+        if auto_scan_service is not None:
+            auto_scan_service.init_scheduler_jobs()
         if sync_watched_service is not None:
             sync_watched_service.init_scheduler_jobs()
         if delete_watched_service is not None:
