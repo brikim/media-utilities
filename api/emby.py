@@ -112,7 +112,7 @@ class EmbyAPI:
             'Season': season_num,
             'Fields': 'Path'}
             
-            r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes' , params=payload)
+            r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes', params=payload)
             return r.json()['Items']
         except Exception as e:
             self.logger.error("{}: Get Emby Series Episodes {} ERROR:{}".format(self.__module__, series_id, e))
@@ -158,14 +158,29 @@ class EmbyAPI:
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
             
-    def set_library_scan(self):
+    def set_all_library_scan(self):
         try:
             embyRefreshUrl = self.get_api_url() + '/Library/Refresh?api_key=' + self.api_key
             requests.post(embyRefreshUrl)
         except Exception as e:
             self.logger.error("{}: Set Emby library refresh ERROR:{}".format(self.__module__, e))
-            
-    def get_library_name_from_path(self, path):
+    
+    def set_library_scan(self, library_id):
+        try:
+            headers = {'accept': 'application/json'}
+            payload = {
+                'api_key': self.api_key,
+                'Recursive': 'true',
+                'ImageRefreshMode': 'Default',
+                'MetadataRefreshMode': 'Default',
+                'ReplaceAllImages': 'false',
+                'ReplaceAllMetadata': 'false'}
+            embyUrl = self.get_api_url() + '/Items/' + library_id + '/Refresh'
+            requests.post(embyUrl, headers=headers, params=payload)
+        except Exception as e:
+            self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
+        
+    def get_library_from_path(self, path):
         try:
             payload = {'api_key': self.api_key}
             r = requests.get(self.get_api_url() + '/Library/SelectableMediaFolders', params=payload)
@@ -174,9 +189,24 @@ class EmbyAPI:
             for library in response:
                 for subfolder in library['SubFolders']:
                     if subfolder['Path'] == path:
-                        return subfolder['Name']
+                        return library
         except Exception as e:
             self.logger.error("{}: Get library name from path ERROR:{}".format(self.__module__, e))
         
         self.logger.warning("{}: Emby does not contain a library with path {}".format(self.__module__, path))
+        return ''
+    
+    def get_library_from_name(self, name):
+        try:
+            payload = {'api_key': self.api_key}
+            r = requests.get(self.get_api_url() + '/Library/SelectableMediaFolders', params=payload)
+            response = r.json()
+
+            for library in response:
+                if library['Name'] == name:
+                    return library
+        except Exception as e:
+            self.logger.error("{}: Get library name from name ERROR:{}".format(self.__module__, e))
+        
+        self.logger.warning("{}: Emby does not contain a library with name {}".format(self.__module__, name))
         return ''

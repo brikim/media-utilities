@@ -20,6 +20,7 @@ class ScanInfo:
     plex_library: str
     emby_library_valid: bool
     emby_library: str
+    emby_library_id: str
     time: float
     
 @dataclass
@@ -82,9 +83,9 @@ class AutoScan:
                 
                 emby_library = ''
                 if self.notify_emby == True and 'emby_path' in scan:
-                    emby_library = self.emby_api.get_library_name_from_path(scan['emby_path'])
+                    emby_library = self.emby_api.get_library_from_path(scan['emby_path'])
                 
-                self.scans.append(ScanInfo(scan['name'], scan['container_path'], plex_library != '', plex_library, emby_library != '', emby_library, 0.0))
+                self.scans.append(ScanInfo(scan['name'], scan['container_path'], plex_library != '', plex_library, emby_library != '', emby_library['Name'], emby_library['Id'], 0.0))
             
             for folder in config['ignore_folder_with_name']:
                 self.ignore_folder_with_name.append(folder['ignore_folder'])
@@ -128,7 +129,7 @@ class AutoScan:
             self.plex_api.set_library_scan(monitor.plex_library)
             self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex', get_plex_ansi_code())
         if self.notify_emby == True and monitor.emby_library_valid == True:
-            self.emby_api.set_library_scan()
+            self.emby_api.set_library_scan(monitor.emby_library_id)
             self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby', get_emby_ansi_code())
     
     def _get_all_paths_in_path(self, path):
@@ -235,7 +236,7 @@ class AutoScan:
         # No monitor found for this item add it to the monitor list
         if found == False:
             with self.monitor_lock:
-                self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, current_time))
+                self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, scan.emby_library_id, current_time))
             
             self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), path))
         

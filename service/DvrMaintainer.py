@@ -4,7 +4,7 @@ import glob
 from datetime import datetime
 from dataclasses import dataclass
 from common.types import CronInfo
-from common.utils import get_cron_from_string, get_log_ansi_code, get_tag_ansi_code
+from common.utils import get_cron_from_string, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
 
 @dataclass
 class ShowConfig:
@@ -12,8 +12,13 @@ class ShowConfig:
     action_type: str
     action_value: int
     plex_library_name: str
+    emby_library_id: str
     utility_path: str
-    
+
+@dataclass
+class DeletedData:
+    plex_library_name: str
+    emby_library_id: str
 @dataclass
 class FileInfo:
     path: str
@@ -43,8 +48,18 @@ class DvrMaintainer:
                     action = 'KEEP_LENGTH_DAYS'
                     actionValue = int(show['action'].replace('KEEP_LENGTH_DAYS_', ''))
                 
+                show_plex_library_name = ''
+                if 'plex_library_name' in show:
+                    show_plex_library_name = show['plex_library_name']
+                    
+                show_emby_library_id = ''
+                if 'emby_library_name' in show:
+                    emby_library = self.emby_api.get_library_from_name(show['emby_library_name'])
+                    if emby_library != '':
+                        show_emby_library_id = emby_library['Id']
+                    
                 if action != '':
-                    self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show['plex_library_name'], show['utilities_path'].rstrip('/')))
+                    self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show_plex_library_name, show_emby_library_id, show['utilities_path'].rstrip('/')))
                 else:
                     self.logger.error('{}{}{}: Unknown show action {}. Skipping show detail'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), show['action']))
         
@@ -103,48 +118,68 @@ class DvrMaintainer:
         return showsDeleted
 
     def check_show_delete(self, config):
-        deletedShowPlexLibraries = []
+        deleted_data = []
         libraryFilePath = config.utility_path + '/' + config.name
         if os.path.exists(libraryFilePath) == True:
             if config.action_type == 'KEEP_LAST':
                 try:
                     showsDeleted = self.keep_last_delete(libraryFilePath, config.action_value)
                     if showsDeleted == True:
-                        deletedShowPlexLibraries.append(config.plex_library_name)
+                        deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
                 except Exception as e:
                     self.logger.error("{}{}{}: Check show delete keep last {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
             elif config.action_type == 'KEEP_LENGTH_DAYS':
                 try:
                     showsDeleted = self.keep_show_days(libraryFilePath, config.action_value)
                     if showsDeleted == True:
-                        deletedShowPlexLibraries.append(config.plex_library_name)
+                        deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
                 except Exception as e:
                     self.logger.error("{}{}{}: Check show delete keep length {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
 
-        return deletedShowPlexLibraries
+        return deleted_data
     
     def notify_plex_refresh(self, library_list):
+        library_refreshed = False
         self.plex_api.switch_plex_account_admin()
         for library in library_list:
-            self.plex_api.set_library_scan(library)
+            if library != '':
+                self.plex_api.set_library_scan(library)
+                library_refreshed = True
+        return library_refreshed
 
+    def notify_emby_refresh(self, library_ids):
+        library_refreshed = False
+        for id in library_ids:
+            if id != '':
+                self.emby_api.set_library_scan(id)
+                library_refreshed = True
+        return library_refreshed
+        
     def do_maintenance(self):
-        physicalPathsToCheckForDelete = []
-        plexLibrariesToRefresh = []
+        deleted_data_items = []
         
         for show_config in self.show_configurations:
-            deletedShows = self.check_show_delete(show_config)
-            if len(deletedShows) > 0:
-                physicalPathsToCheckForDelete.append(show_config.utility_path)
-            for show in deletedShows:
-                plexLibrariesToRefresh.append(show)
+            deleted_data = self.check_show_delete(show_config)
+            for item in deleted_data:
+                deleted_data_items.append(item)
         
         # Notify media servers of a refresh
-        if len(plexLibrariesToRefresh) > 0:
-            self.notify_plex_refresh(list(set(plexLibrariesToRefresh)))
-            self.emby_api.set_library_scan()
-            self.logger.info("{}{}{}: Notifying Media Servers to Refresh".format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+        if len(deleted_data_items) > 0:
+            plex_libraries = []
+            emby_library_ids = []
+            for deleted_data in deleted_data_items:
+                plex_libraries.append(deleted_data.plex_library_name)
+                emby_library_ids.append(deleted_data.emby_library_id)
                 
+            plex_lib_refreshed = self.notify_plex_refresh(list(set(plex_libraries)))
+            emby_lib_refreshed = self.notify_emby_refresh(list(set(emby_library_ids)))
+            
+            if plex_lib_refreshed == True and emby_lib_refreshed == True:
+                self.logger.info('{}{}{}: Notified {}Plex{} and {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
+            elif plex_lib_refreshed == True:
+                self.logger.info('{}{}{}: Notified {}Plex{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code()))
+            elif emby_lib_refreshed == True:
+                self.logger.info('{}{}{}: Notified {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
                 
     def init_scheduler_jobs(self):
         if self.cron is not None:

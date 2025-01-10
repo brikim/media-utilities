@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
 from common.types import CronInfo
-from common.utils import get_cron_from_string, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code
+from common.utils import get_cron_from_string, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
 
 @dataclass
 class PathInfo:
     path: str
-    plex_library: str
+    plex_library_name: str
+    emby_library_id: str
 
 class FolderCleanup:
     def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
@@ -22,8 +23,6 @@ class FolderCleanup:
         self.logger = logger
         self.scheduler = scheduler
         self.cron = None
-        self.notify_plex_of_delete = False
-        self.notify_emby_of_delete = False
         self.paths = []
         self.ignore_folder_in_empty_check = []
         self.ignore_file_in_empty_check = []
@@ -31,20 +30,18 @@ class FolderCleanup:
         try:
             self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
-            if 'notify_plex_of_delete' in config:
-                self.notify_plex_to_refresh = config['notify_plex_of_delete'] == 'True'
-            
-            if 'notify_emby_of_delete' in config:
-                self.notify_emby_of_delete = config['notify_emby_of_delete'] == 'True'
-            
             for path in config['paths_to_check']:
-                plex_library = ''
-                if 'plex_library' in path:
-                    plex_library = path['plex_library']
-                else:
-                    if self.notify_plex_of_delete == True:
-                        self.logger.warning('{}{}{}: Set to notify {}plex{} to delete but path {} has no plex library defined!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), path['path']))
-                self.paths.append(PathInfo(path['path'], plex_library))
+                plex_library_name = ''
+                if 'plex_library_name' in path:
+                    plex_library_name = path['plex_library_name']
+                
+                emby_library_id = ''
+                if 'emby_library_name' in path:
+                    emby_library = self.emby_api.get_library_from_name(path['emby_library_name'])
+                    if emby_library != '':
+                        emby_library_id = emby_library['Id']
+                
+                self.paths.append(PathInfo(path['path'], plex_library_name, emby_library_id))
                 
             for folder in config['ignore_folder_in_empty_check']:
                 self.ignore_folder_in_empty_check.append(folder['ignore_folder'])
@@ -103,19 +100,24 @@ class FolderCleanup:
             if folders_deleted == True:
                 deleted_paths.append(path)
         
-        notified_media_servers = False
+        notified_plex_refresh = False
+        notified_emby_refresh = False
         for deleted_path in deleted_paths:
-            if self.notify_plex_of_delete == True and deleted_path.plex_library != '':
+            if deleted_path.plex_library_name != '':
                 self.plex_api.switch_plex_account_admin()
-                self.plex_api.set_library_scan(deleted_path.plex_library)
-                notified_media_servers = True
+                self.plex_api.set_library_scan(deleted_path.plex_library_name)
+                notified_plex_refresh = True
             
-            if self.notify_emby_of_delete == True:
-                self.emby_api.set_library_scan()
-                notified_media_servers = True
+            if deleted_path.emby_library_id != '':
+                self.emby_api.set_library_scan(deleted_path.emby_library_id)
+                notified_emby_refresh = True
         
-        if notified_media_servers == True:
-                self.logger.info('{}{}{}: Notifying Media Servers to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(),))
+        if notified_plex_refresh == True and notified_emby_refresh == True:
+            self.logger.info('{}{}{}: Notified {}Plex{} and {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
+        elif notified_plex_refresh == True:
+            self.logger.info('{}{}{}: Notified {}Plex{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code()))
+        elif notified_emby_refresh == True:
+            self.logger.info('{}{}{}: Notified {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
     
     def init_scheduler_jobs(self):
         if self.cron is not None:
