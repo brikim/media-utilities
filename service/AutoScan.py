@@ -178,21 +178,26 @@ class AutoScan:
             if len(self.monitors) > 0:
                 current_time = time.time()
                 if current_time - self.last_notify_time >= self.seconds_between_notifies:
-                    notify_found = False
-                    current_index = 0
+                    current_monitor = None
                     for monitor in self.monitors:
                         if (current_time - monitor.time) >= self.seconds_before_notify:
                             self._notify_media_servers(monitor)
+                            current_monitor = monitor
                             self.last_notify_time = current_time
-                            notify_found = True
                             break
-                        
-                        current_index += 1
     
                     # A monitor was finished and servers notified remove it from the list
-                    if notify_found == True:
+                    if current_monitor is not None:
+                        
+                        # If servers were just notified for this name remove all monitors for the same name since
+                        # the server refresh is by library not by item
+                        new_monitors = []
+                        for monitor in self.monitors:
+                            if monitor.name != current_monitor.name:
+                                new_monitors.append(monitor)
+                                
                         with self.monitor_lock:
-                            self.monitors.pop(current_index)
+                            self.monitors = new_monitors
             
             # Check if any new paths need to be added to the inotify list
             if len(self.check_new_paths) > 0:
@@ -221,12 +226,10 @@ class AutoScan:
         # Check if this path or library already exists in the list
         #   If the library already exists just update the time to wait since we can only notify per library to update not per item
         for monitor in self.monitors:
-            if monitor.path == path or (monitor.plex_library == scan.plex_library and monitor.emby_library == scan.emby_library):
+            if monitor.path == path:
                 monitor.time = current_time
                 found = True
-                
-                if monitor.path != path:
-                    self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), path))
+                break
         
         # No monitor found for this item add it to the monitor list
         if found == False:
