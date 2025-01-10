@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from common.types import CronInfo, UserInfo
-from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, get_log_ansi_code
+from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
 
 @dataclass
 class LibraryInfo:
@@ -21,10 +21,11 @@ class DeleteFileInfo:
     file_path: str
     user_name: str
     player_name: str
+    player_ansi_code: str
 
 class DeleteWatched:
-    def __init__(self, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
-        self.service_ansi_code = '\33[32m'
+    def __init__(self, ansi_code, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
+        self.service_ansi_code = ansi_code
         self.plex_api = plex_api
         self.tautulli_api = tautulli_api
         self.emby_api = emby_api
@@ -48,7 +49,7 @@ class DeleteWatched:
                     if plex_user_id != self.tautulli_api.get_invalid_user_id() and emby_user_id != self.emby_api.get_invalid_item_id():
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
                     else:
-                        self.logger.error('{}{}{}: No Plex user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), plex_user_name))
+                        self.logger.error('{}{}{}: No {}Plex{} user found for {} ... Skipping user'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
                         
             for library in config['libraries']:
                 plex_library_name = library['plex_library_name']
@@ -62,7 +63,7 @@ class DeleteWatched:
             self.delete_time_hours = config['delete_time_hours']
             
         except Exception as e:
-            self.logger.error("{}{}{}: Read config ERROR:{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
+            self.logger.error("{}{}{}: Read config {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def hours_since_play(self, useUtcTime, playDateTime):
         currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
@@ -81,10 +82,10 @@ class DeleteWatched:
                         if len(fileName) > 0:
                             hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                             if hoursSincePlay >= self.delete_time_hours:
-                                returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex'))
+                                returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex', get_plex_ansi_code()))
 
         except Exception as e:
-            self.logger.error("{}{}{}: Find Plex Watched Media ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
+            self.logger.error("{}{}{}: Find {}Plex{} watched media {}error={}{}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
             
         return returnFileNames
             
@@ -106,11 +107,11 @@ class DeleteWatched:
                             if hoursSincePlay >= self.delete_time_hours:
                                 emby_item = self.emby_api.search_item(item_id)
                                 if emby_item is not None:
-                                    returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, 'Emby')
+                                    returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, 'Emby', get_emby_ansi_code())
                         break
         
         except Exception as e:
-            self.logger.error("{}{}{}: Find Emby Watched Media ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
+            self.logger.error("{}{}{}: Find {}Emby{} watched media {}error={}{}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
             
         return returnFileNames
         
@@ -128,10 +129,10 @@ class DeleteWatched:
             for media in media_container:
                 try:
                     os.remove(media.file_path)
-                    self.logger.info("{}{}{}: {} watched on {} DELETED File: {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), media.user_name, media.player_name, media.file_path))
+                    self.logger.info("{}{}{}: {} watched on {}{}{} deleting {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), media.user_name, media.player_ansi_code, media.player_name, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), media.file_path))
                     number_of_deleted_media += 1
                 except Exception as e:
-                    self.logger.error("{}{}{}: Failed to delete file {} Error: {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), media.file_path, e))
+                    self.logger.error("{}{}{}: Failed to delete {}file={}{} {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), media.file_path, get_tag_ansi_code(), get_log_ansi_code(), e))
                 
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:
@@ -146,11 +147,11 @@ class DeleteWatched:
                 
                 self.logger.info("{}{}{}: Notifying Media Servers to Refresh".format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
             except Exception as e:
-                self.logger.error("{}{}{}: Clean up failed ERROR: {}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), e))
+                self.logger.error("{}{}{}: Clean up failed {}error={}{}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
         
     def init_scheduler_jobs(self):
         if self.cron is not None:
-            self.logger.info('{}{}{} Enabled. Running every hour:{} minute:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.cron.hours, self.cron.minutes))
+            self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
             self.scheduler.add_job(self.check_delete_media, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{}{}{} Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))

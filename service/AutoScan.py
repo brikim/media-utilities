@@ -10,7 +10,7 @@ import inotify.constants
 
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
-from common.utils import get_log_ansi_code
+from common.utils import get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
 
 @dataclass
 class ScanInfo:
@@ -31,9 +31,8 @@ class CheckPathData:
     deleted: bool
     
 class AutoScan:
-    def __init__(self, plex_api, emby_api, config, logger):
-        self.service_ansi_code = '\33[96m'
-        self.tag_ansi_code = '\33[36m'
+    def __init__(self, ansi_code, plex_api, emby_api, config, logger):
+        self.service_ansi_code = ansi_code
         self.plex_api = plex_api
         self.emby_api = emby_api
         self.logger = logger
@@ -95,14 +94,16 @@ class AutoScan:
                 
                 
         except Exception as e:
-            self.logger.error('{}{}{}: Read config ERROR:{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code() , e))
+            self.logger.error('{}{}{}: Read config {}error={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code() , get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def shutdown(self):
         self.stop_threads = True
         
+        temp_file_path = '/temp.txt'
+        
         # Create a temp file to notify the inotify adapters
         for scan in self.scans:
-            temp_file = scan.path + '/temp.txt'
+            temp_file = scan.path + temp_file_path
             with open(temp_file, 'w') as file:
                 file.write('BREAK')
             
@@ -114,21 +115,21 @@ class AutoScan:
                             
         # clean up the temp files
         for scan in self.scans:
-            temp_file = scan.path + '/temp.txt'
+            temp_file = scan.path + temp_file_path
             os.remove(temp_file)
         
         self.logger.info('{}{}{}: Successful shutdown'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
     
     def _log_moved_to_target(self, name, library, server_name, server_ansi_code):
-        self.logger.info('{}{}{}: Monitor moved to target {}name={}{} {}target={}{} {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), name, self.tag_ansi_code, server_ansi_code, server_name, self.tag_ansi_code, get_log_ansi_code(), library))
+        self.logger.info('{}{}{}: Monitor moved to target {}name={}{} {}target={}{} {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name, get_tag_ansi_code(), server_ansi_code, server_name, get_tag_ansi_code(), get_log_ansi_code(), library))
         
     def _notify_media_servers(self, monitor):
         if self.notify_plex == True and monitor.plex_library_valid == True:
             self.plex_api.set_library_scan(monitor.plex_library)
-            self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex', '\33[33m')
+            self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex', get_plex_ansi_code())
         if self.notify_emby == True and monitor.emby_library_valid == True:
             self.emby_api.set_library_scan()
-            self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby', '\33[32m')
+            self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby', get_emby_ansi_code())
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
@@ -236,10 +237,10 @@ class AutoScan:
             with self.monitor_lock:
                 self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, current_time))
             
-            self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), path))
+            self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), path))
         
     def _monitor_path(self, scan):
-        self.logger.info('{}{}{}: Starting monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), scan.path))
+        self.logger.info('{}{}{}: Starting monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), scan.path))
         
         scanner_mask =  (inotify.constants.IN_MODIFY | inotify.constants.IN_MOVED_FROM | inotify.constants.IN_MOVED_TO | 
                         inotify.constants.IN_CREATE | inotify.constants.IN_DELETE)
@@ -278,7 +279,7 @@ class AutoScan:
                     self._add_file_monitor(path, scan)
             
             if self.stop_threads == True:
-                self.logger.info('{}{}{}: Stopping watch {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), scan.path))
+                self.logger.info('{}{}{}: Stopping watch {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), scan.path))
                 break
         
     def start(self):
@@ -289,5 +290,5 @@ class AutoScan:
         self.monitor_thread = Thread(target=self._monitor, args=()).start()
         
     def init_scheduler_jobs(self):
-        self.logger.info('{}{}{} Enabled'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+        self.logger.info('{}{}{}: Enabled'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
         self.start()

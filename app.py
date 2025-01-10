@@ -120,15 +120,15 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         
         # Create the Sync Watched Status Service
         if 'auto_scan' in data and data['auto_scan']['enabled'] == 'True':
-            auto_scan_service = AutoScan(plex_api, emby_api, data['auto_scan'], logger)
+            auto_scan_service = AutoScan('\33[96m', plex_api, emby_api, data['auto_scan'], logger)
         if 'sync_watched' in data and data['sync_watched']['enabled'] == 'True':
-            sync_watched_service = SyncWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler)
+            sync_watched_service = SyncWatched('\33[96m', plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler)
         if 'delete_watched' in data and data['delete_watched']['enabled'] == 'True':
-            delete_watched_service = DeleteWatched(plex_api, tautulli_api, emby_api, jellystat_api, data['delete_watched'], logger, scheduler)
+            delete_watched_service = DeleteWatched('\33[32m', plex_api, tautulli_api, emby_api, jellystat_api, data['delete_watched'], logger, scheduler)
         if 'dvr_maintainer' in data and data['dvr_maintainer']['enabled'] == 'True':
-            dvr_maintainer_service = DvrMaintainer(plex_api, emby_api, data['dvr_maintainer'], logger, scheduler)
+            dvr_maintainer_service = DvrMaintainer('\33[95m', plex_api, emby_api, data['dvr_maintainer'], logger, scheduler)
         if 'folder_cleanup' in data and data['folder_cleanup']['enabled'] == 'True':
-            folder_cleanup_service = FolderCleanup(plex_api, emby_api, data['folder_cleanup'], logger, scheduler)
+            folder_cleanup_service = FolderCleanup('\33[33m', plex_api, emby_api, data['folder_cleanup'], logger, scheduler)
         
         # ########################################################
         
