@@ -40,10 +40,10 @@ class AutoScan:
         self.ignore_folder_with_name = []
         self.valid_file_extensions = []
         
-        self.sleep_time = 1
-        
+        self.seconds_monitor_rate = 0
         self.seconds_before_notify = 0
         self.seconds_between_notifies = 0
+        self.seconds_before_inotify_modify = 0
         self.last_notify_time = 0.0
         
         self.notify_plex = False
@@ -65,8 +65,10 @@ class AutoScan:
         self.check_new_paths = []
         
         try:
+            self.seconds_monitor_rate = max(config['seconds_monitor_rate'], 1)
             self.seconds_before_notify = max(config['seconds_before_notify'], 30)
             self.seconds_between_notifies = max(config['seconds_between_notifies'], 10)
+            self.seconds_before_inotify_modify = max(config['seconds_before_inotify_modify'], 1)
             
             if 'notify_plex' in config:
                 self.notify_plex = config['notify_plex'] == 'True'
@@ -117,16 +119,16 @@ class AutoScan:
         
         self.logger.info('{}{}{}: Successful shutdown'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
     
-    def _log_moved_to_target(self, name, library, server_name):
-        self.logger.info('{}{}{}: Monitor moved to target {}name={}{} {}target={}{} {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), name, self.tag_ansi_code, get_log_ansi_code(), server_name, self.tag_ansi_code, get_log_ansi_code(), library))
+    def _log_moved_to_target(self, name, library, server_name, server_ansi_code):
+        self.logger.info('{}{}{}: Monitor moved to target {}name={}{} {}target={}{} {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), name, self.tag_ansi_code, server_ansi_code, server_name, self.tag_ansi_code, get_log_ansi_code(), library))
         
-    def notify_media_servers(self, monitor):
+    def _notify_media_servers(self, monitor):
         if self.notify_plex == True and monitor.plex_library_valid == True:
             self.plex_api.set_library_scan(monitor.plex_library)
-            self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex')
+            self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex', '\33[33m')
         if self.notify_emby == True and monitor.emby_library_valid == True:
             self.emby_api.set_library_scan()
-            self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby')
+            self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby', '\33[32m')
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
@@ -148,6 +150,7 @@ class AutoScan:
         return return_paths
     
     def _add_inotify_watch(self, i, path, scan_mask):
+        # Add the path and all sub-paths to the notify list
         new_paths = self._get_all_paths_in_path(path)
         
         with self.watched_paths_lock:
@@ -157,6 +160,8 @@ class AutoScan:
                     self.watched_paths.append(new_path)
     
     def _delete_inotify_watch(self, path):
+        # inotify automatically deletes watches of deleted paths
+        # cleanup our local path list when a path is deleted
         if path in self.watched_paths:
             new_monitor_paths = []
             for watch_path in self.watched_paths:
@@ -168,6 +173,8 @@ class AutoScan:
         
     def _monitor(self):
         while self.stop_threads == False:
+            
+            # Process any monitors currently in the system
             if len(self.monitors) > 0:
                 current_time = time.time()
                 if current_time - self.last_notify_time >= self.seconds_between_notifies:
@@ -175,22 +182,24 @@ class AutoScan:
                     current_index = 0
                     for monitor in self.monitors:
                         if (current_time - monitor.time) >= self.seconds_before_notify:
-                            self.notify_media_servers(monitor)
+                            self._notify_media_servers(monitor)
                             self.last_notify_time = current_time
                             notify_found = True
                             break
                         
                         current_index += 1
     
+                    # A monitor was finished and servers notified remove it from the list
                     if notify_found == True:
                         with self.monitor_lock:
                             self.monitors.pop(current_index)
             
-            if len(self.check_new_paths):
+            # Check if any new paths need to be added to the inotify list
+            if len(self.check_new_paths) > 0:
                 new_path_list = []
                 current_time = time.time()
                 for check_path in self.check_new_paths:
-                    if current_time - check_path.time >= 1.0:
+                    if (current_time - check_path.time) >= self.seconds_before_inotify_modify:
                         if check_path.deleted == True:
                             self._delete_inotify_watch(check_path.path)
                         else:
@@ -201,13 +210,16 @@ class AutoScan:
                 with self.lock_check_new_paths:
                     self.check_new_paths = new_path_list
                 
-            time.sleep(self.sleep_time)
+            time.sleep(self.seconds_monitor_rate)
         
         self.logger.info('{}{}{}: Stopping monitor thread'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
     
     def _add_file_monitor(self, path, scan):
         found = False
         current_time = time.time()
+        
+        # Check if this path or library already exists in the list
+        #   If the library already exists just update the time to wait since we can only notify per library to update not per item
         for monitor in self.monitors:
             if monitor.path == path or (monitor.plex_library == scan.plex_library and monitor.emby_library == scan.emby_library):
                 monitor.time = current_time
@@ -216,43 +228,50 @@ class AutoScan:
                 if monitor.path != path:
                     self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), path))
         
+        # No monitor found for this item add it to the monitor list
         if found == False:
             with self.monitor_lock:
                 self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, current_time))
             
             self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), path))
         
-    def monitor_path(self, scan):
+    def _monitor_path(self, scan):
         self.logger.info('{}{}{}: Starting monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), self.tag_ansi_code, get_log_ansi_code(), scan.name, self.tag_ansi_code, get_log_ansi_code(), scan.path))
         
         scanner_mask =  (inotify.constants.IN_MODIFY | inotify.constants.IN_MOVED_FROM | inotify.constants.IN_MOVED_TO | 
                         inotify.constants.IN_CREATE | inotify.constants.IN_DELETE)
         
+        # Setup the inotify watches for the current folder and all sub-folders
         i = inotify.adapters.Inotify()
-        
         self._add_inotify_watch(i, scan.path, scanner_mask)
             
         for event in i.event_gen(yield_nones=False):
             (_, type_names, path, filename) = event
             if filename != '':
+                # New path check. This will add or delete scans if folders are added or removed
                 is_delete = 'IN_DELETE' in type_names or 'IN_MOVED_FROM' in type_names
                 if 'IN_ISDIR' in type_names and ('IN_CREATE' in type_names or 'IN_MOVED_TO' in type_names or is_delete):
                     with self.lock_check_new_paths:
                         self.check_new_paths.append(CheckPathData('{}/{}'.format(path, filename), i, scanner_mask, time.time(), is_delete))
+                
+                # Check if this path is in the ignore folder list. If so mark the path as not valid
                 path_valid = True
                 for folder_name in self.ignore_folder_with_name:
                     if folder_name in path:
                         path_valid = False
                         break
                     
-                if len(self.valid_file_extensions) > 0:
-                    path_valid = False
+                # Check if the extension of the added file is valid
+                extension_valid = True
+                if path_valid == True and len(self.valid_file_extensions) > 0:
+                    extension_valid = False
                     for valid_extension in self.valid_file_extensions:
                         if filename.endswith(valid_extension):
-                            path_valid = True
+                            extension_valid = True
                             break
-                        
-                if path_valid == True:
+                
+                # If all the checks passed add this as a monitor
+                if path_valid == True and extension_valid == True:
                     self._add_file_monitor(path, scan)
             
             if self.stop_threads == True:
@@ -261,7 +280,7 @@ class AutoScan:
         
     def start(self):
         for scan in self.scans:
-            thread = Thread(target=self.monitor_path, args=(scan,)).start()
+            thread = Thread(target=self._monitor_path, args=(scan,)).start()
             self.threads.append(thread)
         
         self.monitor_thread = Thread(target=self._monitor, args=()).start()
