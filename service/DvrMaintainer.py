@@ -22,7 +22,7 @@ class DeletedData:
 @dataclass
 class FileInfo:
     path: str
-    ageDays: float
+    age_days: float
 
 class DvrMaintainer:
     def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
@@ -76,25 +76,25 @@ class DvrMaintainer:
 
     def delete_file(self, pathFileName):
         if self.run_test == True:
-            self.logger.info("{}{}{}: Running Test! Would delete {}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), pathFileName))
+            self.logger.info("{}{}{}: Running test! Would delete {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), pathFileName))
         else:
             try:
                 os.remove(pathFileName)
             except Exception as e:
-                self.logger.error("{}{}{}: Problem deleting file {} {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), pathFileName, get_tag_ansi_code(), get_log_ansi_code(), e))
+                self.logger.error("{}{}{}: Problem deleting {}file={}{} {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), pathFileName, get_tag_ansi_code(), get_log_ansi_code(), e))
     
-    def keep_last_delete(self, path, keepLast):
+    def keep_last_delete(self, path, keep_last):
         showsDeleted = False
         fileInfo = self.get_files_in_path(path)
-        if len(fileInfo) > keepLast:
-            self.logger.info("{}{}{}: KEEP_LAST_{} {}show={}{} has {}episodes={}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keepLast, get_tag_ansi_code(), get_log_ansi_code(), path, get_tag_ansi_code(), get_log_ansi_code(), len(fileInfo)))
+        if len(fileInfo) > keep_last:
+            self.logger.info("{}{}{}: KEEP_LAST_{} {}episodes={}{} in {}path={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), len(fileInfo), get_tag_ansi_code(), get_log_ansi_code(), path))
             try:
-                sortedFileInfo = sorted(fileInfo, key=lambda item: item.ageDays, reverse=True)
+                sortedFileInfo = sorted(fileInfo, key=lambda item: item.age_days, reverse=True)
 
-                showsToDelete = len(fileInfo) - keepLast
+                showsToDelete = len(fileInfo) - keep_last
                 deletedShows = 0
                 for file in sortedFileInfo:
-                    self.logger.info("{}{}{}: KEEP_LAST_{} deleting oldest {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keepLast, get_tag_ansi_code(), get_log_ansi_code(), file.path))
+                    self.logger.info("{}{}{}: KEEP_LAST_{} deleting oldest {}age days={}{:.1f} {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag_ansi_code(), get_log_ansi_code(), file.path))
                     self.delete_file(file.path)
                     showsDeleted = True
 
@@ -103,16 +103,16 @@ class DvrMaintainer:
                         break
             
             except Exception as e:
-                self.logger.error("{}{}{}: KEEP_LAST_{} error sorting files {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keepLast, get_tag_ansi_code(), get_log_ansi_code(), e))
+                self.logger.error("{}{}{}: KEEP_LAST_{} error sorting files {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), e))
 
         return showsDeleted
 
-    def keep_show_days(self, path, keepDays):
+    def keep_show_days(self, path, keep_days):
         showsDeleted = False
         fileInfo = self.get_files_in_path(path)
         for file in fileInfo:
-            if file.ageDays >= keepDays:
-                self.logger.info("{}{}{}: KEEP_DAYS_{} deleting {}age days={}{:.1f} {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keepDays, get_tag_ansi_code(), get_log_ansi_code(), file.ageDays, get_tag_ansi_code(), get_log_ansi_code(), file.path))
+            if file.age_days >= keep_days:
+                self.logger.info("{}{}{}: KEEP_DAYS_{} deleting {}age days={}{:.1f} {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_days, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag_ansi_code(), get_log_ansi_code(), file.path))
                 self.delete_file(file.path)
                 showsDeleted = True
         return showsDeleted
