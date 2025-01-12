@@ -36,3 +36,18 @@ def get_cron_from_string(cron_string, logger, module_name):
     else:
         logger.error('{}: Invalid Cron Expression {}'.format(module_name, cron_string))
     return None
+
+def remove_ansi_code_from_text(text):
+    plain_text = text
+    while True:
+        index = plain_text.find('\33[')
+        if (index < 0):
+            break
+        else:
+            end_index = plain_text.find('m', index)
+            if end_index < 0:
+                break
+            else:
+                end_index += 1
+                plain_text = plain_text[:index] + plain_text[end_index:]
+    return plain_text

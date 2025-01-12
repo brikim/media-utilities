@@ -72,7 +72,7 @@ class SyncWatched:
         except Exception as e:
             self.logger.error("{}{}{}: Set {}Emby{} watched {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
-    def get_emby_path(self, plex_path):
+    def get_emby_path_from_plex_path(self, plex_path):
         return plex_path.replace(self.plex_api.get_media_path(), self.emby_api.get_media_path(), 1)
         
     def get_plex_path(self, emby_path):
@@ -84,15 +84,16 @@ class SyncWatched:
             if plex_item is not self.plex_api.get_invalid_type():
                 series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
                 if series_item is not self.plex_api.get_invalid_type():
-                    emby_file_location = self.get_emby_path(plex_item.locations[0])
-                    return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, series_item.locations[0], plex_item.seasonNumber, emby_file_location)
+                    emby_series_path = self.get_emby_path_from_plex_path(series_item.locations[0])
+                    emby_file_path_location = self.get_emby_path_from_plex_path(plex_item.locations[0])
+                    return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, emby_series_path, plex_item.seasonNumber, emby_file_path_location)
         
         return self.emby_api.get_invalid_item_id()
     
     def get_emby_movie_id(self, tautulli_item):
         plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
-            emby_file_location = self.get_emby_path(plex_item.locations[0])
+            emby_file_location = self.get_emby_path_from_plex_path(plex_item.locations[0])
             return self.emby_api.get_movie_item_id(plex_item.title, emby_file_location)
         else:
             return self.emby_api.get_invalid_item_id()
@@ -105,8 +106,10 @@ class SyncWatched:
             emby_item_id = self.get_emby_movie_id(tautulli_item)
         
         # If the item id is valid and the user has not already watched the item
-        if emby_item_id != self.emby_api.get_invalid_item_id() and self.emby_api.get_watched_status(user.emby_user_name, emby_item_id) == False:
-            self.set_emby_watched_item(user, emby_item_id, tautulli_item['full_title'])
+        if emby_item_id != self.emby_api.get_invalid_item_id():
+            emby_watched_status = self.emby_api.get_watched_status(user.emby_user_id, emby_item_id)
+            if emby_watched_status is not None and emby_watched_status == False:
+                self.set_emby_watched_item(user, emby_item_id, tautulli_item['full_title'])
         
     def sync_plex_watch_status(self, user, dateTimeStringForHistory):
         try:
@@ -156,14 +159,14 @@ class SyncWatched:
         if self.get_hours_since_play(True, datetime.fromisoformat(jellystat_item['ActivityDateInserted'])) < 24:
             if jellystat_item['SeriesName'] is not None:
                 # Check that the episode has been marked as watched by emby
-                if self.emby_api.get_watched_status(user.emby_user_name, jellystat_item['EpisodeId']) == True:
+                if self.emby_api.get_watched_status(user.emby_user_id, jellystat_item['EpisodeId']) == True:
                     emby_series_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
                     emby_episode_item = self.emby_api.search_item(jellystat_item['EpisodeId'])
                     if emby_series_item is not None and emby_episode_item is not None:
                         self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
             else:
                 # Check that the item has been marked as watched by emby
-                if self.emby_api.get_watched_status(user.emby_user_name, jellystat_item['NowPlayingItemId']) == True:
+                if self.emby_api.get_watched_status(user.emby_user_id, jellystat_item['NowPlayingItemId']) == True:
                     emby_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
                     if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
                         self.set_plex_movie_watched(emby_item, user)

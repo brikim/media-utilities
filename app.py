@@ -19,6 +19,7 @@ from api.jellystat import JellystatAPI
 
 from common.gotify_handler import GotifyHandler
 from common.plain_text_formatter import PlainTextFormatter
+from common.gotify_plain_text_formatter import GotifyPlainTextFormatter
 
 if platform == "linux":
     from service.AutoScan import AutoScan
@@ -80,7 +81,7 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         # Set up the logger
         logger.setLevel(logging.DEBUG)
         formatter = PlainTextFormatter()
-
+        
         # Create a file handler to write logs to a file
         rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)
         rotating_handler.setLevel(logging.DEBUG)
@@ -99,11 +100,13 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         console_info_handler.setFormatter(colorlog.ColoredFormatter(
             '%(white)s%(asctime)s %(light_white)s- %(log_color)s%(levelname)s %(light_white)s- %(message)s', date_format, log_colors=log_colors))
 
+        gotify_formatter = None
         gotify_handler = None
-        if data['enable_gotify_logger'] == 'True':
-            gotify_handler = GotifyHandler(data['gotify_url'], data['gotify_app_token'], data['gotify_priority'])
+        if 'gotify_logging' in data and 'enabled' in data['gotify_logging'] and data['gotify_logging']['enabled'] == 'True':
+            gotify_formatter = GotifyPlainTextFormatter()
+            gotify_handler = GotifyHandler(data['gotify_logging']['url'], data['gotify_logging']['app_token'], data['gotify_logging']['message_title'], data['gotify_logging']['priority'])
             gotify_handler.setLevel(logging.WARNING)
-            gotify_handler.setFormatter(formatter)
+            gotify_handler.setFormatter(gotify_formatter)
             
         # Add the handlers to the logger
         logger.addHandler(rotating_handler)

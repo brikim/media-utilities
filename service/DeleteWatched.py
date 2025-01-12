@@ -140,7 +140,7 @@ class DeleteWatched:
                                 item_id = item['EpisodeId']
                             else:
                                 item_id = item['NowPlayingItemId']
-                            if self.emby_api.get_watched_status(user.emby_user_name, item_id) == True:
+                            if self.emby_api.get_watched_status(user.emby_user_id, item_id) == True:
                                 hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
                                 if hoursSincePlay >= self.delete_time_hours:
                                     emby_item = self.emby_api.search_item(item_id)

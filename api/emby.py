@@ -1,6 +1,6 @@
 import requests
 import json
-from common.utils import remove_year_from_name
+from common.utils import remove_year_from_name, get_log_ansi_code, get_tag_ansi_code, get_emby_ansi_code
 class EmbyAPI:
     def __init__(self, url, api_key, media_path, logger):
         self.url = url.rstrip('/')
@@ -34,8 +34,9 @@ class EmbyAPI:
                 if item['Name'] == userName:
                     return item['Id']
         except Exception as e:
-            self.logger.error("{}: Get Emby Users({}) ERROR:{}".format(self.__module__, userName, e))
+            self.logger.error("{}{}{}: get_user_id {}user={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), userName, get_tag_ansi_code(), get_log_ansi_code(), e))
 
+        self.logger.warning("{}{}{}: get_user_id no user found {}user={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), userName))
         return self.invalid_item_id
     
     def search(self, searchString, mediaType):
@@ -52,7 +53,7 @@ class EmbyAPI:
             
             return response['Items']
         except Exception as e:
-            self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
+            self.logger.error("{}{}{}: search {}search={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), searchString, get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def search_item(self, id):
         try:
@@ -66,13 +67,13 @@ class EmbyAPI:
             response_length = len(response)
             if response_length > 0:
                 if (response_length > 1):
-                    self.logger.warning('{}: item id {} search returned multiple items'.format(self.__module__, id))
+                    self.logger.warning('{}{}{}: search_item returned multiple items {}item={}{}'.format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), id))
                 return response[0]
             else:
-                self.logger.warning('{}: item id {} returned no results'.format(self.__module__, id))
+                self.logger.warning('{}{}{}: search_item returned no results {}item={}{}'.format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), id))
                 return None
         except Exception as e:
-            self.logger.error("{}: Get Emby Item {} ERROR:{}".format(self.__module__, id, e))
+            self.logger.error("{}{}{}: search_item {}item={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), id, get_tag_ansi_code(), get_log_ansi_code(), e))
             
     def search_all(self, searchString):
         try:
@@ -85,7 +86,7 @@ class EmbyAPI:
             r = requests.get(self.get_api_url() + '/Items', params=payload)
             return r.json()['Items']
         except Exception as e:
-            self.logger.error("{}: Get Emby Search {} ERROR:{}".format(self.__module__, searchString, e))
+            self.logger.error("{}{}{}: search_all {}search={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), searchString, get_tag_ansi_code(), get_log_ansi_code(), e))
             
     def get_series_id(self, series_name, series_path):
         # Remove any year from the series name ... example (2017)
@@ -98,7 +99,7 @@ class EmbyAPI:
                 if series_path == item['Path']:
                     return item['Id']
         except Exception as e:
-            self.logger.error("{}: Get Emby Series Items({}) ERROR:{}".format(self.__module__, series_name, e))
+            self.logger.error("{}{}{}: get_series_id {}series={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), series_name, get_tag_ansi_code(), get_log_ansi_code(), e))
             
         # return an invalid id if not found
         return self.invalid_item_id
@@ -115,7 +116,7 @@ class EmbyAPI:
             r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes', params=payload)
             return r.json()['Items']
         except Exception as e:
-            self.logger.error("{}: Get Emby Series Episodes {} ERROR:{}".format(self.__module__, series_id, e))
+            self.logger.error("{}{}{}: get_series_episodes {}series={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), series_id, get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def get_series_episode_id(self, series_name, series_path, season_num, episode_path):
         series_id = self.get_series_id(series_name, series_path)
@@ -134,36 +135,43 @@ class EmbyAPI:
                 if path == item['Path']:
                     return item['Id']
         except Exception as e:
-            self.logger.error("{}: Get Emby Movie Items({}) ERROR:{}".format(self.__module__, name, e))
+            self.logger.error("{}{}{}: get_movie_item_id {}name={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name, get_tag_ansi_code(), get_log_ansi_code(), e))
 
         # return an invalid id if not found
         return self.invalid_item_id
     
-    def get_watched_status(self, userName, itemId):
-        payload = {
+    def get_watched_status(self, user_id, item_id):
+        try:
+            payload = {
             'api_key': self.api_key,
-            'id': itemId}
-        r = requests.get(self.get_api_url() + '/user_usage_stats/get_item_stats', params=payload)
-        response = r.json()
-        for userActivity in response:
-            if userActivity['name'] == userName and userActivity['played'] == 'True':
-                return True
+            'Ids': item_id,
+            'IsPlayed': 'true'}
+            
+            r = requests.get(self.get_api_url() + '/Users/' + user_id + '/Items', params=payload)
+            if r.status_code < 300:
+                return r.json()['TotalRecordCount'] > 0
+            else:
+                self.logger.error('{}{}{}: get_watched_status api response error {}code={}{} {}user={}{} item={}{} {}reason={}{}'.format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), r.status_code, get_tag_ansi_code(), get_log_ansi_code(), user_id, get_tag_ansi_code(), get_log_ansi_code(), item_id, get_tag_ansi_code(), get_log_ansi_code(), r.reason))
+                return None
+        except Exception as e:
+            self.logger.error("{}{}{}: get_watched_status failed for {}user={}{} {}item={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), user_id, get_tag_ansi_code(), get_log_ansi_code(), item_id, get_tag_ansi_code(), get_log_ansi_code(), e))
+            
         return False
     
-    def set_watched_item(self, userId, itemId):
+    def set_watched_item(self, user_id, item_id):
         try:
             headers = {'accept': 'application/json'}
-            embyUrl = self.get_api_url() + '/Users/' + userId + '/PlayedItems/' + itemId + '?api_key=' + self.api_key
+            embyUrl = self.get_api_url() + '/Users/' + user_id + '/PlayedItems/' + item_id + '?api_key=' + self.api_key
             requests.post(embyUrl, headers=headers)
         except Exception as e:
-            self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: set_watched_item {}user={}{} {}item={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), user_id, get_log_ansi_code(), get_tag_ansi_code(), item_id, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
             
     def set_all_library_scan(self):
         try:
             embyRefreshUrl = self.get_api_url() + '/Library/Refresh?api_key=' + self.api_key
             requests.post(embyRefreshUrl)
         except Exception as e:
-            self.logger.error("{}: Set Emby library refresh ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: set_all_library_scan {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def set_library_scan(self, library_id):
         try:
@@ -191,9 +199,9 @@ class EmbyAPI:
                     if subfolder['Path'] == path:
                         return library
         except Exception as e:
-            self.logger.error("{}: Get library name from path ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: get_library_from_path {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
         
-        self.logger.warning("{}: Emby does not contain a library with path {}".format(self.__module__, path))
+        self.logger.warning("{}{}{}: get_library_from_path no library found with {}path={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), path))
         return ''
     
     def get_library_from_name(self, name):
@@ -206,7 +214,7 @@ class EmbyAPI:
                 if library['Name'] == name:
                     return library
         except Exception as e:
-            self.logger.error("{}: Get library name from name ERROR:{}".format(self.__module__, e))
+            self.logger.error("{}{}{}: get_library_from_name {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
         
-        self.logger.warning("{}: Emby does not contain a library with name {}".format(self.__module__, name))
+        self.logger.warning("{}{}{}: get_library_from_name no library found with {}name={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name))
         return ''
