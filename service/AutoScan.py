@@ -70,11 +70,17 @@ class AutoScan:
             self.seconds_between_notifies = max(config['seconds_between_notifies'], 10)
             self.seconds_before_inotify_modify = max(config['seconds_before_inotify_modify'], 1)
             
-            if 'notify_plex' in config:
-                self.notify_plex = config['notify_plex'] == 'True'
+            if 'notify_plex' in config and config['notify_plex'] == 'True':
+                if self.plex_api.get_valid() == True:
+                    self.notify_plex = True
+                else:
+                    self.logger.warning('{}{}{}: Notify {}Plex{} is true but API not valid {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid()))
             
-            if 'notify_emby' in config:
-                self.notify_emby = config['notify_emby'] == 'True'
+            if 'notify_emby' in config and config['notify_emby'] == 'True':
+                if self.emby_api.get_valid() == True:
+                    self.notify_emby = True
+                else:
+                    self.logger.warning('{}{}{}: Notify {}Emby{} is true but API not valid {}emby_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid()))
             
             for scan in config['scans']:
                 plex_library = ''

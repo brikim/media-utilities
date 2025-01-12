@@ -40,17 +40,25 @@ class SyncWatched:
                     
                     plex_user_id = ''
                     if plex_user_name != '':
-                        plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                        if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                        if self.tautulli_api.get_valid() == True and self.plex_api.get_valid() == True:
+                            plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                            if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                                valid_user_ids = False
+                                self.logger.warning('{}{}{}: No {}Plex{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                        else:
                             valid_user_ids = False
-                            self.logger.warning('{}{}{}: No {}Plex{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                            self.logger.warning('{}{}{}: {}Plex{} user defined but API not valid {}user={}{} {}plex_valid={}{} {}tautulli_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), plex_user_name, get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.tautulli_api.get_valid()))
                         
                     emby_user_id = ''
                     if emby_user_name != '':
-                        emby_user_id = self.emby_api.get_user_id(emby_user_name)
-                        if emby_user_id == self.emby_api.get_invalid_item_id():
+                        if self.emby_api.get_valid() == True and self.jellystat_api.get_valid() == True:
+                            emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                            if emby_user_id == self.emby_api.get_invalid_item_id():
+                                valid_user_ids = False
+                                self.logger.warning('{}{}{}: No {}Emby{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), emby_user_name))
+                        else:
                             valid_user_ids = False
-                            self.logger.warning('{}{}{}: No {}Emby{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), emby_user_name))
+                            self.logger.warning('{}{}{}: {}Emby{} user defined but API not valid {}user={}{} {}emby_valid={}{} {}jellystat_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), emby_user_name, get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.jellystat_api.get_valid()))
                     
                     if valid_user_ids == True:
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))

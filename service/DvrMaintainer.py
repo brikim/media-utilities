@@ -50,13 +50,19 @@ class DvrMaintainer:
                 
                 show_plex_library_name = ''
                 if 'plex_library_name' in show:
-                    show_plex_library_name = show['plex_library_name']
+                    if self.plex_api.get_valid() == True:
+                        show_plex_library_name = show['plex_library_name']
+                    else:
+                        self.logger.warning('{}{}{}: {}Plex{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), show['plex_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid()))
                     
                 show_emby_library_id = ''
                 if 'emby_library_name' in show:
-                    emby_library = self.emby_api.get_library_from_name(show['emby_library_name'])
-                    if emby_library != '':
-                        show_emby_library_id = emby_library['Id']
+                    if self.emby_api.get_valid() == True:
+                        emby_library = self.emby_api.get_library_from_name(show['emby_library_name'])
+                        if emby_library != '':
+                            show_emby_library_id = emby_library['Id']
+                    else:
+                        self.logger.warning('{}{}{}: {}Emby{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), show['emby_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid()))
                     
                 if action != '':
                     self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show_plex_library_name, show_emby_library_id, show['utilities_path'].rstrip('/')))

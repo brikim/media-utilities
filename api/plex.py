@@ -9,7 +9,17 @@ class PlexAPI:
         self.media_path = media_path
         self.logger = logger
         self.item_invalid_type = None
+        self.valid = False
         
+        try:
+            self.plex_server.library.sections()
+            self.valid = True
+        except Exception as e:
+            self.valid = False
+        
+    def get_valid(self):
+        return self.valid
+    
     def get_media_type_show_name(self):
         return 'show'
     

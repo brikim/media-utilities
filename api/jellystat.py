@@ -6,7 +6,19 @@ class JellystatAPI:
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
-
+        self.valid = False
+        
+        try:
+            payload = {}
+            r = requests.get(self.get_api_url() + '/getconfig', headers=self.get_headers(), params=payload)
+            if r.status_code < 300:
+                self.valid = True
+        except Exception as e:
+            self.valid = False
+        
+    def get_valid(self):
+        return self.valid
+    
     def get_api_url(self):
         return self.url + '/api'
     

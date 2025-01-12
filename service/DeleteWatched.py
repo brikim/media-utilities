@@ -47,22 +47,28 @@ class DeleteWatched:
                 plex_user_name = ''
                 plex_user_id = 0
                 if 'plex_name' in user:
-                    plex_user_name = user['plex_name']
-                    plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                    if plex_user_id == self.tautulli_api.get_invalid_user_id():
-                        plex_user_name = ''
+                    if self.plex_api.get_valid() == True and self.tautulli_api.get_valid() == True:
+                        plex_user_name = user['plex_name']
+                        plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                        if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                            plex_user_name = ''
+                        else:
+                            plex_users_defined = True
                     else:
-                        plex_users_defined = True
+                        self.logger.warning('{}{}{}: {}Plex{} user defined but API not valid {}user={}{} {}plex_valid={}{} {}tautulli_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), user['plex_name'], get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.tautulli_api.get_valid()))
                 
                 emby_user_name = ''
                 emby_user_id = ''
                 if 'emby_name' in user:
-                    emby_user_name = user['emby_name']
-                    emby_user_id = self.emby_api.get_user_id(emby_user_name)
-                    if emby_user_id == self.emby_api.get_invalid_item_id():
-                        emby_user_name = ''
+                    if self.emby_api.get_valid() == True and self.jellystat_api.get_valid() == True:
+                        emby_user_name = user['emby_name']
+                        emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                        if emby_user_id == self.emby_api.get_invalid_item_id():
+                            emby_user_name = ''
+                        else:
+                            emby_users_defined = True
                     else:
-                        emby_users_defined = True
+                        self.logger.warning('{}{}{}: {}Emby{} user defined but API not valid {}user={}{} {}emby_valid={}{} {}jellystat_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), user['emby_name'], get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.jellystat_api.get_valid()))
                     
                 if plex_user_name != '' or emby_user_name != '':    
                     self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))

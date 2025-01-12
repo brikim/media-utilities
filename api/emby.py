@@ -8,6 +8,18 @@ class EmbyAPI:
         self.media_path = media_path
         self.logger = logger
         self.invalid_item_id = '0'
+        self.valid = False
+        
+        try:
+            payload = {'api_key': self.api_key}
+            r = requests.get(self.get_api_url() + '/System/Configuration', params=payload)
+            if r.status_code < 300:
+                self.valid = True
+        except Exception as e:
+            self.valid = False
+        
+    def get_valid(self):
+        return self.valid
     
     def get_media_type_episode_name(self):
         return 'Episode'

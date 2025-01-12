@@ -7,7 +7,21 @@ class TautulliAPI:
         self.api_key = api_key
         self.logger = logger
         self.invalid_user_id = 0
+        self.valid = False
+        
+        try:
+            payload = {
+                'apikey': self.api_key,
+                'cmd': 'get_tautulli_info'}
+            r = requests.get(self.get_api_url(), params=payload)
+            if r.status_code < 300:
+                self.valid = True
+        except Exception as e:
+            self.valid = False
 
+    def get_valid(self):
+        return self.valid
+    
     def get_media_type_episode_name(self):
         return 'episode'
     

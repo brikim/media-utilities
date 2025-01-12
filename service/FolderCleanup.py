@@ -33,13 +33,19 @@ class FolderCleanup:
             for path in config['paths_to_check']:
                 plex_library_name = ''
                 if 'plex_library_name' in path:
-                    plex_library_name = path['plex_library_name']
+                    if self.plex_api.get_valid() == True:
+                        plex_library_name = path['plex_library_name']
+                    else:
+                        self.logger.warning('{}{}{}: {}Plex{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), path['plex_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid()))
                 
                 emby_library_id = ''
                 if 'emby_library_name' in path:
-                    emby_library = self.emby_api.get_library_from_name(path['emby_library_name'])
-                    if emby_library != '':
-                        emby_library_id = emby_library['Id']
+                    if self.emby_api.get_valid() == True:
+                        emby_library = self.emby_api.get_library_from_name(path['emby_library_name'])
+                        if emby_library != '':
+                            emby_library_id = emby_library['Id']
+                    else:
+                        self.logger.warning('{}{}{}: {}Emby{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), path['emby_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid()))
                 
                 self.paths.append(PathInfo(path['path'], plex_library_name, emby_library_id))
                 
@@ -124,4 +130,4 @@ class FolderCleanup:
             self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
             self.scheduler.add_job(self.check_delete_empty_folders, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(),))
+            self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
