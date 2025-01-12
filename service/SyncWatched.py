@@ -19,16 +19,43 @@ class SyncWatched:
             self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
             for user in config['users']:
-                if ('plex_name' in user and 'emby_name' in user):
+                total_user_groups = 0
+                
+                plex_user_name = ''
+                can_sync_plex_watch = False
+                if "plex_name" in user:
                     plex_user_name = user['plex_name']
-                    can_sync_plex_watch = ('can_sync_plex_watch' in user and user['can_sync_plex_watch'] == 'True')
+                    if 'can_sync_plex_watch' in user:
+                        can_sync_plex_watch = user['can_sync_plex_watch'] == 'True'
+                    total_user_groups += 1
+                    
+                    
+                emby_user_name = ''
+                if 'emby_name' in user:
                     emby_user_name = user['emby_name']
-                    plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                    emby_user_id = self.emby_api.get_user_id(emby_user_name)
-                    if plex_user_id != 0 and emby_user_id != self.emby_api.get_invalid_item_id():
+                    total_user_groups += 1
+                
+                if total_user_groups >= 2:
+                    valid_user_ids = True
+                    
+                    plex_user_id = ''
+                    if plex_user_name != '':
+                        plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                        if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                            valid_user_ids = False
+                            self.logger.warning('{}{}{}: No {}Plex{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                        
+                    emby_user_id = ''
+                    if emby_user_name != '':
+                        emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                        if emby_user_id == self.emby_api.get_invalid_item_id():
+                            valid_user_ids = False
+                            self.logger.warning('{}{}{}: No {}Emby{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), emby_user_name))
+                    
+                    if valid_user_ids == True:
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
-                    else:
-                        self.logger.error('{}{}{}: No {}Plex{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                else:
+                    self.logger.warning('{}{}{}: Only 1 user found in user field must have at least 2 to sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
 
         except Exception as e:
             self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
@@ -85,10 +112,10 @@ class SyncWatched:
         try:
             watchHistoryData = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, dateTimeStringForHistory)
             for historyItem in watchHistoryData:
-                if (historyItem['watched_status'] == 1):
+                if historyItem['watched_status'] == 1 and user.emby_user_name != '':
                     self.sync_emby_with_plex_watch_status(historyItem, user)
         except Exception as e:
-            self.logger.error("{}{}{}: Get {}Plex{} History {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.logger.error("{}{}{}: Get {}Plex{} history {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def set_plex_show_watched(self, emby_series_path, emby_episode_item, user):
         try:
@@ -145,11 +172,12 @@ class SyncWatched:
         try:
             history_items = self.jellystat_api.get_user_watch_history(user.emby_user_id)
             if len(history_items) > 0:
-                self.plex_api.switch_plex_account(user.plex_user_name)
+                if user.plex_user_name != '':
+                    self.plex_api.switch_plex_account(user.plex_user_name)
                 
-                # Search through the list and find items to sync
-                for item in history_items:
-                    self.sync_plex_with_emby_watch_status(item, user)
+                    # Search through the list and find items to sync
+                    for item in history_items:
+                        self.sync_plex_with_emby_watch_status(item, user)
                 
         except Exception as e:
             self.logger.error("{}{}{}: Error in {}emby{} watch status {}error={}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
@@ -158,16 +186,21 @@ class SyncWatched:
     def sync_watch_status(self):
         dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
         for user in self.user_list:
-            self.sync_plex_watch_status(user, dateTimeStringForHistory)
+            if user.plex_user_name != '':
+                self.sync_plex_watch_status(user, dateTimeStringForHistory)
             if user.can_sync_plex_watch == True:
-                self.sync_emby_watch_status(user)
+                if user.emby_user_name != '':
+                    self.sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
-        self.logger.info('{}{}{}: Running start up sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
-        self.sync_watch_status()
-        
-        if self.cron is not None:
-            self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
-            self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+        if len(self.user_list) > 0:
+            self.logger.info('{}{}{}: Running start up sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.sync_watch_status()
+
+            if self.cron is not None:
+                self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
+                self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+            else:
+                self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
         else:
-            self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.logger.warning('{}{}{}: Enabled but no valid users to sync!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))

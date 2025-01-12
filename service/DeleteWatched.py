@@ -40,44 +40,57 @@ class DeleteWatched:
         try:
             self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
             
+            plex_users_defined = False
+            emby_users_defined = False
+            
             for user in config['users']:
-                if ('plex_name' in user and 'emby_name' in user):
-                    plex_user_name = ''
-                    plex_user_id = 0
-                    if 'plex_name' in user:
-                        plex_user_name = user['plex_name']
-                        plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                    
-                    emby_user_name = ''
-                    emby_user_id = ''
-                    if 'emby_name' in user:
-                        user_id = self.emby_api.get_user_id(user['emby_name'])
-                        if user_id != self.emby_api.get_invalid_item_id():
-                            emby_user_name = user['emby_name']
-                            emby_user_id = user_id
-                        
-                    
-                    if plex_user_id != self.tautulli_api.get_invalid_user_id() and emby_user_id != self.emby_api.get_invalid_item_id():
-                        self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
+                plex_user_name = ''
+                plex_user_id = 0
+                if 'plex_name' in user:
+                    plex_user_name = user['plex_name']
+                    plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
+                    if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                        plex_user_name = ''
                     else:
-                        self.logger.error('{}{}{}: No {}Plex{} user found for {} ... Skipping user'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                        plex_users_defined = True
+                
+                emby_user_name = ''
+                emby_user_id = ''
+                if 'emby_name' in user:
+                    emby_user_name = user['emby_name']
+                    emby_user_id = self.emby_api.get_user_id(emby_user_name)
+                    if emby_user_id == self.emby_api.get_invalid_item_id():
+                        emby_user_name = ''
+                    else:
+                        emby_users_defined = True
+                    
+                if plex_user_name != '' or emby_user_name != '':    
+                    self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
+                else:
+                    self.logger.warning('{}{}{}: No valid users found for user group ... Skipping user'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
                         
             for library in config['libraries']:
                 plex_library_name = ''
                 plex_library_id = ''
                 plex_media_path = ''
                 if 'plex_library_name' in library and 'plex_media_path' in library:
-                    plex_library_name = library['plex_library_name']
-                    plex_library_id = self.tautulli_api.get_library_id(plex_library_name)    
-                    plex_media_path = library['plex_media_path']
+                    if plex_users_defined == True:
+                        plex_library_name = library['plex_library_name']
+                        plex_library_id = self.tautulli_api.get_library_id(plex_library_name)    
+                        plex_media_path = library['plex_media_path']
+                    else:
+                        self.logger.warning('{}{}{}: {}Plex{} library defined but no valid users defined {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), plex_library_name))
                     
                 emby_library_name = ''
                 emby_library_id = ''
                 emby_media_path = ''
                 if 'emby_library_name' in library and 'emby_media_path' in library:
-                    emby_library_name = library['emby_library_name']
-                    emby_library_id = self.jellystat_api.get_library_id(emby_library_name)
-                    emby_media_path = library['emby_media_path']
+                    if emby_users_defined == True:
+                        emby_library_name = library['emby_library_name']
+                        emby_library_id = self.jellystat_api.get_library_id(emby_library_name)
+                        emby_media_path = library['emby_media_path']
+                    else:
+                        self.logger.warning('{}{}{}: {}Emby{} library defined but no valid users defined {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), emby_library_name))
                 
                 self.libraries.append(LibraryInfo(plex_library_name, plex_library_id, plex_media_path, 
                                                     emby_library_name, emby_library_id, emby_media_path,
@@ -96,17 +109,18 @@ class DeleteWatched:
     def find_plex_watched_media(self, lib):
         returnFileNames = []
         try:
-            dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
-            for user in self.user_list:
-                if user.plex_user_id != 0 and lib.plex_library_id != '' and lib.plex_media_path != '':
-                    watchedItems = self.tautulli_api.get_watch_history_for_user_and_library(user.plex_user_id, lib.plex_library_id, dateTimeStringForHistory)
-                    for item in watchedItems:
-                        if item['watched_status'] == 1:
-                            fileName = self.tautulli_api.get_filename(item['rating_key'])
-                            if len(fileName) > 0:
-                                hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
-                                if hoursSincePlay >= self.delete_time_hours:
-                                    returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex', get_plex_ansi_code()))
+            if lib.plex_library_name != '':
+                dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
+                for user in self.user_list:
+                    if user.plex_user_name != '' and lib.plex_library_id != '' and lib.plex_media_path != '':
+                        watchedItems = self.tautulli_api.get_watch_history_for_user_and_library(user.plex_user_id, lib.plex_library_id, dateTimeStringForHistory)
+                        for item in watchedItems:
+                            if item['watched_status'] == 1:
+                                fileName = self.tautulli_api.get_filename(item['rating_key'])
+                                if len(fileName) > 0:
+                                    hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
+                                    if hoursSincePlay >= self.delete_time_hours:
+                                        returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, 'Plex', get_plex_ansi_code()))
 
         except Exception as e:
             self.logger.error("{}{}{}: Find {}Plex{} watched media {}error={}{}.".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
@@ -116,17 +130,16 @@ class DeleteWatched:
     def find_emby_watched_media(self, lib):
         returnFileNames = []
         try:
-            if (lib.emby_library_id != '' and lib.emby_media_path != ''):
+            if (lib.emby_library_name != '' and lib.emby_library_id != '' and lib.emby_media_path != ''):
                 watchedItems = self.jellystat_api.get_library_history(lib.emby_library_id)
                 for item in watchedItems:
                     for user in self.user_list:
-                        if item['UserName'] == user.emby_user_name:
+                        if user.emby_user_name != '' and item['UserName'] == user.emby_user_name:
                             item_id = '0'
                             if 'EpisodeId' in item and item['EpisodeId'] is not None:
                                 item_id = item['EpisodeId']
                             else:
                                 item_id = item['NowPlayingItemId']
-
                             if self.emby_api.get_watched_status(user.emby_user_name, item_id) == True:
                                 hoursSincePlay = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
                                 if hoursSincePlay >= self.delete_time_hours:

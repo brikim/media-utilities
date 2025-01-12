@@ -8,6 +8,7 @@ import logging
 import colorlog
 import signal
 import time
+from sys import platform
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -19,7 +20,9 @@ from api.jellystat import JellystatAPI
 from common.gotify_handler import GotifyHandler
 from common.plain_text_formatter import PlainTextFormatter
 
-from service.AutoScan import AutoScan
+if platform == "linux":
+    from service.AutoScan import AutoScan
+
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
 from service.FolderCleanup import FolderCleanup
@@ -119,7 +122,7 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         # Create the services ####################################
         
         # Create the Sync Watched Status Service
-        if 'auto_scan' in data and data['auto_scan']['enabled'] == 'True':
+        if platform == "linux" and 'auto_scan' in data and data['auto_scan']['enabled'] == 'True':
             auto_scan_service = AutoScan('\33[96m', plex_api, emby_api, data['auto_scan'], logger)
         if 'sync_watched' in data and data['sync_watched']['enabled'] == 'True':
             sync_watched_service = SyncWatched('\33[96m', plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler)
