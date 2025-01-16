@@ -51,22 +51,6 @@ class EmbyAPI:
         self.logger.warning("{}{}{}: get_user_id no user found {}user={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), userName))
         return self.invalid_item_id
     
-    def search(self, searchString, mediaType):
-        try:
-            payload = {
-            'api_key': self.api_key,
-            'Recursive': 'true',
-            'SearchTerm': searchString,
-            'IncludeItemTypes': mediaType,
-            'Fields': 'Path'}
-            
-            r = requests.get(self.get_api_url() + '/Items', params=payload)
-            response = r.json()
-            
-            return response['Items']
-        except Exception as e:
-            self.logger.error("{}{}{}: search {}search={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), searchString, get_tag_ansi_code(), get_log_ansi_code(), e))
-    
     def search_item(self, id):
         try:
             payload = {
@@ -86,71 +70,24 @@ class EmbyAPI:
                 return None
         except Exception as e:
             self.logger.error("{}{}{}: search_item {}item={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), id, get_tag_ansi_code(), get_log_ansi_code(), e))
-            
-    def search_all(self, searchString):
+    
+    def get_item_id_from_path(self, path):
         try:
             payload = {
-            'api_key': self.api_key,
-            'Recursive': 'true',
-            'SearchTerm': searchString,
-            'Fields': 'Path'}
-            
+                'api_key': self.api_key,
+                'Recursive': 'true',
+                'Path': path,
+                'Fields': 'Path'}
             r = requests.get(self.get_api_url() + '/Items', params=payload)
-            return r.json()['Items']
-        except Exception as e:
-            self.logger.error("{}{}{}: search_all {}search={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), searchString, get_tag_ansi_code(), get_log_ansi_code(), e))
-            
-    def get_series_id(self, series_name, series_path):
-        # Remove any year from the series name ... example (2017)
-        cleaned_series_name = remove_year_from_name(series_name)
-        cleaned_series_name = cleaned_series_name.lower()
+            response = r.json()
 
-        try:
-            search_items = self.search(cleaned_series_name, 'Series')
-            for item in search_items:
-                if series_path == item['Path']:
-                    return item['Id']
-        except Exception as e:
-            self.logger.error("{}{}{}: get_series_id {}series={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), series_name, get_tag_ansi_code(), get_log_ansi_code(), e))
+            if response['TotalRecordCount'] > 0:
+                return response['Items'][0]['Id']
             
-        # return an invalid id if not found
-        return self.invalid_item_id
-    
-    def get_series_episodes(self, series_id, season_num):
-        try:
-            payload = {
-            'api_key': self.api_key,
-            'Recursive': 'true',
-            'Id': series_id,
-            'Season': season_num,
-            'Fields': 'Path'}
+        except Exception as e:
+            self.logger.error("{}{}{}: get_item_id_from_path {}path={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), path, get_tag_ansi_code(), get_log_ansi_code(), e))
             
-            r = requests.get(self.get_api_url() + '/Shows/' + series_id + '/Episodes', params=payload)
-            return r.json()['Items']
-        except Exception as e:
-            self.logger.error("{}{}{}: get_series_episodes {}series={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), series_id, get_tag_ansi_code(), get_log_ansi_code(), e))
-    
-    def get_series_episode_id(self, series_name, series_path, season_num, episode_path):
-        series_id = self.get_series_id(series_name, series_path)
-        if series_id != self.invalid_item_id:
-            series_episodes = self.get_series_episodes(series_id, season_num)
-            for episode in series_episodes:
-                if episode['Path'] == episode_path:
-                    return episode['Id']
-        
-        return self.invalid_item_id
-    
-    def get_movie_item_id(self, name, path):
-        try:
-            searchItems = self.search(name, 'Movie')
-            for item in searchItems:
-                if path == item['Path']:
-                    return item['Id']
-        except Exception as e:
-            self.logger.error("{}{}{}: get_movie_item_id {}name={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name, get_tag_ansi_code(), get_log_ansi_code(), e))
-
-        # return an invalid id if not found
-        return self.invalid_item_id
+        return self.get_invalid_item_id()
     
     def get_watched_status(self, user_id, item_id):
         try:
@@ -177,13 +114,6 @@ class EmbyAPI:
             requests.post(embyUrl, headers=headers)
         except Exception as e:
             self.logger.error("{}{}{}: set_watched_item {}user={}{} {}item={}{} {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), user_id, get_log_ansi_code(), get_tag_ansi_code(), item_id, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
-            
-    def set_all_library_scan(self):
-        try:
-            embyRefreshUrl = self.get_api_url() + '/Library/Refresh?api_key=' + self.api_key
-            requests.post(embyRefreshUrl)
-        except Exception as e:
-            self.logger.error("{}{}{}: set_all_library_scan {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def set_library_scan(self, library_id):
         try:

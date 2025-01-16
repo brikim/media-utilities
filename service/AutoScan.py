@@ -242,10 +242,12 @@ class AutoScan:
         #   If the library already exists just update the time to wait since we can only notify per library to update not per item
         with self.monitor_lock:
             for monitor in self.monitors:
-                if monitor.path == path:
+                # If the name is the same this monitor belongs to the same library so update the time
+                if monitor.name == scan.name:
+                    # If the path is the same this is just an update to an existing monitor
+                    if monitor.path == path:
+                        found = True
                     monitor.time = current_time
-                    found = True
-                    break
         
         # No monitor found for this item add it to the monitor list
         if found == False:

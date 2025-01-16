@@ -86,32 +86,15 @@ class SyncWatched:
     def get_plex_path(self, emby_path):
         return emby_path.replace(self.emby_api.get_media_path(), self.plex_api.get_media_path(), 1)
         
-    def get_emby_tv_show_episode_id(self, tautulli_item):
-        if 'grandparent_rating_key' in tautulli_item and 'rating_key' in tautulli_item and tautulli_item['grandparent_rating_key'] != '' and tautulli_item['rating_key'] != '':
-            plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
-            if plex_item is not self.plex_api.get_invalid_type():
-                series_item = self.plex_api.fetchItem(tautulli_item['grandparent_rating_key'])
-                if series_item is not self.plex_api.get_invalid_type():
-                    emby_series_path = self.get_emby_path_from_plex_path(series_item.locations[0])
-                    emby_file_path_location = self.get_emby_path_from_plex_path(plex_item.locations[0])
-                    return self.emby_api.get_series_episode_id(plex_item.grandparentTitle, emby_series_path, plex_item.seasonNumber, emby_file_path_location)
-        
-        return self.emby_api.get_invalid_item_id()
-    
-    def get_emby_movie_id(self, tautulli_item):
+    def get_emby_item_id(self, tautulli_item):
         plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
-            emby_file_location = self.get_emby_path_from_plex_path(plex_item.locations[0])
-            return self.emby_api.get_movie_item_id(plex_item.title, emby_file_location)
+            return self.emby_api.get_item_id_from_path(self.get_emby_path_from_plex_path(plex_item.locations[0]))
         else:
             return self.emby_api.get_invalid_item_id()
     
     def sync_emby_with_plex_watch_status(self, tautulli_item, user):
-        emby_item_id = self.emby_api.get_invalid_item_id()
-        if tautulli_item['media_type'] == self.tautulli_api.get_media_type_episode_name():
-            emby_item_id = self.get_emby_tv_show_episode_id(tautulli_item)
-        elif tautulli_item['media_type'] == self.tautulli_api.get_media_type_movie_name():
-            emby_item_id = self.get_emby_movie_id(tautulli_item)
+        emby_item_id = self.get_emby_item_id(tautulli_item)
         
         # If the item id is valid and the user has not already watched the item
         if emby_item_id != self.emby_api.get_invalid_item_id():
