@@ -10,7 +10,7 @@ import inotify.constants
 
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
-from common.utils import get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
+from service.ServiceBase import ServiceBase
 
 @dataclass
 class ScanInfo:
@@ -31,12 +31,12 @@ class CheckPathData:
     time: float
     deleted: bool
     
-class AutoScan:
-    def __init__(self, ansi_code, plex_api, emby_api, config, logger):
-        self.service_ansi_code = ansi_code
+class AutoScan(ServiceBase):
+    def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
+        super().__init__(ansi_code, self.__module__, config, logger, scheduler)
+        
         self.plex_api = plex_api
         self.emby_api = emby_api
-        self.logger = logger
         self.ignore_folder_with_name = []
         self.valid_file_extensions = []
         
@@ -74,13 +74,13 @@ class AutoScan:
                 if self.plex_api.get_valid() == True:
                     self.notify_plex = True
                 else:
-                    self.logger.warning('{}{}{}: Notify {}Plex{} is true but API not valid {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid()))
+                    self.log_warning('Notify {} is true but API not valid {}'.format(self.formatted_plex, self.get_tag('plex_valid', self.plex_api.get_valid())))
             
             if 'notify_emby' in config and config['notify_emby'] == 'True':
                 if self.emby_api.get_valid() == True:
                     self.notify_emby = True
                 else:
-                    self.logger.warning('{}{}{}: Notify {}Emby{} is true but API not valid {}emby_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid()))
+                    self.log_warning('Notify {} is true but API not valid {}'.format(self.formatted_emby, self.get_tag('emby_valid', self.emby_api.get_valid())))
             
             for scan in config['scans']:
                 plex_library = ''
@@ -104,7 +104,7 @@ class AutoScan:
                 
                 
         except Exception as e:
-            self.logger.error('{}{}{}: Read config {}error={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code() , get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Read config {}error={}{}'.format(self.get_tag('error', e)))
     
     def shutdown(self):
         self.stop_threads = True
@@ -128,18 +128,18 @@ class AutoScan:
             temp_file = scan.path + temp_file_path
             os.remove(temp_file)
         
-        self.logger.info('{}{}{}: Successful shutdown'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+        self.log_info('Successful shutdown')
     
-    def _log_moved_to_target(self, name, library, server_name, server_ansi_code):
-        self.logger.info('{}{}{}: Monitor moved to target {}name={}{} {}target={}{} {}library={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name, get_tag_ansi_code(), server_ansi_code, server_name, get_tag_ansi_code(), get_log_ansi_code(), library))
+    def _log_moved_to_target(self, name, target, library):
+        self.log_info('Monitor moved to target {} {} {}'.format(self.get_tag('name', name), self.get_tag('target', target), self.get_tag('library', library)))
         
     def _notify_media_servers(self, monitor):
         if self.notify_plex == True and monitor.plex_library_valid == True:
             self.plex_api.set_library_scan(monitor.plex_library)
-            self._log_moved_to_target(monitor.name, monitor.plex_library, 'plex', get_plex_ansi_code())
+            self._log_moved_to_target(monitor.name, self.formatted_plex, monitor.plex_library)
         if self.notify_emby == True and monitor.emby_library_valid == True:
             self.emby_api.set_library_scan(monitor.emby_library_id)
-            self._log_moved_to_target(monitor.name, monitor.emby_library, 'emby', get_emby_ansi_code())
+            self._log_moved_to_target(monitor.name, self.formatted_emby, monitor.emby_library)
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
@@ -232,7 +232,7 @@ class AutoScan:
                 
             time.sleep(self.seconds_monitor_rate)
         
-        self.logger.info('{}{}{}: Stopping monitor thread'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+        self.log_info('Stopping monitor thread')
     
     def _add_file_monitor(self, path, scan):
         found = False
@@ -254,10 +254,10 @@ class AutoScan:
             with self.monitor_lock:
                 self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, scan.emby_library_id, current_time))
             
-            self.logger.info('{}{}{}: Scan moved to monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), path))
+            self.log_info('Scan moved to monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', path)))
         
     def _monitor_path(self, scan):
-        self.logger.info('{}{}{}: Starting monitor {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), scan.path))
+        self.log_info('Starting monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan.path)))
         
         scanner_mask =  (inotify.constants.IN_MODIFY | inotify.constants.IN_MOVED_FROM | inotify.constants.IN_MOVED_TO | 
                         inotify.constants.IN_CREATE | inotify.constants.IN_DELETE)
@@ -296,7 +296,7 @@ class AutoScan:
                     self._add_file_monitor(path, scan)
             
             if self.stop_threads == True:
-                self.logger.info('{}{}{}: Stopping watch {}name={}{} {}path={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), scan.name, get_tag_ansi_code(), get_log_ansi_code(), scan.path))
+                self.log_error('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan.path)))
                 break
         
     def start(self):
@@ -307,5 +307,5 @@ class AutoScan:
         self.monitor_thread = Thread(target=self._monitor, args=()).start()
         
     def init_scheduler_jobs(self):
-        self.logger.info('{}{}{}: Enabled'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+        self.log_service_enabled()
         self.start()

@@ -1,23 +1,20 @@
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from common.types import CronInfo, UserInfo
-from common.utils import get_cron_from_string, get_datetime_for_history_plex_string, remove_year_from_name, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
-class SyncWatched:
+from common.types import UserInfo
+from common.utils import get_datetime_for_history_plex_string, remove_year_from_name, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
+from service.ServiceBase import ServiceBase
+
+class SyncWatched(ServiceBase):
     def __init__(self, ansi_code, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
-        self.service_ansi_code = ansi_code
+        super().__init__(ansi_code, self.__module__, config, logger, scheduler)
+        
         self.plex_api = plex_api
         self.tautulli_api = tautulli_api
         self.emby_api = emby_api
         self.jellystat_api = jellystat_api
-        self.logger = logger
-        self.scheduler = scheduler
-        self.cron = None
         self.user_list = []
         
         try:
-            self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
-            
             for user in config['users']:
                 total_user_groups = 0
                 
@@ -44,10 +41,10 @@ class SyncWatched:
                             plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
                             if plex_user_id == self.tautulli_api.get_invalid_user_id():
                                 valid_user_ids = False
-                                self.logger.warning('{}{}{}: No {}Plex{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), plex_user_name))
+                                self.log_warning('No {} user found for {} ... Skipping User'.format(self.formatted_plex, plex_user_name))
                         else:
                             valid_user_ids = False
-                            self.logger.warning('{}{}{}: {}Plex{} user defined but API not valid {}user={}{} {}plex_valid={}{} {}tautulli_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), plex_user_name, get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.tautulli_api.get_valid()))
+                            self.log_warning('{} user defined but API not valid {} {} {}'.format(self.formatted_plex, self.get_tag('user', plex_user_name), self.get_tag('plex_valid', self.plex_api.get_valid()), self.get_tag('tautulli_valid', self.tautulli_api.get_valid())))
                         
                     emby_user_id = ''
                     if emby_user_name != '':
@@ -55,18 +52,18 @@ class SyncWatched:
                             emby_user_id = self.emby_api.get_user_id(emby_user_name)
                             if emby_user_id == self.emby_api.get_invalid_item_id():
                                 valid_user_ids = False
-                                self.logger.warning('{}{}{}: No {}Emby{} user found for {} ... Skipping User'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), emby_user_name))
+                                self.log_warning('No {} user found for {} ... Skipping User'.format(self.formatted_emby, emby_user_name))
                         else:
                             valid_user_ids = False
-                            self.logger.warning('{}{}{}: {}Emby{} user defined but API not valid {}user={}{} {}emby_valid={}{} {}jellystat_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), emby_user_name, get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid(), get_tag_ansi_code, get_log_ansi_code, self.jellystat_api.get_valid()))
+                            self.log_warning('{} user defined but API not valid {} {} {}'.format(self.formatted_emby, self.get_tag('user', emby_user_name), self.get_tag('emby_valid', self.emby_api.get_valid()), self.get_tag('jellystat_valid', self.jellystat_api.get_valid())))
                     
                     if valid_user_ids == True:
                         self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
                 else:
-                    self.logger.warning('{}{}{}: Only 1 user found in user field must have at least 2 to sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+                    self.log_warning('Only 1 user found in user field must have at least 2 to sync')
 
         except Exception as e:
-            self.logger.error("{}: Read config ERROR:{}".format(self.__module__ , e))
+            self.log_error('Read config ERROR:{}'.format(e))
     
     def get_hours_since_play(self, useUtcTime, playDateTime):
         currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
@@ -76,9 +73,9 @@ class SyncWatched:
     def set_emby_watched_item(self, user, itemId, fullTitle):
         try:
             self.emby_api.set_watched_item(user.emby_user_id, itemId)
-            self.logger.info('{}{}{}: {} watched {} on {}Plex{} sync {}Emby{} watch status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.plex_user_name, fullTitle, get_plex_ansi_code(), get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
+            self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_user_name, fullTitle, self.formatted_plex, self.formatted_emby))
         except Exception as e:
-            self.logger.error("{}{}{}: Set {}Emby{} watched {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Set {} watched {}'.format(self.formatted_emby, get_tag_ansi_code(), get_log_ansi_code(), self.get_tag('error', e)))
     
     def get_emby_path_from_plex_path(self, plex_path):
         return plex_path.replace(self.plex_api.get_media_path(), self.emby_api.get_media_path(), 1)
@@ -109,7 +106,7 @@ class SyncWatched:
                 if historyItem['watched_status'] == 1 and user.emby_user_name != '':
                     self.sync_emby_with_plex_watch_status(historyItem, user)
         except Exception as e:
-            self.logger.error("{}{}{}: Get {}Plex{} history {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Get {} history {}error={}{}'.format(self.formatted_plex, get_tag_ansi_code(), get_log_ansi_code(), e))
     
     def set_plex_show_watched(self, emby_series_path, emby_episode_item, user):
         try:
@@ -125,10 +122,10 @@ class SyncWatched:
                         plex_episode_location = self.get_plex_path(emby_episode_item['Path'])
                         if episode is not None and episode.isWatched == False and episode.locations[0] == plex_episode_location:
                             episode.markWatched()
-                            self.logger.info('{}{}{}: {} watched {} on {}Emby{} sync {}Plex{} watch status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title, get_emby_ansi_code(), get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code()))
+                            self.log_info('{} watched {} on {} sync {} watch status'.format(user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title, self.formatted_emby, self.formatted_plex))
                         break
         except Exception as e:
-            self.logger.error('{}{}{}: Error with {}plex{} movie watched {}error={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Error with {} movie watched {}'.format(self.formatted_plex, get_tag_ansi_code(), get_log_ansi_code(), self.get_tag('error', e)))
 
     def set_plex_movie_watched(self, emby_item, user):
         try:
@@ -141,10 +138,10 @@ class SyncWatched:
                         media_Item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
                         if media_Item is not self.plex_api.get_invalid_type():
                             media_Item.markWatched()
-                            self.logger.info('{}{}{}: {} watched {} on {}Emby{} Sync {}Plex{} Watch Status'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), user.emby_user_name, emby_item['Name'], get_emby_ansi_code(), get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code()))
+                            self.log_info('{} watched {} on {} sync {} watch status'.format(user.emby_user_name, emby_item['Name'], self.formatted_emby, self.formatted_plex))
                     break
         except Exception as e:
-            self.logger.error("{}{}{}: Error with {}plex{} movie watched {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Error with {} movie watched {}'.format(self.formatted_plex, get_tag_ansi_code(), get_log_ansi_code(), self.get_tag('error', e)))
     
     def sync_plex_with_emby_watch_status(self, jellystat_item, user):
         if self.get_hours_since_play(True, datetime.fromisoformat(jellystat_item['ActivityDateInserted'])) < 24:
@@ -174,7 +171,7 @@ class SyncWatched:
                         self.sync_plex_with_emby_watch_status(item, user)
                 
         except Exception as e:
-            self.logger.error("{}{}{}: Error in {}emby{} watch status {}error={}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('{} watch status {}'.format(self.formatted_emby, get_tag_ansi_code(), get_log_ansi_code(), self.get_tag('error', e)))
     
     
     def sync_watch_status(self):
@@ -188,13 +185,13 @@ class SyncWatched:
         
     def init_scheduler_jobs(self):
         if len(self.user_list) > 0:
-            self.logger.info('{}{}{}: Running start up sync'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.log_info('Running start up sync')
             self.sync_watch_status()
-
+            
             if self.cron is not None:
-                self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
+                self.log_service_enabled()
                 self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
             else:
-                self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+                self.log_warning('Enabled but will not Run. Cron is not valid!')
         else:
-            self.logger.warning('{}{}{}: Enabled but no valid users to sync!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.log_warning('Enabled but no valid users to sync!')

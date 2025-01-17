@@ -4,7 +4,8 @@ import glob
 from datetime import datetime
 from dataclasses import dataclass
 from common.types import CronInfo
-from common.utils import get_cron_from_string, get_log_ansi_code, get_tag_ansi_code, get_plex_ansi_code, get_emby_ansi_code
+from common.utils import get_log_ansi_code, get_tag_ansi_code
+from service.ServiceBase import ServiceBase
 
 @dataclass
 class ShowConfig:
@@ -24,20 +25,16 @@ class FileInfo:
     path: str
     age_days: float
 
-class DvrMaintainer:
+class DvrMaintainer(ServiceBase):
     def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
-        self.service_ansi_code = ansi_code
+        super().__init__(ansi_code, self.__module__, config, logger, scheduler)
+        
         self.plex_api = plex_api
         self.emby_api = emby_api
-        self.logger = logger
-        self.scheduler = scheduler
-        self.cron = None
         self.show_configurations = []
         self.run_test = False
         
         try:
-            self.cron = get_cron_from_string(config['cron_run_rate'], self.logger, self.__module__)
-            
             for show in config['show_details']:
                 action = ''
                 actionValue = 0
@@ -53,7 +50,7 @@ class DvrMaintainer:
                     if self.plex_api.get_valid() == True:
                         show_plex_library_name = show['plex_library_name']
                     else:
-                        self.logger.warning('{}{}{}: {}Plex{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), show['plex_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.plex_api.get_valid()))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_plex, self.get_tag('library', show['plex_library_name']), self.get_tag('plex_valid', self.plex_api.get_valid())))
                     
                 show_emby_library_id = ''
                 if 'emby_library_name' in show:
@@ -62,15 +59,15 @@ class DvrMaintainer:
                         if emby_library != '':
                             show_emby_library_id = emby_library['Id']
                     else:
-                        self.logger.warning('{}{}{}: {}Emby{} library defined but API not valid {}library={}{} {}plex_valid={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), show['emby_library_name'], get_tag_ansi_code(), get_log_ansi_code(), self.emby_api.get_valid()))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_emby, self.get_tag('library', show['emby_library_name']), self.get_tag('plex_valid', self.emby_api.get_valid())))
                     
                 if action != '':
                     self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show_plex_library_name, show_emby_library_id, show['utilities_path'].rstrip('/')))
                 else:
-                    self.logger.error('{}{}{}: Unknown show action {}. Skipping show detail'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), show['action']))
+                    self.log_error('Unknown show action {}. Skipping show detail'.format(show['action']))
         
         except Exception as e:
-            self.logger.error("{}{}{}: Read config {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Read config {}'.format(self.get_tag('error', e)))
     
     def get_files_in_path(self, path):
         fileInfo = []
@@ -82,25 +79,25 @@ class DvrMaintainer:
 
     def delete_file(self, pathFileName):
         if self.run_test == True:
-            self.logger.info("{}{}{}: Running test! Would delete {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), pathFileName))
+            self.log_info('Running test! Would delete {}'.format(self.get_tag('file', pathFileName)))
         else:
             try:
                 os.remove(pathFileName)
             except Exception as e:
-                self.logger.error("{}{}{}: Problem deleting {}file={}{} {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), pathFileName, get_tag_ansi_code(), get_log_ansi_code(), e))
+                self.log_error('Problem deleting {} {}'.format(self.get_tag('file', pathFileName), self.get_tag('error', e)))
     
     def keep_last_delete(self, path, keep_last):
         showsDeleted = False
         fileInfo = self.get_files_in_path(path)
         if len(fileInfo) > keep_last:
-            self.logger.info("{}{}{}: KEEP_LAST_{} {}episodes={}{} in {}path={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), len(fileInfo), get_tag_ansi_code(), get_log_ansi_code(), path))
+            self.log_info('KEEP_LAST_{} {} {}'.format(keep_last, self.get_tag('episodes', len(fileInfo)), self.get_tag('path', path)))
             try:
                 sortedFileInfo = sorted(fileInfo, key=lambda item: item.age_days, reverse=True)
 
                 showsToDelete = len(fileInfo) - keep_last
                 deletedShows = 0
                 for file in sortedFileInfo:
-                    self.logger.info("{}{}{}: KEEP_LAST_{} deleting oldest {}age days={}{:.1f} {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag_ansi_code(), get_log_ansi_code(), file.path))
+                    self.log_info('KEEP_LAST_{} deleting oldest {}age days={}{:.1f} {}'.format(keep_last, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, self.get_tag('file', file.path)))
                     self.delete_file(file.path)
                     showsDeleted = True
 
@@ -109,7 +106,7 @@ class DvrMaintainer:
                         break
             
             except Exception as e:
-                self.logger.error("{}{}{}: KEEP_LAST_{} error sorting files {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_last, get_tag_ansi_code(), get_log_ansi_code(), e))
+                self.log_error('KEEP_LAST_{} error sorting files {}'.format(keep_last, self.get_tag('error', e)))
 
         return showsDeleted
 
@@ -118,7 +115,7 @@ class DvrMaintainer:
         fileInfo = self.get_files_in_path(path)
         for file in fileInfo:
             if file.age_days >= keep_days:
-                self.logger.info("{}{}{}: KEEP_DAYS_{} deleting {}age days={}{:.1f} {}file={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), keep_days, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag_ansi_code(), get_log_ansi_code(), file.path))
+                self.log_info('KEEP_DAYS_{} deleting {}age days={}{:.1f} {}'.format(keep_days,  get_tag_ansi_code(), get_log_ansi_code(), file.age_days, self.get_tag('file', file.path)))
                 self.delete_file(file.path)
                 showsDeleted = True
         return showsDeleted
@@ -133,14 +130,14 @@ class DvrMaintainer:
                     if showsDeleted == True:
                         deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
                 except Exception as e:
-                    self.logger.error("{}{}{}: Check show delete keep last {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+                    self.log_error('Check show delete keep last {}'.format(self.get_tag('error', e)))
             elif config.action_type == 'KEEP_LENGTH_DAYS':
                 try:
                     showsDeleted = self.keep_show_days(libraryFilePath, config.action_value)
                     if showsDeleted == True:
                         deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
                 except Exception as e:
-                    self.logger.error("{}{}{}: Check show delete keep length {}error={}{}".format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
+                    self.log_error('Check show delete keep length {}'.format(self.get_tag('error', e)))
 
         return deleted_data
     
@@ -181,15 +178,15 @@ class DvrMaintainer:
             emby_lib_refreshed = self.notify_emby_refresh(list(set(emby_library_ids)))
             
             if plex_lib_refreshed == True and emby_lib_refreshed == True:
-                self.logger.info('{}{}{}: Notified {}Plex{} and {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
+                self.log_info('Notified {} and {} to refresh'.format(self.formatted_plex, self.formatted_emby))
             elif plex_lib_refreshed == True:
-                self.logger.info('{}{}{}: Notified {}Plex{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_plex_ansi_code(), get_log_ansi_code()))
+                self.log_info('Notified {} to refresh'.format(self.formatted_plex))
             elif emby_lib_refreshed == True:
-                self.logger.info('{}{}{}: Notified {}Emby{} to refresh'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_emby_ansi_code(), get_log_ansi_code()))
-                
+                self.log_info('Notified {} to refresh'.format(self.formatted_emby))
+    
     def init_scheduler_jobs(self):
         if self.cron is not None:
-            self.logger.info('{}{}{}: Enabled. Running every {}hour={}{} {}minute={}{}'.format(self.service_ansi_code, self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), self.cron.hours, get_tag_ansi_code(), get_log_ansi_code(), self.cron.minutes))
+            self.log_service_enabled()
             self.scheduler.add_job(self.do_maintenance, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
-            self.logger.warning('{}{}{}: Enabled but will not Run. Cron is not valid!'.format(self.service_ansi_code, self.__module__, get_log_ansi_code()))
+            self.log_warning('Enabled but will not Run. Cron is not valid!')
