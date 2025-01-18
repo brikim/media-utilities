@@ -129,17 +129,27 @@ class AutoScan(ServiceBase):
             os.remove(temp_file)
         
         self.log_info('Successful shutdown')
-    
-    def _log_moved_to_target(self, name, target, library):
-        self.log_info('Monitor moved to target {} {} {}'.format(self.get_tag('name', name), self.get_tag('target', target), self.get_tag('library', library)))
         
-    def _notify_media_servers(self, monitor):
-        if self.notify_plex == True and monitor.plex_library_valid == True:
-            self.plex_api.set_library_scan(monitor.plex_library)
-            self._log_moved_to_target(monitor.name, self.formatted_plex, monitor.plex_library)
-        if self.notify_emby == True and monitor.emby_library_valid == True:
-            self.emby_api.set_library_scan(monitor.emby_library_id)
-            self._log_moved_to_target(monitor.name, self.formatted_emby, monitor.emby_library)
+    def _notify_media_servers(self, monitors):
+        if len(monitors) > 0:
+            plex_notified = False
+            emby_notified = False
+            
+            # all the libraries in this monitor group are identical
+            if self.notify_plex == True and monitors[0].plex_library_valid == True:
+                self.plex_api.set_library_scan(monitors[0].plex_library)
+                plex_notified = True
+            if self.notify_emby == True and monitors[0].emby_library_valid == True:
+                self.emby_api.set_library_scan(monitors[0].emby_library_id)
+                emby_notified = True
+                
+            for monitor in monitors:
+                if plex_notified == True and emby_notified == True:
+                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{} & {}:{}'.format(self.formatted_plex, monitor.plex_library, self.formatted_emby, monitor.emby_library)), self.get_tag('path', monitor.path)))
+                elif plex_notified == True:
+                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{}'.format(self.formatted_plex, monitor.plex_library)), self.get_tag('path', monitor.path)))
+                elif emby_notified == True:
+                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{}'.format(self.formatted_emby, monitor.emby_library)), self.get_tag('path', monitor.path)))
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
@@ -195,7 +205,6 @@ class AutoScan(ServiceBase):
                         current_monitor = None
                         for monitor in self.monitors:
                             if (current_time - monitor.time) >= self.seconds_before_notify:
-                                self._notify_media_servers(monitor)
                                 current_monitor = monitor
                                 self.last_notify_time = current_time
                                 break
@@ -205,11 +214,15 @@ class AutoScan(ServiceBase):
                             # If servers were just notified for this name remove all monitors for the same name since
                             # the server refresh is by library not by item
                             new_monitors = []
+                            processed_monitors = []
                             for monitor in self.monitors:
-                                if monitor.name != current_monitor.name:
+                                if monitor.name == current_monitor.name:
+                                    processed_monitors.append(monitor)
+                                else:
                                     new_monitors.append(monitor)
 
-                                self.monitors = new_monitors
+                            self._notify_media_servers(processed_monitors)
+                            self.monitors = new_monitors
             
             # Check if any new paths need to be added to the inotify list
             with self.check_new_paths_lock:
