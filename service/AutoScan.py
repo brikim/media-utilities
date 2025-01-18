@@ -92,8 +92,8 @@ class AutoScan(ServiceBase):
                 
                 emby_library_name = ''
                 emby_library_id = ''
-                if self.notify_emby == True and 'emby_library' in path:
-                    emby_library = self.emby_api.get_library_from_name(path['emby_library'])
+                if self.notify_emby == True and 'emby_library' in scan:
+                    emby_library = self.emby_api.get_library_from_name(scan['emby_library'])
                     if emby_library != self.emby_api.get_invalid_item_id():
                         emby_library_name = emby_library['Name']
                         emby_library_id = emby_library['Id']
@@ -113,7 +113,7 @@ class AutoScan(ServiceBase):
                 
                 
         except Exception as e:
-            self.log_error('Read config {}error={}{}'.format(self.get_tag('error', e)))
+            self.log_error('Read config {}'.format(self.get_tag('error', e)))
     
     def shutdown(self):
         self.stop_threads = True
