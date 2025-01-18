@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 import threading
 from threading import Thread
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import inotify.adapters
 import inotify.constants
 
@@ -15,14 +15,14 @@ from service.ServiceBase import ServiceBase
 @dataclass
 class ScanInfo:
     name: str
-    path: str
     plex_library_valid: bool
     plex_library: str
     emby_library_valid: bool
     emby_library: str
     emby_library_id: str
     time: float
-    
+    paths: list = field(default_factory=list)
+
 @dataclass
 class CheckPathData:
     path: str
@@ -30,7 +30,7 @@ class CheckPathData:
     scan_mask: int
     time: float
     deleted: bool
-    
+
 class AutoScan(ServiceBase):
     def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
         super().__init__(ansi_code, self.__module__, config, logger, scheduler)
@@ -84,17 +84,26 @@ class AutoScan(ServiceBase):
             
             for scan in config['scans']:
                 plex_library = ''
-                if self.notify_plex == True and 'plex_path' in scan:
-                    plex_library = self.plex_api.get_library_name_from_path(scan['plex_path'])
+                if self.notify_plex == True and 'plex_library' in scan:
+                    if self.plex_api.get_library(scan['plex_library']) != self.plex_api.get_invalid_type():
+                        plex_library = scan['plex_library']
+                    else:
+                        self.log_error('{} {} defined but not found'.format(self.formatted_plex, self.get_tag('library', scan['plex_library'])))
                 
                 emby_library_name = ''
                 emby_library_id = ''
-                if self.notify_emby == True and 'emby_path' in scan:
-                    emby_library = self.emby_api.get_library_from_path(scan['emby_path'])
-                    emby_library_name = emby_library['Name']
-                    emby_library_id = emby_library['Id']
+                if self.notify_emby == True and 'emby_library' in path:
+                    emby_library = self.emby_api.get_library_from_name(path['emby_library'])
+                    if emby_library != self.emby_api.get_invalid_item_id():
+                        emby_library_name = emby_library['Name']
+                        emby_library_id = emby_library['Id']
+                        
+                scan_info = ScanInfo(scan['name'], plex_library != '', plex_library, emby_library_name != '', emby_library_name, emby_library_id, 0.0)
                 
-                self.scans.append(ScanInfo(scan['name'], scan['container_path'], plex_library != '', plex_library, emby_library_name != '', emby_library_name, emby_library_id, 0.0))
+                for path in scan['paths']:
+                    scan_info.paths.append(path['container_path'])
+                
+                self.scans.append(scan_info)
             
             for folder in config['ignore_folder_with_name']:
                 self.ignore_folder_with_name.append(folder['ignore_folder'])
@@ -113,9 +122,11 @@ class AutoScan(ServiceBase):
         
         # Create a temp file to notify the inotify adapters
         for scan in self.scans:
-            temp_file = scan.path + temp_file_path
-            with open(temp_file, 'w') as file:
-                file.write('BREAK')
+            for path in scan.paths:
+                temp_file = path + temp_file_path
+                with open(temp_file, 'w') as file:
+                    file.write('BREAK')
+                    break
             
         # allow time for the events
         time.sleep(1)
@@ -125,31 +136,32 @@ class AutoScan(ServiceBase):
                             
         # clean up the temp files
         for scan in self.scans:
-            temp_file = scan.path + temp_file_path
-            os.remove(temp_file)
+            for path in scan.paths:
+                temp_file = path + temp_file_path
+                os.remove(temp_file)
+                break
         
         self.log_info('Successful shutdown')
         
-    def _notify_media_servers(self, monitors):
-        if len(monitors) > 0:
-            plex_notified = False
-            emby_notified = False
+    def _notify_media_servers(self, monitor):
+        plex_notified = False
+        emby_notified = False
+        
+        # all the libraries in this monitor group are identical
+        if self.notify_plex == True and monitor.plex_library_valid == True:
+            self.plex_api.set_library_scan(monitor.plex_library)
+            plex_notified = True
+        if self.notify_emby == True and monitor.emby_library_valid == True:
+            self.emby_api.set_library_scan(monitor.emby_library_id)
+            emby_notified = True
             
-            # all the libraries in this monitor group are identical
-            if self.notify_plex == True and monitors[0].plex_library_valid == True:
-                self.plex_api.set_library_scan(monitors[0].plex_library)
-                plex_notified = True
-            if self.notify_emby == True and monitors[0].emby_library_valid == True:
-                self.emby_api.set_library_scan(monitors[0].emby_library_id)
-                emby_notified = True
-                
-            for monitor in monitors:
-                if plex_notified == True and emby_notified == True:
-                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{} & {}:{}'.format(self.formatted_plex, monitor.plex_library, self.formatted_emby, monitor.emby_library)), self.get_tag('path', monitor.path)))
-                elif plex_notified == True:
-                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{}'.format(self.formatted_plex, monitor.plex_library)), self.get_tag('path', monitor.path)))
-                elif emby_notified == True:
-                    self.log_info('Monitor {} moved to {} {}'.format(self.get_tag('name', monitor.name), self.get_tag('target', '{}:{}'.format(self.formatted_emby, monitor.emby_library)), self.get_tag('path', monitor.path)))
+        for path in monitor.paths:
+            if plex_notified == True and emby_notified == True:
+                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{} & {}:{}'.format(self.formatted_plex, monitor.plex_library, self.formatted_emby, monitor.emby_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
+            elif plex_notified == True:
+                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{}'.format(self.formatted_plex, monitor.plex_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
+            elif emby_notified == True:
+                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{}'.format(self.formatted_emby, monitor.emby_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
@@ -214,14 +226,11 @@ class AutoScan(ServiceBase):
                             # If servers were just notified for this name remove all monitors for the same name since
                             # the server refresh is by library not by item
                             new_monitors = []
-                            processed_monitors = []
                             for monitor in self.monitors:
-                                if monitor.name == current_monitor.name:
-                                    processed_monitors.append(monitor)
-                                else:
+                                if monitor.name != current_monitor.name:
                                     new_monitors.append(monitor)
 
-                            self._notify_media_servers(processed_monitors)
+                            self._notify_media_servers(current_monitor)
                             self.monitors = new_monitors
             
             # Check if any new paths need to be added to the inotify list
@@ -247,8 +256,11 @@ class AutoScan(ServiceBase):
         
         self.log_info('Stopping monitor thread')
     
+    def _log_scan_moved_to_monitor(self, name, path):
+        self.log_info('Scan moved to monitor {} {}'.format(self.get_tag('name', name), self.get_tag('path', path)))
+        
     def _add_file_monitor(self, path, scan):
-        found = False
+        monitor_found = False
         current_time = time.time()
         
         # Check if this path or library already exists in the list
@@ -257,27 +269,38 @@ class AutoScan(ServiceBase):
             for monitor in self.monitors:
                 # If the name is the same this monitor belongs to the same library so update the time
                 if monitor.name == scan.name:
-                    # If the path is the same this is just an update to an existing monitor
-                    if monitor.path == path:
-                        found = True
+                    monitor_found = True
+                    
+                    path_in_monitor = False
+                    for monitor_path in monitor.paths:
+                        if monitor_path == path:
+                            path_in_monitor = True
+                            break
+                    
+                    if path_in_monitor == False:
+                        monitor.paths.append(path)
+                        self._log_scan_moved_to_monitor(monitor.name, path)
+
                     monitor.time = current_time
         
         # No monitor found for this item add it to the monitor list
-        if found == False:
+        if monitor_found == False:
+            monitor_info = ScanInfo(scan.name, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, scan.emby_library_id, current_time)
+            monitor_info.paths.append(path)
             with self.monitor_lock:
-                self.monitors.append(ScanInfo(scan.name, path, scan.plex_library_valid, scan.plex_library, scan.emby_library_valid, scan.emby_library, scan.emby_library_id, current_time))
-            
-            self.log_info('Scan moved to monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', path)))
+                self.monitors.append(monitor_info)
+            self._log_scan_moved_to_monitor(monitor_info.name, path)
         
     def _monitor_path(self, scan):
-        self.log_info('Starting monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan.path)))
-        
         scanner_mask =  (inotify.constants.IN_MODIFY | inotify.constants.IN_MOVED_FROM | inotify.constants.IN_MOVED_TO | 
                         inotify.constants.IN_CREATE | inotify.constants.IN_DELETE)
         
         # Setup the inotify watches for the current folder and all sub-folders
         i = inotify.adapters.Inotify()
-        self._add_inotify_watch(i, scan.path, scanner_mask)
+            
+        for scan_path in scan.paths:
+            self.log_info('Starting monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
+            self._add_inotify_watch(i, scan_path, scanner_mask)
             
         for event in i.event_gen(yield_nones=False):
             (_, type_names, path, filename) = event
@@ -309,7 +332,8 @@ class AutoScan(ServiceBase):
                     self._add_file_monitor(path, scan)
             
             if self.stop_threads == True:
-                self.log_error('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan.path)))
+                for scan_path in scan.paths:
+                    self.log_error('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
                 break
         
     def start(self):

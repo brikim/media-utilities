@@ -54,6 +54,13 @@ class PlexAPI:
     def search(self, searchStr, media_type):
         return self.plex_server.search(searchStr, media_type)
     
+    def get_library(self, library_name):
+        try:
+            return self.plex_server.library.section(library_name)
+        except Exception as e:
+            pass
+        return self.get_invalid_type()
+        
     def get_library_item(self, library_name, title):
         return_show = self.get_invalid_type()
         try:

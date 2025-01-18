@@ -2,7 +2,7 @@
 import os
 import glob
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from common.types import CronInfo
 from common.utils import get_log_ansi_code, get_tag_ansi_code
 from service.ServiceBase import ServiceBase
@@ -12,10 +12,14 @@ class ShowConfig:
     name: str
     action_type: str
     action_value: int
+
+@dataclass
+class LibraryConfig:
     plex_library_name: str
     emby_library_id: str
     utility_path: str
-
+    shows: list = field(default_factory=list)
+    
 @dataclass
 class DeletedData:
     plex_library_name: str
@@ -31,41 +35,53 @@ class DvrMaintainer(ServiceBase):
         
         self.plex_api = plex_api
         self.emby_api = emby_api
-        self.show_configurations = []
+        self.libraries = []
         self.run_test = False
         
         try:
-            for show in config['show_details']:
-                action = ''
-                actionValue = 0
-                if show['action'].find('KEEP_LAST_') != -1:
-                    action = 'KEEP_LAST'
-                    actionValue = int(show['action'].replace('KEEP_LAST_', ''))
-                elif show['action'].find('KEEP_LENGTH_DAYS_') != -1:
-                    action = 'KEEP_LENGTH_DAYS'
-                    actionValue = int(show['action'].replace('KEEP_LENGTH_DAYS_', ''))
-                
-                show_plex_library_name = ''
-                if 'plex_library_name' in show:
+            library_number = 1
+            for library in config['libraries']:
+                plex_library_name = ''
+                if 'plex_library_name' in library:
                     if self.plex_api.get_valid() == True:
-                        show_plex_library_name = show['plex_library_name']
+                        plex_library_name = library['plex_library_name']
                     else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_plex, self.get_tag('library', show['plex_library_name']), self.get_tag('plex_valid', self.plex_api.get_valid())))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_plex, self.get_tag('library', library['plex_library_name']), self.get_tag('plex_valid', self.plex_api.get_valid())))
                     
-                show_emby_library_id = ''
-                if 'emby_library_name' in show:
+                emby_library_id = ''
+                if 'emby_library_name' in library:
                     if self.emby_api.get_valid() == True:
-                        emby_library = self.emby_api.get_library_from_name(show['emby_library_name'])
-                        if emby_library != '':
-                            show_emby_library_id = emby_library['Id']
+                        emby_library = self.emby_api.get_library_from_name(library['emby_library_name'])
+                        if emby_library != self.emby_api.get_invalid_item_id():
+                            emby_library_id = emby_library['Id']
                     else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_emby, self.get_tag('library', show['emby_library_name']), self.get_tag('plex_valid', self.emby_api.get_valid())))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_emby, self.get_tag('library', library['emby_library_name']), self.get_tag('plex_valid', self.emby_api.get_valid())))
+                
+                # Create the library config for this library
+                library_config = LibraryConfig(plex_library_name, emby_library_id, library['utilities_path'])
+                
+                for show in library['shows']:
+                    action = ''
+                    action_value = 0
+                    if show['action'].find('KEEP_LAST_') != -1:
+                        action = 'KEEP_LAST'
+                        action_value = int(show['action'].replace('KEEP_LAST_', ''))
+                    elif show['action'].find('KEEP_LENGTH_DAYS_') != -1:
+                        action = 'KEEP_LENGTH_DAYS'
+                        action_value = int(show['action'].replace('KEEP_LENGTH_DAYS_', ''))
                     
-                if action != '':
-                    self.show_configurations.append(ShowConfig(show['name'], action, actionValue, show_plex_library_name, show_emby_library_id, show['utilities_path'].rstrip('/')))
+                    if action != '': 
+                        library_config.shows.append(ShowConfig(show['name'], action, action_value))
+                    else:
+                        self.log_error('Unknown show action {} ... Skipping'.format(show['action']))
+                        
+                if len(library_config.shows) > 0:
+                    self.libraries.append(library_config)
                 else:
-                    self.log_error('Unknown show action {}. Skipping show detail'.format(show['action']))
-        
+                    self.log_error('Library {} has no valid shows ... Skipping'.format(library_number))
+                    
+                library_number += 1
+
         except Exception as e:
             self.log_error('Read config {}'.format(self.get_tag('error', e)))
     
@@ -120,24 +136,25 @@ class DvrMaintainer(ServiceBase):
                 showsDeleted = True
         return showsDeleted
 
-    def check_show_delete(self, config):
+    def check_library_delete_shows(self, library):
         deleted_data = []
-        libraryFilePath = config.utility_path + '/' + config.name
-        if os.path.exists(libraryFilePath) == True:
-            if config.action_type == 'KEEP_LAST':
-                try:
-                    showsDeleted = self.keep_last_delete(libraryFilePath, config.action_value)
-                    if showsDeleted == True:
-                        deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
-                except Exception as e:
-                    self.log_error('Check show delete keep last {}'.format(self.get_tag('error', e)))
-            elif config.action_type == 'KEEP_LENGTH_DAYS':
-                try:
-                    showsDeleted = self.keep_show_days(libraryFilePath, config.action_value)
-                    if showsDeleted == True:
-                        deleted_data.append(DeletedData(config.plex_library_name, config.emby_library_id))
-                except Exception as e:
-                    self.log_error('Check show delete keep length {}'.format(self.get_tag('error', e)))
+        for show in library.shows:
+            libraryFilePath = library.utility_path + '/' + show.name
+            if os.path.exists(libraryFilePath) == True:
+                if show.action_type == 'KEEP_LAST':
+                    try:
+                        showsDeleted = self.keep_last_delete(libraryFilePath, show.action_value)
+                        if showsDeleted == True:
+                            deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_id))
+                    except Exception as e:
+                        self.log_error('Check show delete keep last {}'.format(self.get_tag('error', e)))
+                elif show.action_type == 'KEEP_LENGTH_DAYS':
+                    try:
+                        showsDeleted = self.keep_show_days(libraryFilePath, show.action_value)
+                        if showsDeleted == True:
+                            deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_id))
+                    except Exception as e:
+                        self.log_error('Check show delete keep length {}'.format(self.get_tag('error', e)))
 
         return deleted_data
     
@@ -161,8 +178,8 @@ class DvrMaintainer(ServiceBase):
     def do_maintenance(self):
         deleted_data_items = []
         
-        for show_config in self.show_configurations:
-            deleted_data = self.check_show_delete(show_config)
+        for library in self.libraries:
+            deleted_data = self.check_library_delete_shows(library)
             for item in deleted_data:
                 deleted_data_items.append(item)
         

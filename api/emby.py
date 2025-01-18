@@ -129,22 +129,6 @@ class EmbyAPI:
             requests.post(embyUrl, headers=headers, params=payload)
         except Exception as e:
             self.logger.error("{}: Set Emby watched ERROR:{}".format(self.__module__, e))
-        
-    def get_library_from_path(self, path):
-        try:
-            payload = {'api_key': self.api_key}
-            r = requests.get(self.get_api_url() + '/Library/SelectableMediaFolders', params=payload)
-            response = r.json()
-
-            for library in response:
-                for subfolder in library['SubFolders']:
-                    if subfolder['Path'] == path:
-                        return library
-        except Exception as e:
-            self.logger.error("{}{}{}: get_library_from_path {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
-        
-        self.logger.warning("{}{}{}: get_library_from_path no library found with {}path={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), path))
-        return ''
     
     def get_library_from_name(self, name):
         try:
@@ -159,4 +143,4 @@ class EmbyAPI:
             self.logger.error("{}{}{}: get_library_from_name {}error={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), e))
         
         self.logger.warning("{}{}{}: get_library_from_name no library found with {}name={}{}".format(get_emby_ansi_code(), self.__module__, get_log_ansi_code(), get_tag_ansi_code(), get_log_ansi_code(), name))
-        return ''
+        return self.invalid_item_id

@@ -37,7 +37,7 @@ class FolderCleanup(ServiceBase):
                 if 'emby_library_name' in path:
                     if self.emby_api.get_valid() == True:
                         emby_library = self.emby_api.get_library_from_name(path['emby_library_name'])
-                        if emby_library != '':
+                        if emby_library != self.emby_api.get_invalid_item_id():
                             emby_library_id = emby_library['Id']
                     else:
                         self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_emby, self.get_tag('library', path['emby_library_name']), self.get_tag('plex_valid', self.emby_api.get_valid())))
