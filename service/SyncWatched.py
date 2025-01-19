@@ -86,9 +86,10 @@ class SyncWatched(ServiceBase):
     def get_emby_item_id(self, tautulli_item):
         plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
-            return self.emby_api.get_item_id_from_path(self.get_emby_path_from_plex_path(plex_item.locations[0]))
-        else:
-            return self.emby_api.get_invalid_item_id()
+            if plex_item.locations[0] != None:
+                return self.emby_api.get_item_id_from_path(self.get_emby_path_from_plex_path(plex_item.locations[0]))
+        
+        return self.emby_api.get_invalid_item_id()
     
     def sync_emby_with_plex_watch_status(self, tautulli_item, user):
         emby_item_id = self.get_emby_item_id(tautulli_item)
