@@ -333,7 +333,7 @@ class AutoScan(ServiceBase):
             
             if self.stop_threads == True:
                 for scan_path in scan.paths:
-                    self.log_error('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
+                    self.log_info('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
                 break
         
     def start(self):
