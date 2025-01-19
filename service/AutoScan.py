@@ -5,8 +5,7 @@ from datetime import datetime
 import threading
 from threading import Thread
 from dataclasses import dataclass, field
-import inotify.adapters
-import inotify.constants
+from external.PyInotify.inotify import adapters, constants
 
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
@@ -27,7 +26,7 @@ class ScanInfo:
 @dataclass
 class CheckPathData:
     path: str
-    i: inotify.adapters.Inotify
+    i: adapters.Inotify
     scan_mask: int
     time: float
     deleted: bool
@@ -195,7 +194,8 @@ class AutoScan(ServiceBase):
             current_path = ''
             with self.watched_paths_lock:
                 for new_path in new_paths:
-                    if new_path not in self.watched_paths:
+                    new_path_in_watched = new_path in self.watched_paths
+                    if new_path_in_watched == False:
                         current_path = new_path
                         i.add_watch(new_path, scan_mask)
                         self.watched_paths.append(new_path)
@@ -213,7 +213,9 @@ class AutoScan(ServiceBase):
                     for watch_path in self.watched_paths:
                         current_path = watch_path
                         if watch_path.startswith(path) == True:
-                            i.remove_watch(watch_path, True)
+                            wd = i.get_watch_id(watch_path)
+                            if wd is not None and wd >= 0:
+                                i.remove_watch(watch_path, True)
                         else:
                             new_monitor_paths.append(watch_path)
 
@@ -223,7 +225,6 @@ class AutoScan(ServiceBase):
         
     def _monitor(self):
         while self.stop_threads == False:
-            
             # Process any monitors currently in the system
             with self.monitor_lock:
                 if len(self.monitors) > 0:
@@ -307,11 +308,11 @@ class AutoScan(ServiceBase):
             self._log_scan_moved_to_monitor(monitor_info.name, path)
         
     def _monitor_path(self, scan):
-        scanner_mask =  (inotify.constants.IN_MODIFY | inotify.constants.IN_MOVED_FROM | inotify.constants.IN_MOVED_TO | 
-                        inotify.constants.IN_CREATE | inotify.constants.IN_DELETE)
+        scanner_mask =  (constants.IN_MODIFY | constants.IN_MOVED_FROM | constants.IN_MOVED_TO | 
+                        constants.IN_CREATE | constants.IN_DELETE)
         
         # Setup the inotify watches for the current folder and all sub-folders
-        i = inotify.adapters.Inotify()
+        i = adapters.Inotify(self.logger)
             
         for scan_path in scan.paths:
             self.log_info('Starting monitor {} {}'.format(get_tag('name', scan.name), get_tag('path', scan_path)))
@@ -320,18 +321,20 @@ class AutoScan(ServiceBase):
         for event in i.event_gen(yield_nones=False):
             (_, type_names, path, filename) = event
             if filename != '':
-                # New path check. This will add or delete scans if folders are added or removed
-                is_delete = 'IN_DELETE' in type_names or 'IN_MOVED_FROM' in type_names
-                if 'IN_ISDIR' in type_names and ('IN_CREATE' in type_names or 'IN_MOVED_TO' in type_names or is_delete):
-                    with self.check_new_paths_lock:
-                        self.check_new_paths.append(CheckPathData('{}/{}'.format(path, filename), i, scanner_mask, time.time(), is_delete))
-                
                 # Check if this path is in the ignore folder list. If so mark the path as not valid
                 path_valid = True
                 for folder_name in self.ignore_folder_with_name:
                     if folder_name in path:
                         path_valid = False
                         break
+                
+                # Make sure this is valid path to monitor
+                if path_valid == True:
+                    # New path check. This will add or delete scans if folders are added or removed
+                    is_delete = 'IN_DELETE' in type_names or 'IN_MOVED_FROM' in type_names
+                    if 'IN_ISDIR' in type_names and ('IN_CREATE' in type_names or 'IN_MOVED_TO' in type_names or is_delete == True):
+                        with self.check_new_paths_lock:
+                            self.check_new_paths.append(CheckPathData('{}/{}'.format(path, filename), i, scanner_mask, time.time(), is_delete))
                     
                 # Check if the extension of the added file is valid
                 extension_valid = True

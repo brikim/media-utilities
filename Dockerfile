@@ -37,6 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY app.py /app
 COPY api/ /app/api
 COPY common/ /app/common
+COPY external/ /app/external
 COPY service/ /app/service
 
 VOLUME ["/config"]
