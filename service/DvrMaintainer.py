@@ -4,7 +4,7 @@ import glob
 from datetime import datetime
 from dataclasses import dataclass, field
 from common.types import CronInfo
-from common.utils import get_log_ansi_code, get_tag_ansi_code
+from common.utils import get_tag, get_log_ansi_code, get_tag_ansi_code, get_formatted_emby, get_formatted_plex
 from service.ServiceBase import ServiceBase
 
 @dataclass
@@ -46,7 +46,7 @@ class DvrMaintainer(ServiceBase):
                     if self.plex_api.get_valid() == True:
                         plex_library_name = library['plex_library_name']
                     else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_plex, self.get_tag('library', library['plex_library_name']), self.get_tag('plex_valid', self.plex_api.get_valid())))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(get_formatted_plex(), get_tag('library', library['plex_library_name']), get_tag('plex_valid', self.plex_api.get_valid())))
                     
                 emby_library_id = ''
                 if 'emby_library_name' in library:
@@ -55,7 +55,7 @@ class DvrMaintainer(ServiceBase):
                         if emby_library != self.emby_api.get_invalid_item_id():
                             emby_library_id = emby_library['Id']
                     else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(self.formatted_emby, self.get_tag('library', library['emby_library_name']), self.get_tag('plex_valid', self.emby_api.get_valid())))
+                        self.log_warning('{} library defined but API not valid {} {}'.format(get_formatted_emby(), get_tag('library', library['emby_library_name']), get_tag('plex_valid', self.emby_api.get_valid())))
                 
                 # Create the library config for this library
                 library_config = LibraryConfig(plex_library_name, emby_library_id, library['utilities_path'])
@@ -83,7 +83,7 @@ class DvrMaintainer(ServiceBase):
                 library_number += 1
 
         except Exception as e:
-            self.log_error('Read config {}'.format(self.get_tag('error', e)))
+            self.log_error('Read config {}'.format(get_tag('error', e)))
     
     def get_files_in_path(self, path):
         fileInfo = []
@@ -95,25 +95,25 @@ class DvrMaintainer(ServiceBase):
 
     def delete_file(self, pathFileName):
         if self.run_test == True:
-            self.log_info('Running test! Would delete {}'.format(self.get_tag('file', pathFileName)))
+            self.log_info('Running test! Would delete {}'.format(get_tag('file', pathFileName)))
         else:
             try:
                 os.remove(pathFileName)
             except Exception as e:
-                self.log_error('Problem deleting {} {}'.format(self.get_tag('file', pathFileName), self.get_tag('error', e)))
+                self.log_error('Problem deleting {} {}'.format(get_tag('file', pathFileName), get_tag('error', e)))
     
     def keep_last_delete(self, path, keep_last):
         showsDeleted = False
         fileInfo = self.get_files_in_path(path)
         if len(fileInfo) > keep_last:
-            self.log_info('KEEP_LAST_{} {} {}'.format(keep_last, self.get_tag('episodes', len(fileInfo)), self.get_tag('path', path)))
+            self.log_info('KEEP_LAST_{} {} {}'.format(keep_last, get_tag('episodes', len(fileInfo)), get_tag('path', path)))
             try:
                 sortedFileInfo = sorted(fileInfo, key=lambda item: item.age_days, reverse=True)
 
                 showsToDelete = len(fileInfo) - keep_last
                 deletedShows = 0
                 for file in sortedFileInfo:
-                    self.log_info('KEEP_LAST_{} deleting oldest {}age days={}{:.1f} {}'.format(keep_last, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, self.get_tag('file', file.path)))
+                    self.log_info('KEEP_LAST_{} deleting oldest {}age days={}{:.1f} {}'.format(keep_last, get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag('file', file.path)))
                     self.delete_file(file.path)
                     showsDeleted = True
 
@@ -122,7 +122,7 @@ class DvrMaintainer(ServiceBase):
                         break
             
             except Exception as e:
-                self.log_error('KEEP_LAST_{} error sorting files {}'.format(keep_last, self.get_tag('error', e)))
+                self.log_error('KEEP_LAST_{} error sorting files {}'.format(keep_last, get_tag('error', e)))
 
         return showsDeleted
 
@@ -131,7 +131,7 @@ class DvrMaintainer(ServiceBase):
         fileInfo = self.get_files_in_path(path)
         for file in fileInfo:
             if file.age_days >= keep_days:
-                self.log_info('KEEP_DAYS_{} deleting {}age days={}{:.1f} {}'.format(keep_days,  get_tag_ansi_code(), get_log_ansi_code(), file.age_days, self.get_tag('file', file.path)))
+                self.log_info('KEEP_DAYS_{} deleting {}age days={}{:.1f} {}'.format(keep_days,  get_tag_ansi_code(), get_log_ansi_code(), file.age_days, get_tag('file', file.path)))
                 self.delete_file(file.path)
                 showsDeleted = True
         return showsDeleted
@@ -147,14 +147,14 @@ class DvrMaintainer(ServiceBase):
                         if showsDeleted == True:
                             deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_id))
                     except Exception as e:
-                        self.log_error('Check show delete keep last {}'.format(self.get_tag('error', e)))
+                        self.log_error('Check show delete keep last {}'.format(get_tag('error', e)))
                 elif show.action_type == 'KEEP_LENGTH_DAYS':
                     try:
                         showsDeleted = self.keep_show_days(libraryFilePath, show.action_value)
                         if showsDeleted == True:
                             deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_id))
                     except Exception as e:
-                        self.log_error('Check show delete keep length {}'.format(self.get_tag('error', e)))
+                        self.log_error('Check show delete keep length {}'.format(get_tag('error', e)))
 
         return deleted_data
     
@@ -195,11 +195,11 @@ class DvrMaintainer(ServiceBase):
             emby_lib_refreshed = self.notify_emby_refresh(list(set(emby_library_ids)))
             
             if plex_lib_refreshed == True and emby_lib_refreshed == True:
-                self.log_info('Notified {} and {} to refresh'.format(self.formatted_plex, self.formatted_emby))
+                self.log_info('Notified {} and {} to refresh'.format(get_formatted_plex(), get_formatted_emby()))
             elif plex_lib_refreshed == True:
-                self.log_info('Notified {} to refresh'.format(self.formatted_plex))
+                self.log_info('Notified {} to refresh'.format(get_formatted_plex()))
             elif emby_lib_refreshed == True:
-                self.log_info('Notified {} to refresh'.format(self.formatted_emby))
+                self.log_info('Notified {} to refresh'.format(get_formatted_emby()))
     
     def init_scheduler_jobs(self):
         if self.cron is not None:

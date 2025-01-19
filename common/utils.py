@@ -14,6 +14,24 @@ def get_plex_ansi_code():
 def get_emby_ansi_code():
     return '\33[92m'
 
+def get_tautulli_ansi_code():
+    return '\33[33m' 
+    
+def get_jellystat_ansi_code():
+    return '\33[34m'
+    
+def get_log_header(module_ansi_code, module):
+    return '{}{}{}:'.format(module_ansi_code, module, get_log_ansi_code())
+    
+def get_tag(tag_name, tag_value):
+    return '{}{}={}{}'.format(get_tag_ansi_code(), tag_name, get_log_ansi_code(), tag_value)
+
+def get_formatted_plex():
+    return '{}Plex{}'.format(get_plex_ansi_code(), get_log_ansi_code())
+
+def get_formatted_emby():
+    return '{}Emby{}'.format(get_emby_ansi_code(), get_log_ansi_code())
+        
 def get_datetime_for_history(deltaDays):
         return datetime.now() - timedelta(deltaDays)
 

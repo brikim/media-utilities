@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from common.types import CronInfo, UserInfo
-from common.utils import get_datetime_for_history_plex_string
+from common.utils import get_datetime_for_history_plex_string, get_tag, get_formatted_emby, get_formatted_plex
 from service.ServiceBase import ServiceBase
 
 @dataclass
@@ -50,7 +50,7 @@ class DeleteWatched(ServiceBase):
                         else:
                             plex_users_defined = True
                     else:
-                        self.log_warning('{} user defined but API not valid {} {} {}'.format(self.formatted_plex, self.get_tag('user', user['plex_name']), self.get_tag('plex_valid', self.plex_api.get_valid()), self.get_tag('tautulli_valid', self.tautulli_api.get_valid())))
+                        self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_plex(), get_tag('user', user['plex_name']), get_tag('plex_valid', self.plex_api.get_valid()), get_tag('tautulli_valid', self.tautulli_api.get_valid())))
                 
                 emby_user_name = ''
                 emby_user_id = ''
@@ -63,7 +63,7 @@ class DeleteWatched(ServiceBase):
                         else:
                             emby_users_defined = True
                     else:
-                        self.log_warning('{} user defined but API not valid {} {} {}'.format(self.formatted_emby, self.get_tag('user', user['emby_name']), self.get_tag('emby_valid', self.emby_api.get_valid()), self.get_tag('jellystat_valid', self.jellystat_api.get_valid())))
+                        self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_emby(), get_tag('user', user['emby_name']), get_tag('emby_valid', self.emby_api.get_valid()), get_tag('jellystat_valid', self.jellystat_api.get_valid())))
                     
                 if plex_user_name != '' or emby_user_name != '':    
                     self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
@@ -80,7 +80,7 @@ class DeleteWatched(ServiceBase):
                         plex_library_id = self.tautulli_api.get_library_id(plex_library_name)    
                         plex_media_path = library['plex_media_path']
                     else:
-                        self.log_warning('{} library defined but no valid users defined {}'.format(self.formatted_plex, self.get_tag('library',  plex_library_name)))
+                        self.log_warning('{} library defined but no valid users defined {}'.format(get_formatted_plex(), get_tag('library',  plex_library_name)))
                     
                 emby_library_name = ''
                 emby_library_id = ''
@@ -91,7 +91,7 @@ class DeleteWatched(ServiceBase):
                         emby_library_id = self.jellystat_api.get_library_id(emby_library_name)
                         emby_media_path = library['emby_media_path']
                     else:
-                        self.log_warning('{} library defined but no valid users defined {}'.format(self.formatted_emby, self.get_tag('library', emby_library_name)))
+                        self.log_warning('{} library defined but no valid users defined {}'.format(get_formatted_emby(), get_tag('library', emby_library_name)))
                 
                 self.libraries.append(LibraryInfo(plex_library_name, plex_library_id, plex_media_path, 
                                                     emby_library_name, emby_library_id, emby_media_path,
@@ -100,7 +100,7 @@ class DeleteWatched(ServiceBase):
             self.delete_time_hours = config['delete_time_hours']
             
         except Exception as e:
-            self.log_error('Read config {}'.format(self.get_tag('error', e)))
+            self.log_error('Read config {}'.format(get_tag('error', e)))
     
     def hours_since_play(self, useUtcTime, playDateTime):
         currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
@@ -121,10 +121,10 @@ class DeleteWatched(ServiceBase):
                                 if len(fileName) > 0:
                                     hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                                     if hoursSincePlay >= self.delete_time_hours:
-                                        returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, self.formatted_plex))
+                                        returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, get_formatted_plex()))
 
         except Exception as e:
-            self.log_error('Find {} watched media {}'.format(self.formatted_plex, self.get_tag('error', e)))
+            self.log_error('Find {} watched media {}'.format(get_formatted_plex(), get_tag('error', e)))
             
         return returnFileNames
             
@@ -146,11 +146,11 @@ class DeleteWatched(ServiceBase):
                                 if hoursSincePlay >= self.delete_time_hours:
                                     emby_item = self.emby_api.search_item(item_id)
                                     if emby_item is not None:
-                                        returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, self.formatted_emby)
+                                        returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, get_formatted_emby())
                             break
         
         except Exception as e:
-            self.log_error('Find {} watched media {}'.format(self.formatted_emby, self.get_tag('error', e)))
+            self.log_error('Find {} watched media {}'.format(get_formatted_emby(), get_tag('error', e)))
             
         return returnFileNames
         
@@ -168,10 +168,10 @@ class DeleteWatched(ServiceBase):
             for media in media_container:
                 try:
                     os.remove(media.file_path)
-                    self.log_info('{} watched on {} deleting {}'.format(media.user_name, media.player, self.get_tag('file', media.file_path)))
+                    self.log_info('{} watched on {} deleting {}'.format(media.user_name, media.player, get_tag('file', media.file_path)))
                     number_of_deleted_media += 1
                 except Exception as e:
-                    self.log_error('Failed to delete {} {}'.format(self.get_tag('file', media.file_path), self.get_tag('error', e)))
+                    self.log_error('Failed to delete {} {}'.format(get_tag('file', media.file_path), get_tag('error', e)))
                 
         # If shows were deleted clean up folders and notify
         if number_of_deleted_media > 0:
@@ -191,14 +191,14 @@ class DeleteWatched(ServiceBase):
                         emby_lib_refreshed = True
                 
                 if plex_lib_refreshed == True and emby_lib_refreshed == True:
-                    self.log_info('Notified {} and {} to refresh'.format(self.formatted_plex, self.formatted_emby))
+                    self.log_info('Notified {} and {} to refresh'.format(get_formatted_plex(), get_formatted_emby()))
                 elif plex_lib_refreshed == True:
-                    self.log_info('Notified {} to refresh'.format(self.formatted_plex))
+                    self.log_info('Notified {} to refresh'.format(get_formatted_plex()))
                 elif emby_lib_refreshed == True:
-                    self.log_info('Notified {} to refresh'.format(self.formatted_emby))
+                    self.log_info('Notified {} to refresh'.format(get_formatted_emby()))
 
             except Exception as e:
-                self.log_error('Clean up failed {}'.format(self.get_tag('error', e)))
+                self.log_error('Clean up failed {}'.format(get_tag('error', e)))
         
     def init_scheduler_jobs(self):
         if self.cron is not None:

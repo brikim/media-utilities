@@ -11,6 +11,7 @@ import inotify.constants
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
 from service.ServiceBase import ServiceBase
+from common.utils import get_tag, get_formatted_emby, get_formatted_plex
 
 @dataclass
 class ScanInfo:
@@ -74,13 +75,13 @@ class AutoScan(ServiceBase):
                 if self.plex_api.get_valid() == True:
                     self.notify_plex = True
                 else:
-                    self.log_warning('Notify {} is true but API not valid {}'.format(self.formatted_plex, self.get_tag('plex_valid', self.plex_api.get_valid())))
+                    self.log_warning('Notify {} is true but API not valid {}'.format(get_formatted_plex(), get_tag('plex_valid', self.plex_api.get_valid())))
             
             if 'notify_emby' in config and config['notify_emby'] == 'True':
                 if self.emby_api.get_valid() == True:
                     self.notify_emby = True
                 else:
-                    self.log_warning('Notify {} is true but API not valid {}'.format(self.formatted_emby, self.get_tag('emby_valid', self.emby_api.get_valid())))
+                    self.log_warning('Notify {} is true but API not valid {}'.format(get_formatted_emby(), get_tag('emby_valid', self.emby_api.get_valid())))
             
             for scan in config['scans']:
                 plex_library = ''
@@ -88,7 +89,7 @@ class AutoScan(ServiceBase):
                     if self.plex_api.get_library(scan['plex_library']) != self.plex_api.get_invalid_type():
                         plex_library = scan['plex_library']
                     else:
-                        self.log_error('{} {} defined but not found'.format(self.formatted_plex, self.get_tag('library', scan['plex_library'])))
+                        self.log_error('{} {} defined but not found'.format(get_formatted_plex(), get_tag('library', scan['plex_library'])))
                 
                 emby_library_name = ''
                 emby_library_id = ''
@@ -113,7 +114,7 @@ class AutoScan(ServiceBase):
                 
                 
         except Exception as e:
-            self.log_error('Read config {}'.format(self.get_tag('error', e)))
+            self.log_error('Read config {}'.format(get_tag('error', e)))
     
     def shutdown(self):
         self.stop_threads = True
@@ -157,54 +158,68 @@ class AutoScan(ServiceBase):
             
         for path in monitor.paths:
             if plex_notified == True and emby_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{} & {}:{}'.format(self.formatted_plex, monitor.plex_library, self.formatted_emby, monitor.emby_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
+                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{} & {}:{}'.format(get_formatted_plex(), monitor.plex_library, get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
             elif plex_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{}'.format(self.formatted_plex, monitor.plex_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
+                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_plex(), monitor.plex_library)), get_tag('name', monitor.name), get_tag('path', path)))
             elif emby_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(self.get_tag('target', '{}:{}'.format(self.formatted_emby, monitor.emby_library)), self.get_tag('name', monitor.name), self.get_tag('path', path)))
+                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
     
     def _get_all_paths_in_path(self, path):
         return_paths = []
 
-        q = [path]
-        while q:
-            current_path = q[0]
-            del q[0]
+        try:
+            q = [path]
+            while q:
+                current_path = q[0]
+                del q[0]
 
-            return_paths.append(current_path)
+                return_paths.append(current_path)
 
-            for filename in os.listdir(current_path):
-                entry_filepath = os.path.join(current_path, filename)
-                if os.path.isdir(entry_filepath) is False:
-                    continue
+                for filename in os.listdir(current_path):
+                    entry_filepath = os.path.join(current_path, filename)
+                    if os.path.isdir(entry_filepath) is False:
+                        continue
 
-                q.append(entry_filepath)
+                    q.append(entry_filepath)
         
+        except Exception as e:
+            self.log_error('_get_all_paths_in_path {}'.format(get_tag('error', e)))
+            
         return return_paths
     
     def _add_inotify_watch(self, i, path, scan_mask):
         # Add the path and all sub-paths to the notify list
         new_paths = self._get_all_paths_in_path(path)
         
-        with self.watched_paths_lock:
-            for new_path in new_paths:
-                if new_path not in self.watched_paths:
-                    i.add_watch(new_path, scan_mask)
-                    self.watched_paths.append(new_path)
+        try:
+            current_path = ''
+            with self.watched_paths_lock:
+                for new_path in new_paths:
+                    if new_path not in self.watched_paths:
+                        current_path = new_path
+                        i.add_watch(new_path, scan_mask)
+                        self.watched_paths.append(new_path)
+        except Exception as e:
+            self.log_error('_add_inotify_watch {} {}'.format(get_tag('path', current_path), get_tag('error', e)))
     
     def _delete_inotify_watch(self, i, path):
         # inotify automatically deletes watches of deleted paths
         # cleanup our local path list when a path is deleted
         with self.watched_paths_lock:
-            if path in self.watched_paths:
-                new_monitor_paths = []
-                for watch_path in self.watched_paths:
-                    if watch_path.startswith(path) == True:
-                        i.remove_watch(watch_path, True)
-                    else:
-                        new_monitor_paths.append(watch_path)
+            current_path = ''
+            try:
+                if path in self.watched_paths:
+                    new_monitor_paths = []
+                    for watch_path in self.watched_paths:
+                        current_path = watch_path
+                        if watch_path.startswith(path) == True:
+                            i.remove_watch(watch_path, True)
+                        else:
+                            new_monitor_paths.append(watch_path)
 
-                self.watched_paths = new_monitor_paths
+                    self.watched_paths = new_monitor_paths
+            except Exception as e:
+                self.log_warning('_delete_inotify_watch {} {}'.format(get_tag('path', current_path), get_tag('error', e)))
         
     def _monitor(self):
         while self.stop_threads == False:
@@ -257,7 +272,7 @@ class AutoScan(ServiceBase):
         self.log_info('Stopping monitor thread')
     
     def _log_scan_moved_to_monitor(self, name, path):
-        self.log_info('Scan moved to monitor {} {}'.format(self.get_tag('name', name), self.get_tag('path', path)))
+        self.log_info('Scan moved to monitor {} {}'.format(get_tag('name', name), get_tag('path', path)))
         
     def _add_file_monitor(self, path, scan):
         monitor_found = False
@@ -299,7 +314,7 @@ class AutoScan(ServiceBase):
         i = inotify.adapters.Inotify()
             
         for scan_path in scan.paths:
-            self.log_info('Starting monitor {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
+            self.log_info('Starting monitor {} {}'.format(get_tag('name', scan.name), get_tag('path', scan_path)))
             self._add_inotify_watch(i, scan_path, scanner_mask)
             
         for event in i.event_gen(yield_nones=False):
@@ -333,7 +348,7 @@ class AutoScan(ServiceBase):
             
             if self.stop_threads == True:
                 for scan_path in scan.paths:
-                    self.log_info('Stopping watch {} {}'.format(self.get_tag('name', scan.name), self.get_tag('path', scan_path)))
+                    self.log_info('Stopping watch {} {}'.format(get_tag('name', scan.name), get_tag('path', scan_path)))
                 break
         
     def start(self):

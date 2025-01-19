@@ -1,6 +1,7 @@
 import requests
 import json
 from plexapi.server import PlexServer
+from common.utils import get_plex_ansi_code, get_log_header, get_tag
 
 class PlexAPI:
     def __init__(self, url, api_key, admin_user_name, media_path, logger):
@@ -10,11 +11,13 @@ class PlexAPI:
         self.logger = logger
         self.item_invalid_type = None
         self.valid = False
+        self.log_header = get_log_header(get_plex_ansi_code(), self.__module__)
         
         try:
             self.plex_server.library.sections()
             self.valid = True
         except Exception as e:
+            self.logger.warning('{} could not connect to service'.format(self.log_header))
             self.valid = False
         
     def get_valid(self):
@@ -38,7 +41,7 @@ class PlexAPI:
             if current_user.username != user_name:
                 self.plex_server.switchUser(user_name)
         except Exception as e:
-            self.logger.error('{}: Failed to switch plex account to user {} Error:{}'.format(self.__module__, user_name, e))
+            self.logger.error("{} switch_plex_account {} {}".format(self.log_header, get_tag('user', user_name), get_tag('error', e)))
     
     def switch_plex_account_admin(self):
         self.switch_plex_account(self.admin_user_name)
@@ -74,7 +77,7 @@ class PlexAPI:
             library = self.plex_server.library.section(library_name)
             library.update()
         except Exception as e:
-            self.logger.error('{}: Failed to refresh Plex library {} Error: {}'.format(self.__module__, library_name, e))
+            self.logger.error("{} set_library_scan {} {}".format(self.log_header, get_tag('library', library_name), get_tag('error', e)))
             
     def get_library_name_from_path(self, path):
         # Get all libraries
@@ -84,5 +87,5 @@ class PlexAPI:
                 if location == path:
                     return library.title
         
-        self.logger.warning("{}: Plex does not contain a library with path {}".format(self.__module__, path))
+        self.logger.warning("{} No library found with {}".format(self.log_header, get_tag('path', path)))
         return ''
