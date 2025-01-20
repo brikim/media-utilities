@@ -7,7 +7,7 @@ class TautulliAPI:
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
-        self.invalid_user_id = 0
+        self.item_invalid_type = None
         self.valid = False
         self.log_header = get_log_header(get_tautulli_ansi_code(), self.__module__)
         
@@ -33,8 +33,8 @@ class TautulliAPI:
     def get_media_type_movie_name(self):
         return 'movie'
     
-    def get_invalid_user_id(self):
-        return self.invalid_user_id
+    def get_invalid_item(self):
+        return self.item_invalid_type
     
     def get_api_url(self):
         return self.url + '/api/v2'
@@ -69,7 +69,23 @@ class TautulliAPI:
         except Exception as e:
             self.logger.error("{} get_user_id {} {}".format(self.log_header, get_tag('user', user_name), get_tag('error', e)))
 
-        return self.invalid_user_id
+        return self.get_invalid_item()
+    
+    def get_user_info(self, user_name):
+        payload = {
+            'apikey': self.api_key,
+            'cmd': 'get_users_table'}
+
+        try:
+            r = requests.get(self.get_api_url(), params=payload)
+            response = r.json()
+            for user_info in response['response']['data']['data']:
+                if user_info['username'] == user_name:
+                    return user_info
+        except Exception as e:
+            self.logger.error("{} get_user_info {} {}".format(self.log_header, get_tag('user', user_name), get_tag('error', e)))
+
+        return self.get_invalid_item()
     
     def get_watch_history_for_user(self, user_id, dateTimeStringForHistory):
         payload = {

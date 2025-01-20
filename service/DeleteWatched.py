@@ -40,15 +40,22 @@ class DeleteWatched(ServiceBase):
             
             for user in config['users']:
                 plex_user_name = ''
+                plex_friendly_name = ''
                 plex_user_id = 0
                 if 'plex_name' in user:
                     if self.plex_api.get_valid() == True and self.tautulli_api.get_valid() == True:
                         plex_user_name = user['plex_name']
-                        plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                        if plex_user_id == self.tautulli_api.get_invalid_user_id():
-                            plex_user_name = ''
+                        plex_user_info = self.tautulli_api.get_user_info(plex_user_name)
+                        if plex_user_info != self.tautulli_api.get_invalid_item():
+                            plex_user_id = plex_user_info['user_id']
+                            if 'friendly_name' in plex_user_info and plex_user_info['friendly_name'] is not None and plex_user_info['friendly_name'] != '':
+                                plex_friendly_name = plex_user_info['friendly_name']
+                            else:
+                                plex_friendly_name = plex_user_name
+                            plex_users_defined = True                            
                         else:
-                            plex_users_defined = True
+                            plex_user_name = ''
+                            
                     else:
                         self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_plex(), get_tag('user', user['plex_name']), get_tag('plex_valid', self.plex_api.get_valid()), get_tag('tautulli_valid', self.tautulli_api.get_valid())))
                 
@@ -66,7 +73,7 @@ class DeleteWatched(ServiceBase):
                         self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_emby(), get_tag('user', user['emby_name']), get_tag('emby_valid', self.emby_api.get_valid()), get_tag('jellystat_valid', self.jellystat_api.get_valid())))
                     
                 if plex_user_name != '' or emby_user_name != '':    
-                    self.user_list.append(UserInfo(plex_user_name, plex_user_id, False, emby_user_name, emby_user_id))
+                    self.user_list.append(UserInfo(plex_user_name, plex_friendly_name, plex_user_id, False, emby_user_name, emby_user_id))
                 else:
                     self.log_warning('No valid users found for user group ... Skipping user')
                         
@@ -121,7 +128,7 @@ class DeleteWatched(ServiceBase):
                                 if len(fileName) > 0:
                                     hoursSincePlay = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                                     if hoursSincePlay >= self.delete_time_hours:
-                                        returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_user_name, get_formatted_plex()))
+                                        returnFileNames.append(DeleteFileInfo(fileName.replace(lib.plex_media_path, lib.utilities_path), user.plex_friendly_name, get_formatted_plex()))
 
         except Exception as e:
             self.log_error('Find {} watched media {}'.format(get_formatted_plex(), get_tag('error', e)))

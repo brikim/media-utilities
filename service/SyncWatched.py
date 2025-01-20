@@ -36,10 +36,17 @@ class SyncWatched(ServiceBase):
                     valid_user_ids = True
                     
                     plex_user_id = ''
+                    plex_friendly_name = ''
                     if plex_user_name != '':
                         if self.tautulli_api.get_valid() == True and self.plex_api.get_valid() == True:
-                            plex_user_id = self.tautulli_api.get_user_id(plex_user_name)
-                            if plex_user_id == self.tautulli_api.get_invalid_user_id():
+                            plex_user_info = self.tautulli_api.get_user_info(plex_user_name)
+                            if plex_user_info != self.tautulli_api.get_invalid_item():
+                                plex_user_id = plex_user_info['user_id']
+                                if 'friendly_name' in plex_user_info and plex_user_info['friendly_name'] is not None and plex_user_info['friendly_name'] != '':
+                                    plex_friendly_name = plex_user_info['friendly_name']
+                                else:
+                                    plex_friendly_name = plex_user_name
+                            else:
                                 valid_user_ids = False
                                 self.log_warning('No {} user found for {} ... Skipping User'.format(get_formatted_plex(), plex_user_name))
                         else:
@@ -58,7 +65,7 @@ class SyncWatched(ServiceBase):
                             self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_emby(), get_tag('user', emby_user_name), get_tag('emby_valid', self.emby_api.get_valid()), get_tag('jellystat_valid', self.jellystat_api.get_valid())))
                     
                     if valid_user_ids == True:
-                        self.user_list.append(UserInfo(plex_user_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
+                        self.user_list.append(UserInfo(plex_user_name, plex_friendly_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
                 else:
                     self.log_warning('Only 1 user found in user field must have at least 2 to sync')
 
@@ -73,7 +80,7 @@ class SyncWatched(ServiceBase):
     def set_emby_watched_item(self, user, itemId, fullTitle):
         try:
             self.emby_api.set_watched_item(user.emby_user_id, itemId)
-            self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_user_name, fullTitle, get_formatted_plex(), get_formatted_emby()))
+            self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_friendly_name, fullTitle, get_formatted_plex(), get_formatted_emby()))
         except Exception as e:
             self.log_error('Set {} watched {}'.format(get_formatted_emby(), get_tag_ansi_code(), get_log_ansi_code(), get_tag('error', e)))
     
