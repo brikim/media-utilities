@@ -142,7 +142,23 @@ class AutoScan(ServiceBase):
                 break
         
         self.log_info('Successful shutdown')
-        
+    
+    def _get_scan_path_valid(self, path):
+        for folder_name in self.ignore_folder_with_name:
+            if folder_name in path:
+                return False
+        return True
+    
+    def _get_scan_extension_valid(self, filename):
+        if len(self.valid_file_extensions) > 0:
+            for valid_extension in self.valid_file_extensions:
+                if filename.endswith(valid_extension):
+                    return True
+            return False
+        else:
+            # No valid file extensions defined so all extensions are valid
+            return True
+    
     def _notify_media_servers(self, monitor):
         plex_notified = False
         emby_notified = False
@@ -157,12 +173,12 @@ class AutoScan(ServiceBase):
             
         for path in monitor.paths:
             if plex_notified == True and emby_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{} & {}:{}'.format(get_formatted_plex(), monitor.plex_library, get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
+                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{} & {}:{}'.format(get_formatted_plex(), monitor.plex_library, get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
             elif plex_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_plex(), monitor.plex_library)), get_tag('name', monitor.name), get_tag('path', path)))
+                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_plex(), monitor.plex_library)), get_tag('name', monitor.name), get_tag('path', path)))
             elif emby_notified == True:
-                self.log_info('Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
-    
+                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
+                        
     def _get_all_paths_in_path(self, path):
         return_paths = []
 
@@ -273,7 +289,7 @@ class AutoScan(ServiceBase):
         self.log_info('Stopping monitor thread')
     
     def _log_scan_moved_to_monitor(self, name, path):
-        self.log_info('Scan moved to monitor {} {}'.format(get_tag('name', name), get_tag('path', path)))
+        self.log_info('➡️ Scan moved to monitor {} {}'.format(get_tag('name', name), get_tag('path', path)))
         
     def _add_file_monitor(self, path, scan):
         monitor_found = False
@@ -321,33 +337,18 @@ class AutoScan(ServiceBase):
         for event in i.event_gen(yield_nones=False):
             (_, type_names, path, filename) = event
             if filename != '':
-                # Check if this path is in the ignore folder list. If so mark the path as not valid
-                path_valid = True
-                for folder_name in self.ignore_folder_with_name:
-                    if folder_name in path:
-                        path_valid = False
-                        break
-                
                 # Make sure this is valid path to monitor
-                if path_valid == True:
+                if self._get_scan_path_valid(path) == True:
                     # New path check. This will add or delete scans if folders are added or removed
-                    is_delete = 'IN_DELETE' in type_names or 'IN_MOVED_FROM' in type_names
-                    if 'IN_ISDIR' in type_names and ('IN_CREATE' in type_names or 'IN_MOVED_TO' in type_names or is_delete == True):
-                        with self.check_new_paths_lock:
-                            self.check_new_paths.append(CheckPathData('{}/{}'.format(path, filename), i, scanner_mask, time.time(), is_delete))
-                    
-                # Check if the extension of the added file is valid
-                extension_valid = True
-                if path_valid == True and len(self.valid_file_extensions) > 0:
-                    extension_valid = False
-                    for valid_extension in self.valid_file_extensions:
-                        if filename.endswith(valid_extension):
-                            extension_valid = True
-                            break
+                    if 'IN_ISDIR' in type_names:
+                        is_delete = 'IN_DELETE' in type_names or 'IN_MOVED_FROM' in type_names
+                        if 'IN_CREATE' in type_names or 'IN_MOVED_TO' in type_names or is_delete == True:
+                            with self.check_new_paths_lock:
+                                self.check_new_paths.append(CheckPathData('{}/{}'.format(path, filename), i, scanner_mask, time.time(), is_delete))
                 
-                # If all the checks passed add this as a monitor
-                if path_valid == True and extension_valid == True:
-                    self._add_file_monitor(path, scan)
+                    # If the extension is valid add the file monitor
+                    if self._get_scan_extension_valid(filename) == True:
+                        self._add_file_monitor(path, scan)
             
             if self.stop_threads == True:
                 for scan_path in scan.paths:
