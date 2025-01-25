@@ -75,12 +75,12 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         date_format = '%Y-%m-%d %H:%M:%S'
 
         # Set up the logger
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
         formatter = PlainTextFormatter()
         
         # Create a file handler to write logs to a file
         rotating_handler = RotatingFileHandler('/logs/media-utility.log', maxBytes=50000, backupCount=5)
-        rotating_handler.setLevel(logging.DEBUG)
+        rotating_handler.setLevel(logging.INFO)
         rotating_handler.setFormatter(formatter)
 
         log_colors = {
