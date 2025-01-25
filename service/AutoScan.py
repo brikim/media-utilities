@@ -159,26 +159,27 @@ class AutoScan(ServiceBase):
             # No valid file extensions defined so all extensions are valid
             return True
     
-    def _notify_media_servers(self, monitor):
-        plex_notified = False
-        emby_notified = False
+    def _build_target(self, current_target, new_target, library):
+        if current_target != '':
+            return current_target + ' & {}:{}'.format(new_target, library)
+        else:
+            return '{}:{}'.format(new_target, library)
         
-        # all the libraries in this monitor group are identical
+    def _notify_media_servers(self, monitor):
+        # all the libraries in this monitor group are identical so only one scan is required
+        target = ''
         if self.notify_plex == True and monitor.plex_library_valid == True:
             self.plex_api.set_library_scan(monitor.plex_library)
-            plex_notified = True
+            target = self._build_target(target, get_formatted_plex(), monitor.plex_library)
         if self.notify_emby == True and monitor.emby_library_valid == True:
             self.emby_api.set_library_scan(monitor.emby_library_id)
-            emby_notified = True
-            
-        for path in monitor.paths:
-            if plex_notified == True and emby_notified == True:
-                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{} & {}:{}'.format(get_formatted_plex(), monitor.plex_library, get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
-            elif plex_notified == True:
-                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_plex(), monitor.plex_library)), get_tag('name', monitor.name), get_tag('path', path)))
-            elif emby_notified == True:
-                self.log_info('\u2705 Monitor moved to {} {} {}'.format(get_tag('target', '{}:{}'.format(get_formatted_emby(), monitor.emby_library)), get_tag('name', monitor.name), get_tag('path', path)))
-                        
+            target = self._build_target(target, get_formatted_emby(), monitor.emby_library)
+        
+        # Loop through all the paths in this monitor and log that it has been sent to the target
+        if target != '':
+            for path in monitor.paths:
+                self.log_info('✅ Monitor moved to {} {} {}'.format(get_tag('target', target), get_tag('name', monitor.name), get_tag('path', path)))
+    
     def _get_all_paths_in_path(self, path):
         return_paths = []
 

@@ -153,7 +153,7 @@ class DeleteWatched(ServiceBase):
                                 if hoursSincePlay >= self.delete_time_hours:
                                     emby_item = self.emby_api.search_item(item_id)
                                     if emby_item is not None:
-                                        returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path)), user.emby_user_name, get_formatted_emby())
+                                        returnFileNames.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path), user.emby_user_name, get_formatted_emby()))
                             break
         
         except Exception as e:
