@@ -69,3 +69,9 @@ def remove_ansi_code_from_text(text):
                 end_index += 1
                 plain_text = plain_text[:index] + plain_text[end_index:]
     return plain_text
+
+def build_target_string(current_target, new_target, library):
+    if current_target != '':
+        return current_target + ' & {}:{}'.format(new_target, library)
+    else:
+        return '{}:{}'.format(new_target, library)

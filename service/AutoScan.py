@@ -10,7 +10,7 @@ from external.PyInotify.inotify import adapters, constants
 from api.plex import PlexAPI
 from api.emby import EmbyAPI
 from service.ServiceBase import ServiceBase
-from common.utils import get_tag, get_formatted_emby, get_formatted_plex
+from common.utils import get_tag, get_formatted_emby, get_formatted_plex, build_target_string
 
 @dataclass
 class ScanInfo:
@@ -158,27 +158,21 @@ class AutoScan(ServiceBase):
         else:
             # No valid file extensions defined so all extensions are valid
             return True
-    
-    def _build_target(self, current_target, new_target, library):
-        if current_target != '':
-            return current_target + ' & {}:{}'.format(new_target, library)
-        else:
-            return '{}:{}'.format(new_target, library)
         
     def _notify_media_servers(self, monitor):
         # all the libraries in this monitor group are identical so only one scan is required
         target = ''
         if self.notify_plex == True and monitor.plex_library_valid == True:
             self.plex_api.set_library_scan(monitor.plex_library)
-            target = self._build_target(target, get_formatted_plex(), monitor.plex_library)
+            target = build_target_string(target, get_formatted_plex(), monitor.plex_library)
         if self.notify_emby == True and monitor.emby_library_valid == True:
             self.emby_api.set_library_scan(monitor.emby_library_id)
-            target = self._build_target(target, get_formatted_emby(), monitor.emby_library)
+            target = build_target_string(target, get_formatted_emby(), monitor.emby_library)
         
         # Loop through all the paths in this monitor and log that it has been sent to the target
         if target != '':
             for path in monitor.paths:
-                self.log_info('✅ Monitor moved to {} {} {}'.format(get_tag('target', target), get_tag('name', monitor.name), get_tag('path', path)))
+                self.log_info('✅ Monitor moved to target {} {}'.format(target, get_tag('path', path)))
     
     def _get_all_paths_in_path(self, path):
         return_paths = []

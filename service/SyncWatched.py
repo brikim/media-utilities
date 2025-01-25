@@ -72,15 +72,15 @@ class SyncWatched(ServiceBase):
         except Exception as e:
             self.log_error('Read config ERROR:{}'.format(e))
     
-    def get_hours_since_play(self, useUtcTime, playDateTime):
-        currentDateTime = datetime.now(timezone.utc) if useUtcTime == True else datetime.now()
-        time_difference = currentDateTime - playDateTime
+    def get_hours_since_play(self, use_utc_time, play_date_time):
+        current_date_time = datetime.now(timezone.utc) if use_utc_time == True else datetime.now()
+        time_difference = current_date_time - play_date_time
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
-    def set_emby_watched_item(self, user, itemId, fullTitle):
+    def set_emby_watched_item(self, user, item_id, full_title):
         try:
-            self.emby_api.set_watched_item(user.emby_user_id, itemId)
-            self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_friendly_name, fullTitle, get_formatted_plex(), get_formatted_emby()))
+            self.emby_api.set_watched_item(user.emby_user_id, item_id)
+            self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_friendly_name, full_title, get_formatted_plex(), get_formatted_emby()))
         except Exception as e:
             self.log_error('Set {} watched {}'.format(get_formatted_emby(), get_tag_ansi_code(), get_log_ansi_code(), get_tag('error', e)))
     
@@ -107,12 +107,12 @@ class SyncWatched(ServiceBase):
             if emby_watched_status is not None and emby_watched_status == False:
                 self.set_emby_watched_item(user, emby_item_id, tautulli_item['full_title'])
         
-    def sync_plex_watch_status(self, user, dateTimeStringForHistory):
+    def sync_plex_watch_status(self, user, date_time_for_history):
         try:
-            watchHistoryData = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, dateTimeStringForHistory)
-            for historyItem in watchHistoryData:
-                if historyItem['watched_status'] == 1 and user.emby_user_name != '':
-                    self.sync_emby_with_plex_watch_status(historyItem, user)
+            watch_history_data = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, date_time_for_history)
+            for history_item in watch_history_data:
+                if history_item['watched_status'] == 1 and user.emby_user_name != '':
+                    self.sync_emby_with_plex_watch_status(history_item, user)
         except Exception as e:
             self.log_error('Get {} history {}error={}{}'.format(get_formatted_plex(), get_tag_ansi_code(), get_log_ansi_code(), e))
     
@@ -143,9 +143,9 @@ class SyncWatched(ServiceBase):
                 plex_movie_location = self.get_plex_path(emby_item['Path'])
                 if plex_movie_location == item.locations[0]:
                     if item.isWatched == False:
-                        media_Item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
-                        if media_Item is not self.plex_api.get_invalid_type():
-                            media_Item.markWatched()
+                        media_item = self.plex_api.get_library_item(item.librarySectionTitle, item.title)
+                        if media_item is not self.plex_api.get_invalid_type():
+                            media_item.markWatched()
                             self.log_info('{} watched {} on {} sync {} watch status'.format(user.emby_user_name, emby_item['Name'], get_formatted_emby(), get_formatted_plex()))
                     break
         except Exception as e:
@@ -183,10 +183,10 @@ class SyncWatched(ServiceBase):
     
     
     def sync_watch_status(self):
-        dateTimeStringForHistory = get_datetime_for_history_plex_string(1)
+        date_time_for_history = get_datetime_for_history_plex_string(1)
         for user in self.user_list:
             if user.plex_user_name != '':
-                self.sync_plex_watch_status(user, dateTimeStringForHistory)
+                self.sync_plex_watch_status(user, date_time_for_history)
             if user.can_sync_plex_watch == True:
                 if user.emby_user_name != '':
                     self.sync_emby_watch_status(user)
