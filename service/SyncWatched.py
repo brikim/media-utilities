@@ -193,9 +193,6 @@ class SyncWatched(ServiceBase):
         
     def init_scheduler_jobs(self):
         if len(self.user_list) > 0:
-            self.log_info('Running start up sync')
-            self.sync_watch_status()
-            
             if self.cron is not None:
                 self.log_service_enabled()
                 self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
