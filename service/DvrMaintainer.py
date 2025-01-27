@@ -24,6 +24,7 @@ class LibraryConfig:
     
 @dataclass
 class DeletedData:
+    library_id: int
     plex_library_name: str
     emby_library_name: str
     emby_library_id: str
@@ -151,14 +152,14 @@ class DvrMaintainer(ServiceBase):
                     try:
                         shows_deleted = self.keep_last_delete(library_file_path, show.action_value)
                         if shows_deleted == True:
-                            deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_name, library.emby_library_id))
+                            deleted_data.append(DeletedData(library.id, library.plex_library_name, library.emby_library_name, library.emby_library_id))
                     except Exception as e:
                         self.log_error('Check show delete keep last {}'.format(get_tag('error', e)))
                 elif show.action_type == 'KEEP_LENGTH_DAYS':
                     try:
                         shows_deleted = self.keep_show_days(library_file_path, show.action_value)
                         if shows_deleted == True:
-                            deleted_data.append(DeletedData(library.plex_library_name, library.emby_library_name, library.emby_library_id))
+                            deleted_data.append(DeletedData(library.id, library.plex_library_name, library.emby_library_name, library.emby_library_id))
                     except Exception as e:
                         self.log_error('Check show delete keep length {}'.format(get_tag('error', e)))
 
@@ -191,7 +192,7 @@ class DvrMaintainer(ServiceBase):
             for deleted_data in deleted_data_items:
                 library_in_list = False
                 for deleted_library in deleted_libraries:
-                    if deleted_library.id == deleted_data.id:
+                    if deleted_library.library_id == deleted_data.library_id:
                         library_in_list = True
                         break
                 if library_in_list == False:
