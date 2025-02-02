@@ -1,18 +1,45 @@
 
 from datetime import datetime, timezone
+from dataclasses import dataclass
+from logging import Logger
+from typing import Any, List
+from apscheduler.schedulers.blocking import BlockingScheduler
+
 from common.types import UserInfo
-from common.utils import get_datetime_for_history_plex_string, remove_year_from_name, get_tag, get_formatted_emby, get_formatted_plex, get_log_ansi_code, get_tag_ansi_code
+from common.utils import get_datetime_for_history_plex_string, remove_year_from_name, get_tag, get_formatted_emby, get_formatted_plex
+
 from service.ServiceBase import ServiceBase
 
+from api.plex import PlexAPI
+from api.tautulli import TautulliAPI
+from api.emby import EmbyAPI
+from api.jellystat import JellystatAPI
+
+@dataclass
+class ConfigUserInfo:
+    plex_user_name: str
+    can_sync_plex_watch: bool
+    emby_user_name: str
+
+@dataclass
+class ConnectionInfo:
+    plex_valid: bool
+    tautulli_valid: bool
+    emby_valid: bool
+    jellystat_valid: bool
+
 class SyncWatched(ServiceBase):
-    def __init__(self, ansi_code, plex_api, tautulli_api, emby_api, jellystat_api, config, logger, scheduler):
+    def __init__(self, ansi_code: str, plex_api: PlexAPI, tautulli_api: TautulliAPI, emby_api: EmbyAPI, jellystat_api: JellystatAPI, config: Any, logger: Logger, scheduler: BlockingScheduler):
         super().__init__(ansi_code, self.__module__, config, logger, scheduler)
         
         self.plex_api = plex_api
         self.tautulli_api = tautulli_api
         self.emby_api = emby_api
         self.jellystat_api = jellystat_api
-        self.user_list = []
+        
+        self.config_plex_used = False
+        self.config_emby_used = False
+        self.config_user_list: list[ConfigUserInfo] = []
         
         try:
             for user in config['users']:
@@ -25,72 +52,108 @@ class SyncWatched(ServiceBase):
                     if 'can_sync_plex_watch' in user:
                         can_sync_plex_watch = user['can_sync_plex_watch'] == 'True'
                     total_user_groups += 1
+                    self.config_plex_used = True
                     
                     
                 emby_user_name = ''
                 if 'emby_name' in user:
                     emby_user_name = user['emby_name']
                     total_user_groups += 1
+                    self.config_emby_used = True
                 
                 if total_user_groups >= 2:
-                    valid_user_ids = True
-                    
-                    plex_user_id = ''
-                    plex_friendly_name = ''
-                    if plex_user_name != '':
-                        if self.tautulli_api.get_valid() == True and self.plex_api.get_valid() == True:
-                            plex_user_info = self.tautulli_api.get_user_info(plex_user_name)
-                            if plex_user_info != self.tautulli_api.get_invalid_item():
-                                plex_user_id = plex_user_info['user_id']
-                                if 'friendly_name' in plex_user_info and plex_user_info['friendly_name'] is not None and plex_user_info['friendly_name'] != '':
-                                    plex_friendly_name = plex_user_info['friendly_name']
-                                else:
-                                    plex_friendly_name = plex_user_name
-                            else:
-                                valid_user_ids = False
-                                self.log_warning('No {} user found for {} ... Skipping User'.format(get_formatted_plex(), plex_user_name))
-                        else:
-                            valid_user_ids = False
-                            self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_plex(), get_tag('user', plex_user_name), get_tag('plex_valid', self.plex_api.get_valid()), get_tag('tautulli_valid', self.tautulli_api.get_valid())))
-                        
-                    emby_user_id = ''
-                    if emby_user_name != '':
-                        if self.emby_api.get_valid() == True and self.jellystat_api.get_valid() == True:
-                            emby_user_id = self.emby_api.get_user_id(emby_user_name)
-                            if emby_user_id == self.emby_api.get_invalid_item_id():
-                                valid_user_ids = False
-                                self.log_warning('No {} user found for {} ... Skipping User'.format(get_formatted_emby(), emby_user_name))
-                        else:
-                            valid_user_ids = False
-                            self.log_warning('{} user defined but API not valid {} {} {}'.format(get_formatted_emby(), get_tag('user', emby_user_name), get_tag('emby_valid', self.emby_api.get_valid()), get_tag('jellystat_valid', self.jellystat_api.get_valid())))
-                    
-                    if valid_user_ids == True:
-                        self.user_list.append(UserInfo(plex_user_name, plex_friendly_name, plex_user_id, can_sync_plex_watch, emby_user_name, emby_user_id))
+                    self.config_user_list.append(ConfigUserInfo(plex_user_name, can_sync_plex_watch, emby_user_name))
                 else:
                     self.log_warning('Only 1 user found in user field must have at least 2 to sync')
 
         except Exception as e:
-            self.log_error('Read config ERROR:{}'.format(e))
+            self.log_error('Read config {}'.format(get_tag('error', e)))
     
-    def get_hours_since_play(self, use_utc_time, play_date_time):
+    def _check_connections_valid(self) -> ConnectionInfo:
+        plex_api_valid = False
+        tautulli_api_valid = False
+        if self.config_plex_used == True:
+            plex_api_valid = self.plex_api.get_valid()
+            tautulli_api_valid = self.tautulli_api.get_valid()
+
+        emby_api_valid = False
+        jellystat_api_valid = False      
+        if self.config_emby_used == True:
+            emby_api_valid = self.emby_api.get_valid()
+            jellystat_api_valid = self.jellystat_api.get_valid()
+        
+        return ConnectionInfo(plex_api_valid, tautulli_api_valid, emby_api_valid, jellystat_api_valid)
+        
+    def _get_user_data(self) -> List[UserInfo]:
+        connection_info = self._check_connections_valid()
+        
+        connections_valid = True
+        if self.config_plex_used == True and (connection_info.plex_valid == False or connection_info.tautulli_valid == False):
+            if connection_info.plex_valid == False:
+                self.log_warning(self.plex_api.get_connection_error_log())
+            if connection_info.tautulli_valid == False:
+                self.log_warning(self.tautulli_api.get_connection_error_log())
+            connections_valid = False
+        
+        if self.config_emby_used == True and (connection_info.emby_valid == False or connection_info.jellystat_valid == False):
+            if connection_info.emby_valid == False:
+                self.log_warning(self.emby_api.get_connection_error_log())
+            if connection_info.jellystat_valid_valid == False:
+                self.log_warning(self.jellystat_api.get_connection_error_log())
+            connections_valid = False
+        
+        user_list: list[UserInfo] = []
+        if connections_valid == True:
+            for config_user in self.config_user_list:
+                valid_user_ids: bool = True
+                
+                plex_user_id: str = ''
+                plex_friendly_name: str = ''
+                if config_user.plex_user_name != '':
+                    plex_user_info = self.tautulli_api.get_user_info(config_user.plex_user_name)
+                    if plex_user_info != self.tautulli_api.get_invalid_item():
+                        plex_user_id = plex_user_info['user_id']
+                        if 'friendly_name' in plex_user_info and plex_user_info['friendly_name'] is not None and plex_user_info['friendly_name'] != '':
+                            plex_friendly_name = plex_user_info['friendly_name']
+                        else:
+                            plex_friendly_name = config_user.plex_user_name
+                    else:
+                        valid_user_ids = False
+                        self.log_warning('No {} user found for {} ... Skipping User'.format(get_formatted_plex(), config_user.plex_user_name))
+                
+                emby_user_id: str = ''
+                if config_user.emby_user_name != '':
+                    emby_user_id = self.emby_api.get_user_id(config_user.emby_user_name)
+                    if emby_user_id == self.emby_api.get_invalid_item_id():
+                        valid_user_ids = False
+                        self.log_warning('No {} user found for {} ... Skipping User'.format(get_formatted_emby(), config_user.emby_user_name))
+                
+                if valid_user_ids == True:
+                    user_list.append(UserInfo(config_user.plex_user_name, plex_friendly_name, plex_user_id, config_user.can_sync_plex_watch, config_user.emby_user_name, emby_user_id))
+        else:
+            self.log_info('Will try connections again on next run')
+            
+        return user_list
+        
+    def get_hours_since_play(self, use_utc_time: bool, play_date_time: datetime) -> int:
         current_date_time = datetime.now(timezone.utc) if use_utc_time == True else datetime.now()
         time_difference = current_date_time - play_date_time
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
-    def set_emby_watched_item(self, user, item_id, full_title):
+    def set_emby_watched_item(self, user: str, item_id: str, full_title: str):
         try:
             self.emby_api.set_watched_item(user.emby_user_id, item_id)
             self.log_info('{} watched {} on {} sync {} watch status'.format(user.plex_friendly_name, full_title, get_formatted_plex(), get_formatted_emby()))
         except Exception as e:
-            self.log_error('Set {} watched {}'.format(get_formatted_emby(), get_tag_ansi_code(), get_log_ansi_code(), get_tag('error', e)))
+            self.log_error('Set {} watched {}'.format(get_formatted_emby(), get_tag('error', e)))
     
-    def get_emby_path_from_plex_path(self, plex_path):
+    def get_emby_path_from_plex_path(self, plex_path: str) -> str:
         return plex_path.replace(self.plex_api.get_media_path(), self.emby_api.get_media_path(), 1)
         
-    def get_plex_path(self, emby_path):
+    def get_plex_path(self, emby_path: str) -> str:
         return emby_path.replace(self.emby_api.get_media_path(), self.plex_api.get_media_path(), 1)
         
-    def get_emby_item_id(self, tautulli_item):
+    def get_emby_item_id(self, tautulli_item: Any) -> str:
         plex_item = self.plex_api.fetchItem(tautulli_item['rating_key'])
         if plex_item is not self.plex_api.get_invalid_type():
             if plex_item.locations[0] != None:
@@ -98,7 +161,7 @@ class SyncWatched(ServiceBase):
         
         return self.emby_api.get_invalid_item_id()
     
-    def sync_emby_with_plex_watch_status(self, tautulli_item, user):
+    def sync_emby_with_plex_watch_status(self, tautulli_item: Any, user: UserInfo):
         emby_item_id = self.get_emby_item_id(tautulli_item)
         
         # If the item id is valid and the user has not already watched the item
@@ -107,16 +170,16 @@ class SyncWatched(ServiceBase):
             if emby_watched_status is not None and emby_watched_status == False:
                 self.set_emby_watched_item(user, emby_item_id, tautulli_item['full_title'])
         
-    def sync_plex_watch_status(self, user, date_time_for_history):
+    def sync_plex_watch_status(self, user: UserInfo, date_time_for_history: str):
         try:
             watch_history_data = self.tautulli_api.get_watch_history_for_user(user.plex_user_id, date_time_for_history)
             for history_item in watch_history_data:
                 if history_item['watched_status'] == 1 and user.emby_user_name != '':
                     self.sync_emby_with_plex_watch_status(history_item, user)
         except Exception as e:
-            self.log_error('Get {} history {}error={}{}'.format(get_formatted_plex(), get_tag_ansi_code(), get_log_ansi_code(), e))
+            self.log_error('Get {} history {}'.format(get_formatted_plex(), get_tag('error', e)))
     
-    def set_plex_show_watched(self, emby_series_path, emby_episode_item, user):
+    def set_plex_show_watched(self, emby_series_path: str, emby_episode_item: Any, user: UserInfo):
         try:
             cleaned_show_name = remove_year_from_name(emby_episode_item['SeriesName']).lower()
             results = self.plex_api.search(cleaned_show_name, self.plex_api.get_media_type_show_name())
@@ -133,9 +196,9 @@ class SyncWatched(ServiceBase):
                             self.log_info('{} watched {} on {} sync {} watch status'.format(user.emby_user_name, episode.grandparentTitle + ' - ' + episode.title, get_formatted_emby(), get_formatted_plex()))
                         break
         except Exception as e:
-            self.log_error('Error with {} movie watched {}'.format(get_formatted_plex(), get_tag_ansi_code(), get_log_ansi_code(), get_tag('error', e)))
+            self.log_error('Error with {} movie watched {}'.format(get_formatted_plex(), get_tag('error', e)))
 
-    def set_plex_movie_watched(self, emby_item, user):
+    def set_plex_movie_watched(self, emby_item: Any, user: UserInfo):
         try:
             lower_title = emby_item['Name'].lower()
             result_items = self.plex_api.search(lower_title, self.plex_api.get_media_type_movie_name())
@@ -149,17 +212,15 @@ class SyncWatched(ServiceBase):
                             self.log_info('{} watched {} on {} sync {} watch status'.format(user.emby_user_name, emby_item['Name'], get_formatted_emby(), get_formatted_plex()))
                     break
         except Exception as e:
-            self.log_error('Error with {} movie watched {}'.format(get_formatted_plex(), get_tag_ansi_code(), get_log_ansi_code(), get_tag('error', e)))
+            self.log_error('Error with {} movie watched {}'.format(get_formatted_plex(), get_tag('error', e)))
     
-    def sync_plex_with_emby_watch_status(self, jellystat_item, user):
+    def sync_plex_with_emby_watch_status(self, jellystat_item: Any, user: UserInfo):
         if self.get_hours_since_play(True, datetime.fromisoformat(jellystat_item['ActivityDateInserted'])) < 24:
-            if jellystat_item['SeriesName'] is not None:
-                # Check that the episode has been marked as watched by emby
-                if self.emby_api.get_watched_status(user.emby_user_id, jellystat_item['EpisodeId']) == True:
-                    emby_series_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
-                    emby_episode_item = self.emby_api.search_item(jellystat_item['EpisodeId'])
-                    if emby_series_item is not None and emby_episode_item is not None:
-                        self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
+            if jellystat_item['SeriesName'] is not None and self.emby_api.get_watched_status(user.emby_user_id, jellystat_item['EpisodeId']) == True:
+                emby_series_item = self.emby_api.search_item(jellystat_item['NowPlayingItemId'])
+                emby_episode_item = self.emby_api.search_item(jellystat_item['EpisodeId'])
+                if emby_series_item is not None and emby_episode_item is not None:
+                    self.set_plex_show_watched(emby_series_item['Path'], emby_episode_item, user)
             else:
                 # Check that the item has been marked as watched by emby
                 if self.emby_api.get_watched_status(user.emby_user_id, jellystat_item['NowPlayingItemId']) == True:
@@ -167,16 +228,14 @@ class SyncWatched(ServiceBase):
                     if emby_item is not None and emby_item['Type'] == self.emby_api.get_media_type_movie_name():
                         self.set_plex_movie_watched(emby_item, user)
         
-    def sync_emby_watch_status(self, user):
+    def sync_emby_watch_status(self, user: UserInfo):
         try:
             history_items = self.jellystat_api.get_user_watch_history(user.emby_user_id)
-            if len(history_items) > 0:
-                if user.plex_user_name != '':
-                    self.plex_api.switch_plex_account(user.plex_user_name)
-                
-                    # Search through the list and find items to sync
-                    for item in history_items:
-                        self.sync_plex_with_emby_watch_status(item, user)
+            if history_items != self.jellystat_api.get_invalid_type() and len(history_items) > 0 and user.plex_user_name != '':
+                self.plex_api.switch_plex_account(user.plex_user_name)
+                # Search through the list and find items to sync
+                for item in history_items:
+                    self.sync_plex_with_emby_watch_status(item, user)
                 
         except Exception as e:
             self.log_error('{} watch status {}'.format(get_formatted_emby(), get_tag('error', e)))
@@ -184,7 +243,8 @@ class SyncWatched(ServiceBase):
     
     def sync_watch_status(self):
         date_time_for_history = get_datetime_for_history_plex_string(1)
-        for user in self.user_list:
+        user_list = self._get_user_data()
+        for user in user_list:
             if user.plex_user_name != '':
                 self.sync_plex_watch_status(user, date_time_for_history)
             if user.can_sync_plex_watch == True:
@@ -192,7 +252,7 @@ class SyncWatched(ServiceBase):
                     self.sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
-        if len(self.user_list) > 0:
+        if len(self.config_user_list) > 0:
             if self.cron is not None:
                 self.log_service_enabled()
                 self.scheduler.add_job(self.sync_watch_status, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)

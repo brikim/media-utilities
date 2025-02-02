@@ -7,7 +7,6 @@ import json
 import logging
 import colorlog
 import signal
-import time
 from sys import platform
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -20,10 +19,11 @@ from api.jellystat import JellystatAPI
 from common.gotify_handler import GotifyHandler
 from common.plain_text_formatter import PlainTextFormatter
 from common.gotify_plain_text_formatter import GotifyPlainTextFormatter
+from common.utils import get_formatted_plex, get_formatted_emby, get_formatted_tautulli, get_formatted_jellystat, get_tag
 
+from service.ServiceBase import ServiceBase
 if platform == "linux":
     from service.AutoScan import AutoScan
-
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
 from service.FolderCleanup import FolderCleanup
@@ -34,13 +34,13 @@ logger = logging.getLogger(__name__)
 scheduler = BlockingScheduler()
 
 # Api
-plex_api = None
-tautulli_api = None
-emby_api = None
-jellystat_api = None
+plex_api: PlexAPI = None
+tautulli_api: TautulliAPI = None
+emby_api: EmbyAPI = None
+jellystat_api: JellystatAPI = None
         
 # Available Services
-services = []
+services: list[ServiceBase] = []
 ##########################
 
 def handle_sigterm(signum, frame):
@@ -51,7 +51,7 @@ def handle_sigterm(signum, frame):
     sys.exit(0)
 
 def do_nothing():
-    time.sleep(1)
+    pass
 
 conf_loc_path_file = ""
 config_file_valid = True
@@ -110,13 +110,36 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         if gotify_handler is not None:
             logger.addHandler(gotify_handler)
         
-        # Create all the api servers
-        plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], data['plex_media_path'], logger)
-        tautulli_api = TautulliAPI(data['tautulli_url'], data['tautulli_api_key'], logger)
-        emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], data['emby_media_path'], logger)
-        jellystat_api = JellystatAPI(data['jellystat_url'], data['jellystat_api_key'], logger)
-        
         logger.info('Starting Run *************************************')
+        
+        # Create all the api servers
+        if 'plex_url' in data and 'plex_api_key' in data:
+            plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], data['plex_media_path'], logger)
+            if plex_api.get_valid() == False:
+                logger.warning('{} server not available. Is this correct {} {}'.format(get_formatted_plex(), get_tag('url', data['plex_url']), get_tag('api_key', data['plex_api_key'])))
+        elif 'plex_url' in data or 'plex_api_key' in data:
+            logger.warning('{} configuration error must define both plex_url and plex_api_key'.format(get_formatted_plex()))
+        
+        if 'tautulli_url' in data and 'tautulli_api_key' in data:
+            tautulli_api = TautulliAPI(data['tautulli_url'], data['tautulli_api_key'], logger)
+            if tautulli_api.get_valid() == False:
+                logger.warning('{} not available. Is this correct {} {}'.format(get_formatted_tautulli(), get_tag('url', data['tautulli_url']), get_tag('api_key', data['tautulli_api_key'])))
+        elif 'tautulli_url' in data or 'tautulli_api_key' in data:
+            logger.warning('{} configuration error must define both tautulli_url and tautulli_api_key'.format(get_formatted_tautulli()))
+            
+        if 'emby_url' in data and 'emby_api_key' in data:
+            emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], data['emby_media_path'], logger)
+            if emby_api.get_valid() == False:
+                logger.warning('{} server not available. Is this correct {} {}'.format(get_formatted_emby(), get_tag('url', data['emby_url']), get_tag('api_key', data['emby_api_key'])))
+        elif 'emby_url' in data or 'emby_api_key' in data:
+            logger.warning('{} configuration error must define both emby_url and emby_api_key'.format(get_formatted_emby()))
+        
+        if 'jellystat_url' in data and 'jellystat_api_key' in data:
+            jellystat_api = JellystatAPI(data['jellystat_url'], data['jellystat_api_key'], logger)
+            if jellystat_api.get_valid() == False:
+                logger.warning('{} not available. Is this correct {} {}'.format(get_formatted_jellystat(), get_tag('url', data['jellystat_url']), get_tag('api_key', data['jellystat_api_key'])))
+        elif 'jellystat_url' in data or 'jellystat_api_key' in data:
+            logger.warning('{} configuration error must define both jellystat_url and jellystat_api_key'.format(get_formatted_jellystat()))
         
         # Create the services ####################################
         

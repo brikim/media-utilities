@@ -13,3 +13,9 @@ class UserInfo:
 class CronInfo:
     hours: str
     minutes: str
+
+@dataclass
+class MediaServerInfo:
+    plex_valid: bool
+    emby_valid: bool
+    emby_library_id: str

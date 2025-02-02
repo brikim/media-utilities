@@ -2,10 +2,17 @@
 import os
 import glob
 from datetime import datetime
+from logging import Logger
+from typing import Any, List
+from apscheduler.schedulers.blocking import BlockingScheduler
 from dataclasses import dataclass, field
-from common.types import CronInfo
+
 from common.utils import get_tag, get_log_ansi_code, get_tag_ansi_code, get_formatted_emby, get_formatted_plex, build_target_string
+
 from service.ServiceBase import ServiceBase
+
+from api.plex import PlexAPI
+from api.emby import EmbyAPI
 
 @dataclass
 class ShowConfig:
@@ -34,38 +41,29 @@ class FileInfo:
     age_days: float
 
 class DvrMaintainer(ServiceBase):
-    def __init__(self, ansi_code, plex_api, emby_api, config, logger, scheduler):
+    def __init__(self, ansi_code: str, plex_api: PlexAPI, emby_api: EmbyAPI, config: Any, logger: Logger, scheduler: BlockingScheduler):
         super().__init__(ansi_code, self.__module__, config, logger, scheduler)
         
         self.plex_api = plex_api
         self.emby_api = emby_api
-        self.libraries = []
-        self.run_test = False
-        current_library_id = 1
+        self.library_configs: list[LibraryConfig] = []
+        self.run_test: bool = False
+        
+        current_library_id: int = 1
         
         try:
-            library_number = 1
+            library_number: int = 1
             for library in config['libraries']:
                 plex_library_name = ''
                 if 'plex_library_name' in library:
-                    if self.plex_api.get_valid() == True:
-                        plex_library_name = library['plex_library_name']
-                    else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(get_formatted_plex(), get_tag('library', library['plex_library_name']), get_tag('plex_valid', self.plex_api.get_valid())))
+                    plex_library_name = library['plex_library_name']
                 
                 emby_library_name = ''
-                emby_library_id = ''
                 if 'emby_library_name' in library:
-                    if self.emby_api.get_valid() == True:
-                        emby_library = self.emby_api.get_library_from_name(library['emby_library_name'])
-                        if emby_library != self.emby_api.get_invalid_item_id():
-                            emby_library_name = library['emby_library_name']
-                            emby_library_id = emby_library['Id']
-                    else:
-                        self.log_warning('{} library defined but API not valid {} {}'.format(get_formatted_emby(), get_tag('library', library['emby_library_name']), get_tag('plex_valid', self.emby_api.get_valid())))
+                    emby_library_name = library['emby_library_name']
                 
                 # Create the library config for this library
-                library_config = LibraryConfig(current_library_id, plex_library_name, emby_library_name, emby_library_id, library['utilities_path'])
+                library_config = LibraryConfig(current_library_id, plex_library_name, emby_library_name, '', library['utilities_path'])
                 current_library_id += 1
                 
                 for show in library['shows']:
@@ -84,7 +82,7 @@ class DvrMaintainer(ServiceBase):
                         self.log_error('Unknown show action {} ... Skipping'.format(show['action']))
                         
                 if len(library_config.shows) > 0:
-                    self.libraries.append(library_config)
+                    self.library_configs.append(library_config)
                 else:
                     self.log_error('Library {} has no valid shows ... Skipping'.format(library_number))
                     
@@ -93,15 +91,15 @@ class DvrMaintainer(ServiceBase):
         except Exception as e:
             self.log_error('Read config {}'.format(get_tag('error', e)))
     
-    def get_files_in_path(self, path):
-        file_info = []
+    def get_files_in_path(self, path: str) -> List[FileInfo]:
+        file_info: list[FileInfo] = []
         for file in glob.glob(path + "/**/*", recursive=True):
             if file.endswith(".ts") or file.endswith(".mkv"):
                 file_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(file))
                 file_info.append(FileInfo(file, file_age.days + (file_age.seconds / 86400)))
         return file_info
 
-    def delete_file(self, pathFileName):
+    def delete_file(self, pathFileName: str):
         if self.run_test == True:
             self.log_info('Running test! Would delete {}'.format(get_tag('file', pathFileName)))
         else:
@@ -110,7 +108,7 @@ class DvrMaintainer(ServiceBase):
             except Exception as e:
                 self.log_error('Problem deleting {} {}'.format(get_tag('file', pathFileName), get_tag('error', e)))
     
-    def keep_last_delete(self, path, keep_last):
+    def keep_last_delete(self, path: str, keep_last: int) -> bool:
         shows_deleted = False
         file_info = self.get_files_in_path(path)
         if len(file_info) > keep_last:
@@ -133,7 +131,7 @@ class DvrMaintainer(ServiceBase):
 
         return shows_deleted
 
-    def keep_show_days(self, path, keep_days):
+    def keep_show_days(self, path: str, keep_days: int) -> bool:
         shows_deleted = False
         file_info = self.get_files_in_path(path)
         for file in file_info:
@@ -143,8 +141,8 @@ class DvrMaintainer(ServiceBase):
                 shows_deleted = True
         return shows_deleted
 
-    def check_library_delete_shows(self, library):
-        deleted_data = []
+    def check_library_delete_shows(self, library: LibraryConfig) -> List[DeletedData]:
+        deleted_data: list[DeletedData] = []
         for show in library.shows:
             library_file_path = library.utility_path + '/' + show.name
             if os.path.exists(library_file_path) == True:
@@ -165,30 +163,62 @@ class DvrMaintainer(ServiceBase):
 
         return deleted_data
     
-    def notify_plex_refresh(self, library):
+    def notify_plex_refresh(self, library: str):
         if library != '':
             self.plex_api.switch_plex_account_admin()
             self.plex_api.set_library_scan(library)
             return True
         return False
 
-    def notify_emby_refresh(self, library_id):
+    def notify_emby_refresh(self, library_id: str):
         if library_id != '':
             self.emby_api.set_library_scan(library_id)
             return True
         return False
-        
+    
+    def _get_library_data(self) -> List[LibraryConfig]:
+        library_list: list[LibraryConfig] = []
+        for library_config in self.library_configs:
+            plex_library_name = ''
+            if library_config.plex_library_name != '':
+                if self.plex_api.get_valid() == True:
+                    if self.plex_api.get_library(library_config.plex_library_name) != self.plex_api.get_invalid_type():
+                        plex_library_name = library_config.plex_library_name
+                    else:
+                        self.log_warning('{} could not find {}'.format(get_formatted_plex(), get_tag('library', library_config.plex_library_name)))
+                else:
+                    self.log_warning(self.plex_api.get_connection_error_log())
+            
+            emby_library_name = ''
+            emby_library_id = ''
+            if library_config.emby_library_name != '':
+                if self.emby_api.get_valid() == True:
+                    library_id = self.emby_api.get_library_id(library_config.emby_library_name)
+                    if library_id != self.emby_api.get_invalid_item_id():
+                        emby_library_name = library_config.emby_library_name
+                        emby_library_id = library_id
+                    else:
+                        self.log_warning('{} could not find {}'.format(get_formatted_emby(), get_tag('library', library_config.emby_library_name)))
+                else:
+                    self.log_warning(self.emby_api.get_connection_error_log())
+            
+            library_list.append(LibraryConfig(library_config.id, plex_library_name, emby_library_name, emby_library_id, library_config.utility_path, library_config.shows))
+            
+        return library_list
+    
     def do_maintenance(self):
-        deleted_data_items = []
+        deleted_data_items: list[DeletedData] = []
         
-        for library in self.libraries:
+        libraries = self._get_library_data()
+        
+        for library in libraries:
             deleted_data = self.check_library_delete_shows(library)
             for item in deleted_data:
                 deleted_data_items.append(item)
         
         # Notify media servers of a refresh
         if len(deleted_data_items) > 0:
-            deleted_libraries = []
+            deleted_libraries: list[DeletedData] = []
             for deleted_data in deleted_data_items:
                 library_in_list = False
                 for deleted_library in deleted_libraries:

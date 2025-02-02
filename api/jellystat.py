@@ -1,37 +1,40 @@
 import requests
 import json
-
-from common.utils import get_tag, get_log_header, get_jellystat_ansi_code
+from typing import Any
+from logging import Logger
+from common.utils import get_tag, get_log_header, get_jellystat_ansi_code, get_formatted_jellystat
 class JellystatAPI:
-    def __init__(self, url, api_key, logger):
+    def __init__(self, url: str, api_key: str, logger: Logger):
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
-        self.valid = False
+        self.invalid_type = None
         self.log_header = get_log_header(get_jellystat_ansi_code(), self.__module__)
         
+    def get_valid(self) -> bool:
         try:
             payload = {}
             r = requests.get(self.get_api_url() + '/getconfig', headers=self.get_headers(), params=payload)
             if r.status_code < 300:
-                self.valid = True
-            else:
-                self.logger.warning('{} could not connect to service {}'.format(self.log_header, get_tag('status_code', r.status_code)))
+                return True
         except Exception as e:
-            self.logger.error('{} connection {}'.format(self.log_header, get_tag('error', e)))
-            self.valid = False
-        
-    def get_valid(self):
-        return self.valid
+            pass
+        return False
+
+    def get_connection_error_log(self) -> str:
+        return 'Could not connect to {} {} {}'.format(get_formatted_jellystat(), get_tag('url', self.url), get_tag('api_key', self.api_key))
     
-    def get_api_url(self):
+    def get_invalid_type(self) -> Any:
+        return self.invalid_type
+    
+    def get_api_url(self) -> str:
         return self.url + '/api'
     
-    def get_headers(self):
+    def get_headers(self) -> Any:
         return {'x-api-token': self.api_key,
                 "Content-Type": "application/json"}
         
-    def get_library_id(self, libName):
+    def get_library_id(self, libName: str) -> str:
         try:
             payload = {}
             r = requests.get(self.get_api_url() + '/getLibraries', headers=self.get_headers(), params=payload)
@@ -42,9 +45,9 @@ class JellystatAPI:
         except Exception as e:
             self.logger.error("{} get_library_id {} {}".format(self.log_header, get_tag('library_id', libName), get_tag('error', e)))
             
-        return '0'
+        return self.get_invalid_type()
         
-    def get_user_watch_history(self, userId):
+    def get_user_watch_history(self, userId: str) -> Any:
         try:
             payload = {
                 'userid': userId}
@@ -57,8 +60,10 @@ class JellystatAPI:
                 return response
         except Exception as e:
             self.logger.error("{} get_user_watch_history {} {}".format(self.log_header, get_tag('user_id', userId), get_tag('error', e)))
+        
+        return self.get_invalid_type()
             
-    def get_library_history(self, libId):
+    def get_library_history(self, libId: str) -> Any:
         try:
             payload = {
                 'libraryid': libId}
@@ -71,11 +76,15 @@ class JellystatAPI:
                 return response
         except Exception as e:
             self.logger.error("{} get_library_history {} {}".format(self.log_header, get_tag('lib_id', libId), get_tag('error', e)))
-            
-    def get_item_details(self, itemId):
+        
+        return self.get_invalid_type()
+    
+    def get_item_details(self, itemId: str) -> Any:
         try:
             payload = {'Id': itemId}
             r = requests.post(self.get_api_url() + '/getItemDetails', headers=self.get_headers(), data=json.dumps(payload))
             return r.json()
         except Exception as e:
             self.logger.error("{} get_item_details {} {}".format(self.log_header, get_tag('item', itemId), get_tag('error', e)))
+            
+        return self.get_invalid_type()

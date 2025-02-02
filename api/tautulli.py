@@ -1,45 +1,44 @@
 import requests
-import json
-from common.utils import get_tautulli_ansi_code, get_log_header, get_tag
+from logging import Logger
+from typing import Any
+from common.utils import get_tautulli_ansi_code, get_log_header, get_tag, get_formatted_tautulli
 
 class TautulliAPI:
-    def __init__(self, url, api_key, logger):
+    def __init__(self, url: str, api_key: str, logger: Logger):
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
         self.item_invalid_type = None
-        self.valid = False
         self.log_header = get_log_header(get_tautulli_ansi_code(), self.__module__)
-        
+
+    def get_valid(self) -> bool:
         try:
             payload = {
                 'apikey': self.api_key,
                 'cmd': 'get_tautulli_info'}
             r = requests.get(self.get_api_url(), params=payload)
             if r.status_code < 300:
-                self.valid = True
-            else:
-                self.logger.warning('{} could not connect to service {}'.format(self.log_header, get_tag('status_code', r.status_code)))
+                return True
         except Exception as e:
-            self.logger.error('{} connection {}'.format(self.log_header, get_tag('error', e)))
-            self.valid = False
-
-    def get_valid(self):
-        return self.valid
+            pass
+        return False
     
-    def get_media_type_episode_name(self):
+    def get_connection_error_log(self) -> str:
+        return 'Could not connect to {} {} {}'.format(get_formatted_tautulli(), get_tag('url', self.url), get_tag('api_key', self.api_key))
+    
+    def get_media_type_episode_name(self) -> str:
         return 'episode'
     
-    def get_media_type_movie_name(self):
+    def get_media_type_movie_name(self) -> str:
         return 'movie'
     
-    def get_invalid_item(self):
+    def get_invalid_item(self) -> Any:
         return self.item_invalid_type
     
-    def get_api_url(self):
+    def get_api_url(self) -> str:
         return self.url + '/api/v2'
     
-    def get_library_id(self, lib_name):
+    def get_library_id(self, lib_name: str) -> str:
         try:
             payload = {
                 'apikey': self.api_key,
@@ -55,7 +54,7 @@ class TautulliAPI:
             
         return '0'
             
-    def get_user_id(self, user_name):
+    def get_user_id(self, user_name: str) -> str:
         payload = {
             'apikey': self.api_key,
             'cmd': 'get_users'}
@@ -71,7 +70,7 @@ class TautulliAPI:
 
         return self.get_invalid_item()
     
-    def get_user_info(self, user_name):
+    def get_user_info(self, user_name: str) -> Any:
         payload = {
             'apikey': self.api_key,
             'cmd': 'get_users_table'}
@@ -87,7 +86,7 @@ class TautulliAPI:
 
         return self.get_invalid_item()
     
-    def get_watch_history_for_user(self, user_id, dateTimeStringForHistory):
+    def get_watch_history_for_user(self, user_id: str, dateTimeStringForHistory: str) -> Any:
         payload = {
             'apikey': self.api_key,
             'cmd': 'get_history',
@@ -102,7 +101,7 @@ class TautulliAPI:
         except Exception as e:
             self.logger.error("{} get_watch_history_for_user {} {}".format(self.log_header, get_tag('user_id', user_id), get_tag('error', e)))
             
-    def get_watch_history_for_user_and_library(self, user_id, lib_id, dateTimeStringForHistory):
+    def get_watch_history_for_user_and_library(self, user_id: str, lib_id: str, dateTimeStringForHistory: str) -> Any:
         payload = {
             'apikey': self.api_key,
             'cmd': 'get_history',
@@ -118,7 +117,7 @@ class TautulliAPI:
         except Exception as e:
             self.logger.error("{} get_watch_history_for_user_and_library {} {} {}".format(self.log_header, get_tag('user_id', user_id), get_tag('library_id', lib_id), get_tag('error', e)))
             
-    def get_filename(self, key):
+    def get_filename(self, key: Any) -> str:
         try:
             payload = {
                 'apikey': self.api_key,
