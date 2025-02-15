@@ -1,7 +1,7 @@
 ---
 services:
   media-utilities:
-    image: media-utilities:latest
+    image: brikim/media-utilities:latest
     container_name: media-utilities
     security_opt:
       - no-new-privileges:true
