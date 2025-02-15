@@ -1,6 +1,9 @@
 """
 Media Utilities
 """
+
+version = 'v2.1.0'
+
 import sys
 import os
 import json
@@ -19,11 +22,9 @@ from api.jellystat import JellystatAPI
 from common.gotify_handler import GotifyHandler
 from common.plain_text_formatter import PlainTextFormatter
 from common.gotify_plain_text_formatter import GotifyPlainTextFormatter
-from common.utils import get_formatted_plex, get_formatted_emby, get_formatted_tautulli, get_formatted_jellystat, get_tag
+from common import utils
 
 from service.ServiceBase import ServiceBase
-if platform == "linux":
-    from service.AutoScan import AutoScan
 from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
 from service.FolderCleanup import FolderCleanup
@@ -110,42 +111,48 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
         if gotify_handler is not None:
             logger.addHandler(gotify_handler)
         
-        logger.info('Starting Run *************************************')
+        logger.info('Starting Media Utilities {} *************************************'.format(version))
         
         # Create all the api servers
         if 'plex_url' in data and 'plex_api_key' in data:
             plex_api = PlexAPI(data['plex_url'], data['plex_api_key'], data['plex_admin_user_name'], data['plex_media_path'], logger)
-            if plex_api.get_valid() == False:
-                logger.warning('{} server not available. Is this correct {} {}'.format(get_formatted_plex(), get_tag('url', data['plex_url']), get_tag('api_key', data['plex_api_key'])))
+            if plex_api.get_valid() == True:
+                logger.info('Connected to {}:{} successfully'.format(utils.get_formatted_plex(), plex_api.get_name()))
+            else:
+                logger.warning('{} server not available. Is this correct {} {}'.format(utils.get_formatted_plex(),  utils.get_tag('url', data['plex_url']),  utils.get_tag('api_key', data['plex_api_key'])))
         elif 'plex_url' in data or 'plex_api_key' in data:
-            logger.warning('{} configuration error must define both plex_url and plex_api_key'.format(get_formatted_plex()))
+            logger.warning('{} configuration error must define both plex_url and plex_api_key'.format(utils.get_formatted_plex()))
         
         if 'tautulli_url' in data and 'tautulli_api_key' in data:
             tautulli_api = TautulliAPI(data['tautulli_url'], data['tautulli_api_key'], logger)
-            if tautulli_api.get_valid() == False:
-                logger.warning('{} not available. Is this correct {} {}'.format(get_formatted_tautulli(), get_tag('url', data['tautulli_url']), get_tag('api_key', data['tautulli_api_key'])))
+            if tautulli_api.get_valid() == True:
+                logger.info('Connected to {}:{} successfully'.format(utils.get_formatted_tautulli(), tautulli_api.get_name()))
+            else:
+                logger.warning('{} not available. Is this correct {} {}'.format(utils.get_formatted_tautulli(),  utils.get_tag('url', data['tautulli_url']),  utils.get_tag('api_key', data['tautulli_api_key'])))
         elif 'tautulli_url' in data or 'tautulli_api_key' in data:
-            logger.warning('{} configuration error must define both tautulli_url and tautulli_api_key'.format(get_formatted_tautulli()))
+            logger.warning('{} configuration error must define both tautulli_url and tautulli_api_key'.format(utils.get_formatted_tautulli()))
             
         if 'emby_url' in data and 'emby_api_key' in data:
             emby_api = EmbyAPI(data['emby_url'], data['emby_api_key'], data['emby_media_path'], logger)
-            if emby_api.get_valid() == False:
-                logger.warning('{} server not available. Is this correct {} {}'.format(get_formatted_emby(), get_tag('url', data['emby_url']), get_tag('api_key', data['emby_api_key'])))
+            if emby_api.get_valid() == True:
+                logger.info('Connected to {}:{} successfully'.format(utils.get_formatted_emby(), emby_api.get_name()))
+            else:
+                logger.warning('{} server not available. Is this correct {} {}'.format(utils.get_formatted_emby(),  utils.get_tag('url', data['emby_url']),  utils.get_tag('api_key', data['emby_api_key'])))
         elif 'emby_url' in data or 'emby_api_key' in data:
-            logger.warning('{} configuration error must define both emby_url and emby_api_key'.format(get_formatted_emby()))
+            logger.warning('{} configuration error must define both emby_url and emby_api_key'.format(utils.get_formatted_emby()))
         
         if 'jellystat_url' in data and 'jellystat_api_key' in data:
             jellystat_api = JellystatAPI(data['jellystat_url'], data['jellystat_api_key'], logger)
-            if jellystat_api.get_valid() == False:
-                logger.warning('{} not available. Is this correct {} {}'.format(get_formatted_jellystat(), get_tag('url', data['jellystat_url']), get_tag('api_key', data['jellystat_api_key'])))
+            if jellystat_api.get_valid() == True:
+                logger.info('Connected to {} successfully'.format(utils.get_formatted_jellystat()))
+            else:
+                logger.warning('{} not available. Is this correct {} {}'.format(utils.get_formatted_jellystat(),  utils.get_tag('url', data['jellystat_url']),  utils.get_tag('api_key', data['jellystat_api_key'])))
         elif 'jellystat_url' in data or 'jellystat_api_key' in data:
-            logger.warning('{} configuration error must define both jellystat_url and jellystat_api_key'.format(get_formatted_jellystat()))
+            logger.warning('{} configuration error must define both jellystat_url and jellystat_api_key'.format(utils.get_formatted_jellystat()))
         
         # Create the services ####################################
         
         # Create the Sync Watched Status Service
-        if platform == "linux" and 'auto_scan' in data and data['auto_scan']['enabled'] == 'True':
-            services.append(AutoScan('\33[96m', plex_api, emby_api, data['auto_scan'], logger, scheduler))
         if 'sync_watched' in data and data['sync_watched']['enabled'] == 'True':
             services.append(SyncWatched('\33[96m', plex_api, tautulli_api, emby_api, jellystat_api, data['sync_watched'], logger, scheduler))
         if 'delete_watched' in data and data['delete_watched']['enabled'] == 'True':

@@ -1,7 +1,7 @@
 from logging import Logger
 from typing import Any
 from plexapi.server import PlexServer
-from common.utils import get_plex_ansi_code, get_log_header, get_tag, get_formatted_plex
+from common import utils
 
 class PlexAPI:
     def __init__(self, url: str, api_key: str, admin_user_name: str, media_path: str, logger: Logger):
@@ -12,7 +12,7 @@ class PlexAPI:
         self.media_path = media_path
         self.logger = logger
         self.item_invalid_type = None
-        self.log_header = get_log_header(get_plex_ansi_code(), self.__module__)
+        self.log_header = utils.get_log_header(utils.get_plex_ansi_code(), self.__module__)
         
     def get_valid(self) -> bool:
         try:
@@ -22,8 +22,11 @@ class PlexAPI:
             pass
         return False
     
+    def get_name(self) -> str:
+        return self.plex_server.friendlyName
+    
     def get_connection_error_log(self) -> str:
-        return 'Could not connect to {} server {} {}'.format(get_formatted_plex(), get_tag('url', self.url), get_tag('api_key', self.api_key))
+        return 'Could not connect to {} server {} {}'.format(utils.get_formatted_plex(),  utils.get_tag('url', self.url),  utils.get_tag('api_key', self.api_key))
     
     def get_media_type_show_name(self) -> str:
         return 'show'
@@ -43,7 +46,7 @@ class PlexAPI:
             if current_user.username != user_name:
                 self.plex_server.switchUser(user_name)
         except Exception as e:
-            self.logger.error("{} switch_plex_account {} {}".format(self.log_header, get_tag('user', user_name), get_tag('error', e)))
+            self.logger.error("{} switch_plex_account {} {}".format(self.log_header,  utils.get_tag('user', user_name),  utils.get_tag('error', e)))
     
     def switch_plex_account_admin(self):
         self.switch_plex_account(self.admin_user_name)
@@ -78,7 +81,7 @@ class PlexAPI:
             library = self.plex_server.library.section(library_name)
             library.update()
         except Exception as e:
-            self.logger.error("{} set_library_scan {} {}".format(self.log_header, get_tag('library', library_name), get_tag('error', e)))
+            self.logger.error("{} set_library_scan {} {}".format(self.log_header,  utils.get_tag('library', library_name),  utils.get_tag('error', e)))
             
     def get_library_name_from_path(self, path: str) -> str:
         # Get all libraries
@@ -88,5 +91,5 @@ class PlexAPI:
                 if location == path:
                     return library.title
         
-        self.logger.warning("{} No library found with {}".format(self.log_header, get_tag('path', path)))
+        self.logger.warning("{} No library found with {}".format(self.log_header,  utils.get_tag('path', path)))
         return ''

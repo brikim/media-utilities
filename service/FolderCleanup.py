@@ -6,8 +6,8 @@ from logging import Logger
 from typing import List
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from common.utils import get_tag, get_formatted_emby, get_formatted_plex, build_target_string
-from common.utils_server import get_connection_info
+from common import utils
+from common import utils_server
 
 from service.ServiceBase import ServiceBase
 
@@ -50,9 +50,9 @@ class FolderCleanup(ServiceBase):
                 self.ignore_folder_in_empty_check.append(file['ignore_file'])
             
         except Exception as e:
-            self.log_error('Read config {}'.format(get_tag('error', e)))
+            self.log_error('Read config {}'.format(utils.get_tag('error', e)))
 
-    def is_dir_empty(self, dirnames: List[str]) -> bool:
+    def __is_dir_empty(self, dirnames: List[str]) -> bool:
         dir_empty = True
         for dirname in dirnames:
             if len(self.ignore_folder_in_empty_check) > 0:
@@ -67,7 +67,7 @@ class FolderCleanup(ServiceBase):
                 break
         return dir_empty
     
-    def is_files_empty(self, filenames: List[str]) -> bool:
+    def __is_files_empty(self, filenames: List[str]) -> bool:
         filenames_empty = True
         for filename in filenames:
             if len(self.ignore_file_in_empty_check) > 0:
@@ -82,10 +82,10 @@ class FolderCleanup(ServiceBase):
                 break
         return filenames_empty
     
-    def check_delete_empty_folders(self):
+    def __check_delete_empty_folders(self):
         deleted_paths: list[PathInfo] = []
         for path in self.paths:
-            connection_info = get_connection_info(self.plex_api, path.plex_library_name, self.emby_api, path.emby_library_name)
+            connection_info = utils_server.get_connection_info(self.plex_api, path.plex_library_name, self.emby_api, path.emby_library_name)
             if (path.plex_library_name == '' or connection_info.plex_valid == True) and (path.emby_library_name == '' or connection_info.emby_valid == True):
                 folders_deleted = False
 
@@ -93,8 +93,8 @@ class FolderCleanup(ServiceBase):
                 while keep_running == True:
                     keep_running = False
                     for dirpath, dirnames, filenames in os.walk(path.path, topdown=False):
-                        if self.is_dir_empty(dirnames) == True and self.is_files_empty(filenames) == True:
-                            self.log_info('Deleting empty {}'.format(get_tag('folder', dirpath)))
+                        if self.__is_dir_empty(dirnames) == True and self.__is_files_empty(filenames) == True:
+                            self.log_info('Deleting empty {}'.format(utils.get_tag('folder', dirpath)))
                             shutil.rmtree(dirpath, ignore_errors=True)
                             keep_running = True
                             folders_deleted = True
@@ -112,10 +112,10 @@ class FolderCleanup(ServiceBase):
             if deleted_path.plex_library_name != '':
                 self.plex_api.switch_plex_account_admin()
                 self.plex_api.set_library_scan(deleted_path.plex_library_name)
-                target_name = build_target_string(target_name, get_formatted_plex(), deleted_path.plex_library_name)
+                target_name = utils.build_target_string(target_name, utils.get_formatted_plex(), deleted_path.plex_library_name)
             if deleted_path.emby_library_id != '':
                 self.emby_api.set_library_scan(deleted_path.emby_library_id)
-                target_name = build_target_string(target_name, get_formatted_emby(), deleted_path.emby_library_name)
+                target_name = utils.build_target_string(target_name, utils.get_formatted_emby(), deleted_path.emby_library_name)
 
             if target_name != '':
                 self.log_info('Notified {} to refresh'.format(target_name))
@@ -123,6 +123,6 @@ class FolderCleanup(ServiceBase):
     def init_scheduler_jobs(self):
         if self.cron is not None:
             self.log_service_enabled()
-            self.scheduler.add_job(self.check_delete_empty_folders, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+            self.scheduler.add_job(self.__check_delete_empty_folders, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
             self.log_warning('Enabled but will not Run. Cron is not valid!')

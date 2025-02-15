@@ -2,14 +2,15 @@ import requests
 import json
 from typing import Any
 from logging import Logger
-from common.utils import get_tag, get_log_header, get_jellystat_ansi_code, get_formatted_jellystat
+from common import utils
+
 class JellystatAPI:
     def __init__(self, url: str, api_key: str, logger: Logger):
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.logger = logger
         self.invalid_type = None
-        self.log_header = get_log_header(get_jellystat_ansi_code(), self.__module__)
+        self.log_header = utils.get_log_header(utils.get_jellystat_ansi_code(), self.__module__)
         
     def get_valid(self) -> bool:
         try:
@@ -22,7 +23,7 @@ class JellystatAPI:
         return False
 
     def get_connection_error_log(self) -> str:
-        return 'Could not connect to {} {} {}'.format(get_formatted_jellystat(), get_tag('url', self.url), get_tag('api_key', self.api_key))
+        return 'Could not connect to {} {} {}'.format(utils.get_formatted_jellystat(),  utils.get_tag('url', self.url),  utils.get_tag('api_key', self.api_key))
     
     def get_invalid_type(self) -> Any:
         return self.invalid_type
@@ -43,7 +44,7 @@ class JellystatAPI:
                 if lib['Name'] == libName:
                     return lib['Id']
         except Exception as e:
-            self.logger.error("{} get_library_id {} {}".format(self.log_header, get_tag('library_id', libName), get_tag('error', e)))
+            self.logger.error("{} get_library_id {} {}".format(self.log_header,  utils.get_tag('library_id', libName),  utils.get_tag('error', e)))
             
         return self.get_invalid_type()
         
@@ -59,7 +60,7 @@ class JellystatAPI:
             else:
                 return response
         except Exception as e:
-            self.logger.error("{} get_user_watch_history {} {}".format(self.log_header, get_tag('user_id', userId), get_tag('error', e)))
+            self.logger.error("{} get_user_watch_history {} {}".format(self.log_header,  utils.get_tag('user_id', userId),  utils.get_tag('error', e)))
         
         return self.get_invalid_type()
             
@@ -75,7 +76,7 @@ class JellystatAPI:
             else:
                 return response
         except Exception as e:
-            self.logger.error("{} get_library_history {} {}".format(self.log_header, get_tag('lib_id', libId), get_tag('error', e)))
+            self.logger.error("{} get_library_history {} {}".format(self.log_header,  utils.get_tag('lib_id', libId),  utils.get_tag('error', e)))
         
         return self.get_invalid_type()
     
@@ -85,6 +86,6 @@ class JellystatAPI:
             r = requests.post(self.get_api_url() + '/getItemDetails', headers=self.get_headers(), data=json.dumps(payload))
             return r.json()
         except Exception as e:
-            self.logger.error("{} get_item_details {} {}".format(self.log_header, get_tag('item', itemId), get_tag('error', e)))
+            self.logger.error("{} get_item_details {} {}".format(self.log_header,  utils.get_tag('item', itemId),  utils.get_tag('error', e)))
             
         return self.get_invalid_type()

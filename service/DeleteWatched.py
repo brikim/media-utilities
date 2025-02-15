@@ -6,7 +6,7 @@ from typing import Any, List
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common.types import UserInfo
-from common.utils import get_datetime_for_history_plex_string, get_tag, get_formatted_emby, get_formatted_plex, get_formatted_tautulli, get_formatted_jellystat, build_target_string
+from common import utils
 
 from service.ServiceBase import ServiceBase
 
@@ -88,7 +88,7 @@ class DeleteWatched(ServiceBase):
                         plex_library_name = library['plex_library_name']
                         plex_media_path = library['plex_media_path']
                     else:
-                        self.log_warning('{} library defined but no valid users defined {}'.format(get_formatted_plex(), get_tag('library',  plex_library_name)))
+                        self.log_warning('{} library defined but no valid users defined {}'.format(utils.get_formatted_plex(), utils.get_tag('library',  plex_library_name)))
                     
                 emby_library_name = ''
                 emby_media_path = ''
@@ -97,7 +97,7 @@ class DeleteWatched(ServiceBase):
                         emby_library_name = library['emby_library_name']
                         emby_media_path = library['emby_media_path']
                     else:
-                        self.log_warning('{} library defined but no valid users defined {}'.format(get_formatted_emby(), get_tag('library', emby_library_name)))
+                        self.log_warning('{} library defined but no valid users defined {}'.format(utils.get_formatted_emby(), utils.get_tag('library', emby_library_name)))
                 
                 self.library_configs.append(LibraryConfigInfo(current_id, plex_library_name, plex_media_path, emby_library_name, emby_media_path, library['utilities_path']))
                 current_id += 1
@@ -105,18 +105,18 @@ class DeleteWatched(ServiceBase):
             self.delete_time_hours = config['delete_time_hours']
             
         except Exception as e:
-            self.log_error('Read config {}'.format(get_tag('error', e)))
+            self.log_error('Read config {}'.format(utils.get_tag('error', e)))
     
     def hours_since_play(self, use_utc_time: bool, play_date_time: datetime) -> int:
         current_date_time = datetime.now(timezone.utc) if use_utc_time == True else datetime.now()
         time_difference = current_date_time - play_date_time
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
-    def find_plex_watched_media(self, lib: LibraryInfo, user_list: List[UserInfo]) -> List[DeleteFileInfo]:
+    def __find_plex_watched_media(self, lib: LibraryInfo, user_list: List[UserInfo]) -> List[DeleteFileInfo]:
         return_deletes: list[DeleteFileInfo] = []
         try:
             if lib.plex_library_name != '':
-                date_time_string_for_history = get_datetime_for_history_plex_string(1)
+                date_time_string_for_history = utils.get_datetime_for_history_plex_string(1)
                 for user in user_list:
                     if user.plex_user_name != '' and lib.plex_library_id != '' and lib.plex_media_path != '':
                         watched_items = self.tautulli_api.get_watch_history_for_user_and_library(user.plex_user_id, lib.plex_library_id, date_time_string_for_history)
@@ -126,14 +126,14 @@ class DeleteWatched(ServiceBase):
                                 if len(file_name) > 0:
                                     item_hours_since_play = self.hours_since_play(False, datetime.fromtimestamp(item['stopped']))
                                     if item_hours_since_play >= self.delete_time_hours:
-                                        return_deletes.append(DeleteFileInfo(file_name.replace(lib.plex_media_path, lib.utilities_path), user.plex_friendly_name, get_formatted_plex(), lib))
+                                        return_deletes.append(DeleteFileInfo(file_name.replace(lib.plex_media_path, lib.utilities_path), user.plex_friendly_name, utils.get_formatted_plex(), lib))
 
         except Exception as e:
-            self.log_error('Find {} watched media {}'.format(get_formatted_plex(), get_tag('error', e)))
+            self.log_error('Find {} watched media {}'.format(utils.get_formatted_plex(), utils.get_tag('error', e)))
             
         return return_deletes
             
-    def find_emby_watched_media(self, lib: LibraryInfo, user_list: List[UserInfo]) -> List[DeleteFileInfo]:
+    def __find_emby_watched_media(self, lib: LibraryInfo, user_list: List[UserInfo]) -> List[DeleteFileInfo]:
         return_deletes: list[DeleteFileInfo] = []
         try:
             if (lib.emby_library_name != '' and lib.emby_library_id != '' and lib.emby_media_path != ''):
@@ -151,15 +151,15 @@ class DeleteWatched(ServiceBase):
                                 if item_hours_since_play >= self.delete_time_hours:
                                     emby_item = self.emby_api.search_item(item_id)
                                     if emby_item is not None:
-                                        return_deletes.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path), user.emby_user_name, get_formatted_emby(), lib))
+                                        return_deletes.append(DeleteFileInfo(emby_item['Path'].replace(lib.emby_media_path, lib.utilities_path), user.emby_user_name, utils.get_formatted_emby(), lib))
                             break
         
         except Exception as e:
-            self.log_error('Find {} watched media {}'.format(get_formatted_emby(), get_tag('error', e)))
+            self.log_error('Find {} watched media {}'.format(utils.get_formatted_emby(), utils.get_tag('error', e)))
             
         return return_deletes
     
-    def _get_libraries(self) -> List[LibraryInfo]:
+    def __get_libraries(self) -> List[LibraryInfo]:
         libraries: list[LibraryInfo] = []
         
         for library_config in self.library_configs:
@@ -172,9 +172,9 @@ class DeleteWatched(ServiceBase):
                         plex_library_name = library_config.plex_library_name
                         plex_library_id = self.tautulli_api.get_library_id(library_config.plex_library_name)
                     else:
-                        self.log_warning('{} no library found for {}'.format(get_formatted_tautulli(), get_tag('library', library_config.plex_library_name)))
+                        self.log_warning('{} no library found for {}'.format(utils.get_formatted_tautulli(), utils.get_tag('library', library_config.plex_library_name)))
                 else:
-                    self.log_warning('{} connection not currently valid'.format(get_formatted_tautulli()))
+                    self.log_warning('{} connection not currently valid'.format(utils.get_formatted_tautulli()))
             
             emby_library_name: str = ''
             emby_library_id: str = ''
@@ -185,9 +185,9 @@ class DeleteWatched(ServiceBase):
                         emby_library_name = library_config.emby_library_name
                         emby_library_id = library_id
                     else:
-                        self.log_warning('{} no library found for {}'.format(get_formatted_jellystat(), get_tag('library', library_config.emby_library_name)))
+                        self.log_warning('{} no library found for {}'.format(utils.get_formatted_jellystat(), utils.get_tag('library', library_config.emby_library_name)))
                 else:
-                    self.log_warning('{} connection not currently valid'.format(get_formatted_jellystat()))
+                    self.log_warning('{} connection not currently valid'.format(utils.get_formatted_jellystat()))
             
             libraries.append(LibraryInfo(library_config.id, plex_library_name, plex_library_id, library_config.plex_media_path, 
                                         emby_library_name, emby_library_id, library_config.emby_media_path,
@@ -195,7 +195,7 @@ class DeleteWatched(ServiceBase):
 
         return libraries
     
-    def _get_user_list(self) -> List[UserInfo]:
+    def __get_user_list(self) -> List[UserInfo]:
         user_list: list[UserInfo] = []
         
         for user_config in self.user_configs:
@@ -215,7 +215,7 @@ class DeleteWatched(ServiceBase):
                         else:
                             plex_friendly_name = plex_user_name
                     else:
-                        self.log_warning('{} could not find {}'.format(get_formatted_tautulli(), get_tag('user', user_config.plex_user_name)))
+                        self.log_warning('{} could not find {}'.format(utils.get_formatted_tautulli(), utils.get_tag('user', user_config.plex_user_name)))
                 else:
                     if plex_api_valid == False:
                         self.log_warning(self.plex_api.get_connection_error_log())
@@ -233,7 +233,7 @@ class DeleteWatched(ServiceBase):
                         emby_user_name = user_config.emby_user_name
                     else:
                         emby_user_id = ''
-                        self.log_warning('{} could not find {}'.format(get_formatted_emby(), get_tag('user', user_config.emby_user_name)))
+                        self.log_warning('{} could not find {}'.format(utils.get_formatted_emby(), utils.get_tag('user', user_config.emby_user_name)))
                 else:
                     if emby_api_valid == False:
                         self.log_warning(self.emby_api.get_connection_error_log())
@@ -247,17 +247,17 @@ class DeleteWatched(ServiceBase):
                     
         return user_list
         
-    def check_delete_media(self):
+    def __check_delete_media(self):
         media_to_delete: list[list[DeleteFileInfo]] = []
         
         # Get the current libraries to be checked by the service
-        libraries = self._get_libraries()
-        user_list = self._get_user_list()
+        libraries = self.__get_libraries()
+        user_list = self.__get_user_list()
         
         # Find media to delete
         for lib in libraries:
-            media_to_delete.append(self.find_plex_watched_media(lib, user_list))
-            media_to_delete.append(self.find_emby_watched_media(lib, user_list))
+            media_to_delete.append(self.__find_plex_watched_media(lib, user_list))
+            media_to_delete.append(self.__find_emby_watched_media(lib, user_list))
         
         # Delete media added to the list
         libraries_to_notify = []
@@ -265,7 +265,7 @@ class DeleteWatched(ServiceBase):
             for media in media_container:
                 try:
                     os.remove(media.file_path)
-                    self.log_info('{} watched on {} deleting {}'.format(media.user_name, media.player, get_tag('file', media.file_path)))
+                    self.log_info('{} watched on {} deleting {}'.format(media.user_name, media.player, utils.get_tag('file', media.file_path)))
                     
                     # Check if this library needs to be added to the list to notify
                     notify_lib_found = False
@@ -276,7 +276,7 @@ class DeleteWatched(ServiceBase):
                     if notify_lib_found == False:
                         libraries_to_notify.append(media.library)
                 except Exception as e:
-                    self.log_error('Failed to delete {} {}'.format(get_tag('file', media.file_path), get_tag('error', e)))
+                    self.log_error('Failed to delete {} {}'.format(utils.get_tag('file', media.file_path), utils.get_tag('error', e)))
                 
         # If shows were deleted clean up folders and notify
         try:
@@ -285,20 +285,20 @@ class DeleteWatched(ServiceBase):
                 if notify_lib.plex_library_name != '':
                     self.plex_api.switch_plex_account_admin()
                     self.plex_api.set_library_scan(notify_lib.plex_library_name)
-                    target_name = build_target_string(target_name, get_formatted_plex(), notify_lib.plex_library_name)
+                    target_name = utils.build_target_string(target_name, utils.get_formatted_plex(), notify_lib.plex_library_name)
                 if notify_lib.emby_library_id != '':
                     self.emby_api.set_library_scan(notify_lib.emby_library_id)
-                    target_name = build_target_string(target_name, get_formatted_emby(), notify_lib.emby_library_name)
+                    target_name = utils.build_target_string(target_name, utils.get_formatted_emby(), notify_lib.emby_library_name)
             
                 if target_name != '':
                     self.log_info('Notified {} to refresh'.format(target_name))
         
         except Exception as e:
-            self.log_error('Clean up failed {}'.format(get_tag('error', e)))
+            self.log_error('Clean up failed {}'.format(utils.get_tag('error', e)))
         
     def init_scheduler_jobs(self):
         if self.cron is not None:
             self.log_service_enabled()
-            self.scheduler.add_job(self.check_delete_media, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
+            self.scheduler.add_job(self.__check_delete_media, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
         else:
             self.log_warning('Enabled but will not Run. Cron is not valid!')
