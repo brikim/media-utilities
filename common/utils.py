@@ -18,7 +18,7 @@ def get_tautulli_ansi_code() -> str:
     return '\33[33m' 
     
 def get_jellystat_ansi_code() -> str:
-    return '\33[34m'
+    return '\33[35m'
     
 def get_log_header(module_ansi_code: str, module: str) -> str:
     return '{}{}{}:'.format(module_ansi_code, module, get_log_ansi_code())
