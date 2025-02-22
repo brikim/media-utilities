@@ -2,7 +2,7 @@
 Media Utilities
 """
 
-version = 'v2.1.0'
+version = 'v2.2.0'
 
 import sys
 import os
@@ -29,6 +29,7 @@ from service.DeleteWatched import DeleteWatched
 from service.DvrMaintainer import DvrMaintainer
 from service.FolderCleanup import FolderCleanup
 from service.SyncWatched import SyncWatched
+from service.PlaylistSync import PlaylistSync
 
 # Global Variables #######
 logger = logging.getLogger(__name__)
@@ -161,6 +162,8 @@ if config_file_valid == True and os.path.exists(conf_loc_path_file) == True:
             services.append(DvrMaintainer('\33[95m', plex_api, emby_api, data['dvr_maintainer'], logger, scheduler))
         if 'folder_cleanup' in data and data['folder_cleanup']['enabled'] == 'True':
             services.append(FolderCleanup('\33[33m', plex_api, emby_api, data['folder_cleanup'], logger, scheduler))
+        if 'playlist_sync' in data and data['playlist_sync']['enabled'] == 'True':
+            services.append(PlaylistSync('\33[94m', plex_api, emby_api, data['playlist_sync'], logger, scheduler))
         
         # ########################################################
         
