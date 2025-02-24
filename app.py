@@ -2,7 +2,7 @@
 Media Utilities
 """
 
-version = 'v2.2.0'
+version = 'v2.2.1'
 
 import sys
 import os

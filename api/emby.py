@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 class EmbyPlaylistItem:
     name: str
     id: str
+    playlist_item_id: str
     
 @dataclass
 class EmbyPlaylist:
@@ -206,10 +207,7 @@ class EmbyAPI:
         return self.get_invalid_item_id()
     
     def __get_comma_separated_list(self, list_to_separate: list[str]) -> str:
-        comma_separated_ids = ''
-        for list_item in list_to_separate:
-            comma_separated_ids += list_item + ','
-        return comma_separated_ids.rstrip(',')
+        return ','.join(list_to_separate)
         
     def create_playlist(self, playlist_name: str, ids: list[str]) -> str:
         try:
@@ -230,15 +228,12 @@ class EmbyAPI:
     def get_playlist_items(self, playlist_id: str) -> EmbyPlaylist:
         try:
             playlist = self.search_item(playlist_id)
-            
-            payload = {
-                'api_key': self.api_key}
-            r = requests.get(self.__get_api_url() + '/Playlists/' + playlist_id + '/Items', params=payload)
+            r = requests.get(self.__get_api_url() + '/Playlists/' + playlist_id + '/Items?api_key=' + self.api_key)
             response = r.json()
 
             emby_playlist = EmbyPlaylist(playlist['Name'], playlist_id)
             for item in response['Items']:
-                emby_playlist.items.append(EmbyPlaylistItem(item['Name'], item['Id']))
+                emby_playlist.items.append(EmbyPlaylistItem(item['Name'], item['Id'], item['PlaylistItemId']))
 
             return emby_playlist
         except Exception as e:
@@ -249,30 +244,23 @@ class EmbyAPI:
     def add_playlist_items(self, playlist_id: str, item_ids: list[str]):
         try:
             headers = {'accept': 'application/json'}
-            payload = {
-                'Ids ': self.__get_comma_separated_list(item_ids)}
-            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items' + '?api_key=' + self.api_key
-            r = requests.post(embyUrl, headers=headers, data=payload)
-            pass
+            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items' + '?Ids=' + self.__get_comma_separated_list(item_ids) + '&api_key=' + self.api_key
+            r = requests.post(embyUrl, headers=headers)
         except Exception as e:
             self.logger.error("{} add_playlist_items {} {} error {}".format(self.log_header, utils.get_tag('playlist_id', playlist_id), utils.get_tag('item_ids', item_ids), utils.get_tag('error', e)))
             
-    def remove_playlist_items(self, playlist_id: str, item_ids: list[str]):
+    def remove_playlist_items(self, playlist_id: str, playlist_item_ids: list[str]):
         try:
             headers = {'accept': 'application/json'}
-            payload = {
-                'EntryIds': self.__get_comma_separated_list(item_ids)}
-            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items/Delete' + '?api_key=' + self.api_key
-            r = requests.post(embyUrl, headers=headers, data=payload)
-            pass
-        except Exception as e:
-            self.logger.error("{} remove_playlist_item {} {} error {}".format(self.log_header, utils.get_tag('playlist_id', playlist_id), utils.get_tag('item_ids', item_ids), utils.get_tag('error', e)))
-            
-    def set_move_playlist_item_to_index(self, playlist_id: str, item_id: str, index: int):
-        try:
-            headers = {'accept': 'application/json'}
-            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items/' + item_id + '/Move/' + str(index) + '?api_key=' + self.api_key
+            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items/Delete' + '?EntryIds=' + self.__get_comma_separated_list(playlist_item_ids) + '&api_key=' + self.api_key
             r = requests.post(embyUrl, headers=headers)
-            pass
         except Exception as e:
-            self.logger.error("{} set_move_playlist_item_to_index {} {} {} error {}".format(self.log_header, utils.get_tag('playlist_id', playlist_id), utils.get_tag('item_id', item_id), utils.get_tag('move_index', index), utils.get_tag('error', e)))
+            self.logger.error("{} remove_playlist_item {} {} error {}".format(self.log_header, utils.get_tag('playlist_id', playlist_id), utils.get_tag('playlist_item_ids', playlist_item_ids), utils.get_tag('error', e)))
+            
+    def set_move_playlist_item_to_index(self, playlist_id: str, playlist_item_id: str, index: int):
+        try:
+            headers = {'accept': 'application/json'}
+            embyUrl = self.__get_api_url()+ '/Playlists/' + playlist_id + '/Items/' + playlist_item_id + '/Move/' + str(index) + '?api_key=' + self.api_key
+            r = requests.post(embyUrl, headers=headers)
+        except Exception as e:
+            self.logger.error("{} set_move_playlist_item_to_index {} {} {} error {}".format(self.log_header, utils.get_tag('playlist_id', playlist_id), utils.get_tag('playlist_item_id', playlist_item_id), utils.get_tag('move_index', index), utils.get_tag('error', e)))
