@@ -1,3 +1,5 @@
+import time
+
 from logging import Logger
 from apscheduler.schedulers.blocking import BlockingScheduler
 from dataclasses import dataclass, field
@@ -13,6 +15,11 @@ class PlexCollectionConfig:
     library_name: str
     collection_name: str
     target_servers: list[str] = field(default_factory=list)
+
+@dataclass
+class AddDeleteInfo:
+    added_items: int
+    deleted_items: int
 
 class PlaylistSync(ServiceBase):
     def __init__(self, ansi_code: str, plex_api: PlexAPI, emby_api: EmbyAPI, config, logger: Logger, scheduler: BlockingScheduler):
@@ -50,7 +57,7 @@ class PlaylistSync(ServiceBase):
             return lower_name
         return ''
     
-    def __emby_add_remove_items_to_playlist(self, emby_item_ids: list[str], emby_playlist: EmbyPlaylist):
+    def __emby_add_remove_items_to_playlist(self, emby_item_ids: list[str], emby_playlist: EmbyPlaylist) -> AddDeleteInfo:
         # Check if any items were added to the playlist
         added_items: list[str] = []
         for emby_item_id in emby_item_ids:
@@ -67,15 +74,21 @@ class PlaylistSync(ServiceBase):
         for item in emby_playlist.items:
             if item.id not in emby_item_ids:
                 deleted_playlist_items.append(item.playlist_item_id)
-                
+
         if len(added_items) > 0 or len(deleted_playlist_items) > 0:
             if len(added_items) > 0:
                 self.emby_api.add_playlist_items(emby_playlist.id, added_items)
             
             if len(deleted_playlist_items) > 0:
                 self.emby_api.remove_playlist_items(emby_playlist.id, deleted_playlist_items)
+
+            # Give emby time to update the playlist
+            time.sleep(1)
+            
+            return AddDeleteInfo(len(added_items), len(deleted_playlist_items))
+        return AddDeleteInfo(0, 0)
     
-    def __emby_check_playlist_order_update(self, emby_item_ids: list[str], playlist_id: str):
+    def __emby_check_playlist_order_update(self, emby_item_ids: list[str], playlist_id: str, add_delete_info: AddDeleteInfo):
         # Get the latest playlist
         emby_playlist:EmbyPlaylist = self.emby_api.get_playlist_items(playlist_id)
         
@@ -90,8 +103,6 @@ class PlaylistSync(ServiceBase):
                 playlist_index += 1
 
             if playlist_changed is True:
-                self.log_info('Syncing {} {} to {}'.format(utils.get_formatted_plex(), utils.get_tag('collection', emby_playlist.name), utils.get_formatted_emby()))
-
                 # The order changed now iterate through the correct item order and find the playlist id to use in moving items
                 current_index = 0
                 for correct_item_id in emby_item_ids:
@@ -100,6 +111,9 @@ class PlaylistSync(ServiceBase):
                             self.emby_api.set_move_playlist_item_to_index(emby_playlist.id, current_playlist_item.playlist_item_id, current_index)
                             current_index += 1
                             break
+                
+                if playlist_changed is True or add_delete_info.added_items > 0 or add_delete_info.deleted_items > 0:
+                    self.log_info('Syncing {} {} to {} {} {} {}'.format(utils.get_formatted_plex(), utils.get_tag('collection', emby_playlist.name), utils.get_formatted_emby(), utils.get_tag('added', add_delete_info.added_items), utils.get_tag('deleted', add_delete_info.deleted_items), utils.get_tag('reordered', playlist_changed)))
         else:
             self.log_warning('{} sync {} {} playlist update failed. Playlist length incorrect!'.format(utils.get_emby_ansi_code(), utils.get_plex_ansi_code(), utils.get_tag('collection', emby_playlist.name)))
     
@@ -119,8 +133,8 @@ class PlaylistSync(ServiceBase):
         else:
             emby_playlist:EmbyPlaylist = self.emby_api.get_playlist_items(emby_playlist_id)
             if emby_playlist is not None:
-                self.__emby_add_remove_items_to_playlist(emby_item_ids, emby_playlist)
-                self.__emby_check_playlist_order_update(emby_item_ids, emby_playlist_id)
+                add_delete_info = self.__emby_add_remove_items_to_playlist(emby_item_ids, emby_playlist)
+                self.__emby_check_playlist_order_update(emby_item_ids, emby_playlist_id, add_delete_info)
     
     def __sync_plex_collection(self, collection_config: PlexCollectionConfig):
         collection: PlexCollection = self.plex_api.get_collection(collection_config.library_name, collection_config.collection_name)
