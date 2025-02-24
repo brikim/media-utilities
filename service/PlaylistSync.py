@@ -143,7 +143,6 @@ class PlaylistSync(ServiceBase):
                     self.log_warning(self.emby_api.get_connection_error_log())
     
     def init_scheduler_jobs(self):
-        self.__sync_playlists()
         if self.cron is not None:
             self.log_service_enabled()
             self.scheduler.add_job(self.__sync_playlists, trigger='cron', hour=self.cron.hours, minute=self.cron.minutes)
