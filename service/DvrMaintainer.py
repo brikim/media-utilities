@@ -100,7 +100,7 @@ class DvrMaintainer(ServiceBase):
         return file_info
 
     def __delete_file(self, pathFileName: str):
-        if self.run_test == True:
+        if self.run_test is True:
             self.log_info('Running test! Would delete {}'.format(utils.get_tag('file', pathFileName)))
         else:
             try:
@@ -145,18 +145,18 @@ class DvrMaintainer(ServiceBase):
         deleted_data: list[DeletedData] = []
         for show in library.shows:
             library_file_path = library.utility_path + '/' + show.name
-            if os.path.exists(library_file_path) == True:
+            if os.path.exists(library_file_path) is True:
                 if show.action_type == 'KEEP_LAST':
                     try:
                         shows_deleted = self.__keep_last_delete(library_file_path, show.action_value)
-                        if shows_deleted == True:
+                        if shows_deleted is True:
                             deleted_data.append(DeletedData(library.id, library.plex_library_name, library.emby_library_name, library.emby_library_id))
                     except Exception as e:
                         self.log_error('Check show delete keep last {}'.format(utils.get_tag('error', e)))
                 elif show.action_type == 'KEEP_LENGTH_DAYS':
                     try:
                         shows_deleted = self.__keep_show_days(library_file_path, show.action_value)
-                        if shows_deleted == True:
+                        if shows_deleted is True:
                             deleted_data.append(DeletedData(library.id, library.plex_library_name, library.emby_library_name, library.emby_library_id))
                     except Exception as e:
                         self.log_error('Check show delete keep length {}'.format(utils.get_tag('error', e)))
@@ -181,7 +181,7 @@ class DvrMaintainer(ServiceBase):
         for library_config in self.library_configs:
             plex_library_name = ''
             if library_config.plex_library_name != '':
-                if self.plex_api.get_valid() == True:
+                if self.plex_api.get_valid() is True:
                     if self.plex_api.get_library(library_config.plex_library_name) != self.plex_api.get_invalid_type():
                         plex_library_name = library_config.plex_library_name
                     else:
@@ -192,7 +192,7 @@ class DvrMaintainer(ServiceBase):
             emby_library_name = ''
             emby_library_id = ''
             if library_config.emby_library_name != '':
-                if self.emby_api.get_valid() == True:
+                if self.emby_api.get_valid() is True:
                     library_id = self.emby_api.get_library_id(library_config.emby_library_name)
                     if library_id != self.emby_api.get_invalid_item_id():
                         emby_library_name = library_config.emby_library_name
@@ -225,14 +225,14 @@ class DvrMaintainer(ServiceBase):
                     if deleted_library.library_id == deleted_data.library_id:
                         library_in_list = True
                         break
-                if library_in_list == False:
+                if library_in_list is False:
                     deleted_libraries.append(deleted_data)
             
             for deleted_library in deleted_libraries:
                 target_name = ''
-                if self.__notify_plex_refresh(deleted_library.plex_library_name) == True:
+                if self.__notify_plex_refresh(deleted_library.plex_library_name) is True:
                     target_name = utils.build_target_string(target_name, utils.get_formatted_plex(), deleted_library.plex_library_name)
-                if self.__notify_emby_refresh(deleted_library.emby_library_id) == True:
+                if self.__notify_emby_refresh(deleted_library.emby_library_id) is True:
                     target_name = utils.build_target_string(target_name, utils.get_formatted_emby(), deleted_library.emby_library_name)
 
                 if target_name != '':

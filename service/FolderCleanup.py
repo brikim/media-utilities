@@ -63,7 +63,7 @@ class FolderCleanup(ServiceBase):
             else:
                 dir_empty = False
                 
-            if dir_empty == False:
+            if dir_empty is False:
                 break
         return dir_empty
     
@@ -78,7 +78,7 @@ class FolderCleanup(ServiceBase):
             else:
                 filenames_empty = False
             
-            if filenames_empty == False:
+            if filenames_empty is False:
                 break
         return filenames_empty
     
@@ -86,25 +86,25 @@ class FolderCleanup(ServiceBase):
         deleted_paths: list[PathInfo] = []
         for path in self.paths:
             connection_info = utils_server.get_connection_info(self.plex_api, path.plex_library_name, self.emby_api, path.emby_library_name)
-            if (path.plex_library_name == '' or connection_info.plex_valid == True) and (path.emby_library_name == '' or connection_info.emby_valid == True):
+            if (path.plex_library_name == '' or connection_info.plex_valid is True) and (path.emby_library_name == '' or connection_info.emby_valid is True):
                 folders_deleted = False
 
                 keep_running = True
-                while keep_running == True:
+                while keep_running is True:
                     keep_running = False
                     for dirpath, dirnames, filenames in os.walk(path.path, topdown=False):
-                        if self.__is_dir_empty(dirnames) == True and self.__is_files_empty(filenames) == True:
+                        if self.__is_dir_empty(dirnames) is True and self.__is_files_empty(filenames) is True:
                             self.log_info('Deleting empty {}'.format(utils.get_tag('folder', dirpath)))
                             shutil.rmtree(dirpath, ignore_errors=True)
                             keep_running = True
                             folders_deleted = True
 
-                if folders_deleted == True:
+                if folders_deleted is True:
                     deleted_paths.append(PathInfo(path.path, path.plex_library_name, path.emby_library_name, connection_info.emby_library_id))
             else:
-                if path.plex_library != '' and connection_info.plex_valid == False:
+                if path.plex_library_name != '' and connection_info.plex_valid is False:
                     self.log_warning(self.plex_api.get_connection_error_log())
-                if path.emby_library_name != '' and connection_info.emby_valid == False:
+                if path.emby_library_name != '' and connection_info.emby_valid is False:
                     self.log_warning(self.emby_api.get_connection_error_log())
         
         for deleted_path in deleted_paths:

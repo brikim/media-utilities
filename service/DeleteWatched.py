@@ -84,7 +84,7 @@ class DeleteWatched(ServiceBase):
                 plex_library_name: str = ''
                 plex_media_path: str = ''
                 if 'plex_library_name' in library and 'plex_media_path' in library:
-                    if plex_users_defined == True:
+                    if plex_users_defined is True:
                         plex_library_name = library['plex_library_name']
                         plex_media_path = library['plex_media_path']
                     else:
@@ -93,7 +93,7 @@ class DeleteWatched(ServiceBase):
                 emby_library_name = ''
                 emby_media_path = ''
                 if 'emby_library_name' in library and 'emby_media_path' in library:
-                    if emby_users_defined == True:
+                    if emby_users_defined is True:
                         emby_library_name = library['emby_library_name']
                         emby_media_path = library['emby_media_path']
                     else:
@@ -108,7 +108,7 @@ class DeleteWatched(ServiceBase):
             self.log_error('Read config {}'.format(utils.get_tag('error', e)))
     
     def hours_since_play(self, use_utc_time: bool, play_date_time: datetime) -> int:
-        current_date_time = datetime.now(timezone.utc) if use_utc_time == True else datetime.now()
+        current_date_time = datetime.now(timezone.utc) if use_utc_time is True else datetime.now()
         time_difference = current_date_time - play_date_time
         return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
@@ -146,7 +146,7 @@ class DeleteWatched(ServiceBase):
                                 item_id = item['EpisodeId']
                             else:
                                 item_id = item['NowPlayingItemId']
-                            if self.emby_api.get_watched_status(user.emby_user_id, item_id) == True:
+                            if self.emby_api.get_watched_status(user.emby_user_id, item_id) is True:
                                 item_hours_since_play = self.hours_since_play(True, datetime.fromisoformat(item['ActivityDateInserted']))
                                 if item_hours_since_play >= self.delete_time_hours:
                                     emby_item = self.emby_api.search_item(item_id)
@@ -166,7 +166,7 @@ class DeleteWatched(ServiceBase):
             plex_library_name: str = ''
             plex_library_id: str = ''
             if library_config.plex_library_name != '':
-                if self.tautulli_api.get_valid() == True:
+                if self.tautulli_api.get_valid() is True:
                     library_id = self.tautulli_api.get_library_id(library_config.plex_library_name)
                     if library_id != self.tautulli_api.get_invalid_item():
                         plex_library_name = library_config.plex_library_name
@@ -179,7 +179,7 @@ class DeleteWatched(ServiceBase):
             emby_library_name: str = ''
             emby_library_id: str = ''
             if library_config.emby_library_name != '':
-                if self.jellystat_api.get_valid() == True:
+                if self.jellystat_api.get_valid() is True:
                     library_id = self.jellystat_api.get_library_id(library_config.emby_library_name)
                     if library_id != self.jellystat_api.get_invalid_type():
                         emby_library_name = library_config.emby_library_name
@@ -205,7 +205,7 @@ class DeleteWatched(ServiceBase):
             if user_config.plex_user_name != '':
                 plex_api_valid = self.plex_api.get_valid()
                 tautulli_api_valid = self.tautulli_api.get_valid()
-                if plex_api_valid == True and tautulli_api_valid == True:
+                if plex_api_valid is True and tautulli_api_valid is True:
                     plex_user_info = self.tautulli_api.get_user_info(user_config.plex_user_name)
                     if plex_user_info != self.tautulli_api.get_invalid_item():
                         plex_user_name = user_config.plex_user_name
@@ -217,9 +217,9 @@ class DeleteWatched(ServiceBase):
                     else:
                         self.log_warning('{} could not find {}'.format(utils.get_formatted_tautulli(), utils.get_tag('user', user_config.plex_user_name)))
                 else:
-                    if plex_api_valid == False:
+                    if plex_api_valid is False:
                         self.log_warning(self.plex_api.get_connection_error_log())
-                    if tautulli_api_valid == False:
+                    if tautulli_api_valid is False:
                         self.log_warning(self.tautulli_api.get_connection_error_log())
             
             emby_user_name = ''
@@ -227,7 +227,7 @@ class DeleteWatched(ServiceBase):
             if user_config.emby_user_name != '':
                 emby_api_valid = self.emby_api.get_valid()
                 jellystat_api_valid = self.jellystat_api.get_valid()
-                if emby_api_valid == True and jellystat_api_valid == True:
+                if emby_api_valid is True and jellystat_api_valid is True:
                     emby_user_id = self.emby_api.get_user_id(user_config.emby_user_name)
                     if emby_user_id != self.emby_api.get_invalid_item_id():
                         emby_user_name = user_config.emby_user_name
@@ -235,9 +235,9 @@ class DeleteWatched(ServiceBase):
                         emby_user_id = ''
                         self.log_warning('{} could not find {}'.format(utils.get_formatted_emby(), utils.get_tag('user', user_config.emby_user_name)))
                 else:
-                    if emby_api_valid == False:
+                    if emby_api_valid is False:
                         self.log_warning(self.emby_api.get_connection_error_log())
-                    if jellystat_api_valid == False:
+                    if jellystat_api_valid is False:
                         self.log_warning(self.jellystat_api.get_connection_error_log())
             
             if plex_user_name != '' or emby_user_name != '':
@@ -273,7 +273,7 @@ class DeleteWatched(ServiceBase):
                         if notify_lib.id == media.library.id:
                             notify_lib_found = True
                             break
-                    if notify_lib_found == False:
+                    if notify_lib_found is False:
                         libraries_to_notify.append(media.library)
                 except Exception as e:
                     self.log_error('Failed to delete {} {}'.format(utils.get_tag('file', media.file_path), utils.get_tag('error', e)))
