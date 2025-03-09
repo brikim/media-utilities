@@ -15,7 +15,7 @@ def get_plex_ansi_code() -> str:
     return f"{ansi_start_code}220{ansi_end_code}"
 
 def get_emby_ansi_code() -> str:
-    return f"{ansi_start_code}82{ansi_end_code}"
+    return f"{ansi_start_code}70{ansi_end_code}"
 
 def get_tautulli_ansi_code() -> str:
     return f"{ansi_start_code}136{ansi_end_code}"
