@@ -2,7 +2,7 @@
 Media Utilities
 """
 
-version = "v2.3.0"
+version = "v2.3.1"
 
 import sys
 import os
@@ -255,7 +255,7 @@ if config_file_valid and os.path.exists(conf_loc_path_file):
         if "dvr_maintainer" in data and data["dvr_maintainer"]["enabled"] == "True":
             services.append(
                 DvrMaintainer(
-                    f"{utils.ansi_start_code}168{utils.ansi_end_code}",
+                    f"{utils.ansi_start_code}210{utils.ansi_end_code}",
                     plex_api,
                     emby_api,
                     data["dvr_maintainer"],

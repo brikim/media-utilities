@@ -173,13 +173,12 @@ class EmbyAPI:
                 self.logger.error(
                     f"{self.log_header} get_watched_status api response error {utils.get_tag("code", r.status_code)} {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", r.reason)}"
                 )
-                return False
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} get_watched_status failed for {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", e)}"
             )
             
-        return False
+        return None
     
     def set_watched_item(self, user_id: str, item_id: str):
         try:

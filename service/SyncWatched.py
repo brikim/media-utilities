@@ -240,7 +240,7 @@ class SyncWatched(ServiceBase):
         # If the item id is valid and the user has not already watched the item
         if emby_item_id != self.emby_api.get_invalid_item_id():
             emby_watched_status = self.emby_api.get_watched_status(user.emby_user_id, emby_item_id)
-            if emby_watched_status and not emby_watched_status:
+            if emby_watched_status is not None and not emby_watched_status:
                 self.__set_emby_watched_item(
                     user,
                     emby_item_id,
@@ -415,6 +415,7 @@ class SyncWatched(ServiceBase):
                     self.__sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
+        self.__sync_watch_status()
         if len(self.config_user_list) > 0:
             if self.cron:
                 self.log_service_enabled()
