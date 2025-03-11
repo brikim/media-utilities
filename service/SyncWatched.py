@@ -415,7 +415,6 @@ class SyncWatched(ServiceBase):
                     self.__sync_emby_watch_status(user)
         
     def init_scheduler_jobs(self):
-        self.__sync_watch_status()
         if len(self.config_user_list) > 0:
             if self.cron:
                 self.log_service_enabled()
