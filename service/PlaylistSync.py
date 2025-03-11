@@ -163,51 +163,52 @@ class PlaylistSync(ServiceBase):
         # Get the latest playlist
         edited_emby_playlist:EmbyPlaylist = self.emby_api.get_playlist_items(original_emby_playlist.id)
         
-        # Should be the correct length before this call but make sure
-        if len(edited_emby_playlist.items) == len(emby_item_ids):
-            playlist_changed = False
-            playlist_index = 0
-            for item_id in emby_item_ids:
-                if item_id != edited_emby_playlist.items[playlist_index].id:
-                    playlist_changed = True
-                    break
-                playlist_index += 1
-
-            if playlist_changed:
-                # The order changed now iterate through the correct item order and find the playlist id to use in moving items
-                current_index = 0
-                for correct_item_id in emby_item_ids:
-                    for current_playlist_item in edited_emby_playlist.items:
-                        if correct_item_id == current_playlist_item.id:
-                            if not self.emby_api.set_move_playlist_item_to_index(
-                                edited_emby_playlist.id,
-                                current_playlist_item.playlist_item_id,
-                                current_index
-                            ):
-                                playlist_tag = utils.get_tag("playlist", original_emby_playlist.name)
-                                item_tag = utils.get_tag("item", current_playlist_item.playlist_item_id)
-                                index_tag = utils.get_tag("index", current_index)
-                                self.log_warning(
-                                    f"{utils.get_formatted_emby()} failed {playlist_tag} moving {item_tag} to {index_tag}"
-                                )
-                            current_index += 1
-                            break
-                
-                if playlist_changed or add_delete_info.added_items > 0 or add_delete_info.deleted_items > 0:
-                    collection_tag = utils.get_tag("collection", original_emby_playlist.name)
-                    added_tag = utils.get_tag("added", add_delete_info.added_items)
-                    deleted_tag = utils.get_tag("deleted", add_delete_info.deleted_items)
-                    reordered_tag = utils.get_tag("reordered", playlist_changed)
-                    self.log_info(
-                        f"Syncing {utils.get_formatted_plex()} {collection_tag} to {utils.get_formatted_emby()} {added_tag} {deleted_tag} {reordered_tag}"
-                    )
-        else:
-            collection_tag = utils.get_tag("collection", original_emby_playlist.name)
-            length_tag = utils.get_tag("length", len(emby_item_ids))
-            reported_length_tag = utils.get_tag("reported_length", len(edited_emby_playlist.items))
-            self.log_warning(
-                f"{utils.get_emby_ansi_code()} sync {utils.get_plex_ansi_code()} {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
-            )
+        if edited_emby_playlist is not None:
+            # Should be the correct length before this call but make sure
+            if len(edited_emby_playlist.items) == len(emby_item_ids):
+                playlist_changed = False
+                playlist_index = 0
+                for item_id in emby_item_ids:
+                    if item_id != edited_emby_playlist.items[playlist_index].id:
+                        playlist_changed = True
+                        break
+                    playlist_index += 1
+    
+                if playlist_changed:
+                    # The order changed now iterate through the correct item order and find the playlist id to use in moving items
+                    current_index = 0
+                    for correct_item_id in emby_item_ids:
+                        for current_playlist_item in edited_emby_playlist.items:
+                            if correct_item_id == current_playlist_item.id:
+                                if not self.emby_api.set_move_playlist_item_to_index(
+                                    edited_emby_playlist.id,
+                                    current_playlist_item.playlist_item_id,
+                                    current_index
+                                ):
+                                    playlist_tag = utils.get_tag("playlist", original_emby_playlist.name)
+                                    item_tag = utils.get_tag("item", current_playlist_item.playlist_item_id)
+                                    index_tag = utils.get_tag("index", current_index)
+                                    self.log_warning(
+                                        f"{utils.get_formatted_emby()} failed {playlist_tag} moving {item_tag} to {index_tag}"
+                                    )
+                                current_index += 1
+                                break
+                            
+                    if playlist_changed or add_delete_info.added_items > 0 or add_delete_info.deleted_items > 0:
+                        collection_tag = utils.get_tag("collection", original_emby_playlist.name)
+                        added_tag = utils.get_tag("added", add_delete_info.added_items)
+                        deleted_tag = utils.get_tag("deleted", add_delete_info.deleted_items)
+                        reordered_tag = utils.get_tag("reordered", playlist_changed)
+                        self.log_info(
+                            f"Syncing {utils.get_formatted_plex()} {collection_tag} to {utils.get_formatted_emby()} {added_tag} {deleted_tag} {reordered_tag}"
+                        )
+            else:
+                collection_tag = utils.get_tag("collection", original_emby_playlist.name)
+                length_tag = utils.get_tag("length", len(emby_item_ids))
+                reported_length_tag = utils.get_tag("reported_length", len(edited_emby_playlist.items))
+                self.log_warning(
+                    f"{utils.get_emby_ansi_code()} sync {utils.get_plex_ansi_code()} {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
+                )
     
     def __sync_emby_playlist_with_plex_collection(self, plex_collection: PlexCollection):
         emby_item_ids: list[str] = []
@@ -232,7 +233,7 @@ class PlaylistSync(ServiceBase):
             )
         else:
             emby_playlist:EmbyPlaylist = self.emby_api.get_playlist_items(emby_playlist_id)
-            if emby_playlist:
+            if emby_playlist is not None:
                 self.__emby_update_playlist(emby_item_ids, emby_playlist)
                 
                 # Give emby time to process
@@ -263,7 +264,7 @@ class PlaylistSync(ServiceBase):
                     self.log_warning(self.emby_api.get_connection_error_log())
     
     def init_scheduler_jobs(self):
-        if self.cron:
+        if self.cron is not None:
             self.log_service_enabled()
             self.scheduler.add_job(
                 self.__sync_playlists,

@@ -127,11 +127,12 @@ class EmbyAPI:
                 self.logger.warning(
                     f"{self.log_header} search_item returned no results {utils.get_tag("item", id)}"
                 )
-                return None
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} search_item {utils.get_tag("item", id)} {utils.get_tag("error", e)}"
             )
+        
+        return None
     
     def get_item_id_from_path(self, path) -> str:
         try:
@@ -298,21 +299,23 @@ class EmbyAPI:
     def get_playlist_items(self, playlist_id: str) -> EmbyPlaylist:
         try:
             playlist = self.search_item(playlist_id)
-            r = requests.get(
-                self.__get_api_url() + "/Playlists/" + playlist_id + "/Items?api_key=" + self.api_key)
-            response = r.json()
+            if playlist is not None:
+                r = requests.get(
+                    self.__get_api_url() + "/Playlists/" + playlist_id + "/Items?api_key=" + self.api_key)
+                response = r.json()
 
-            emby_playlist = EmbyPlaylist(playlist["Name"], playlist_id)
-            for item in response["Items"]:
-                emby_playlist.items.append(
-                    EmbyPlaylistItem(
-                        item["Name"],
-                        item["Id"],
-                        item["PlaylistItemId"]
+                emby_playlist = EmbyPlaylist(playlist["Name"], playlist_id)
+                for item in response["Items"]:
+                    emby_playlist.items.append(
+                        EmbyPlaylistItem(
+                            item["Name"],
+                            item["Id"],
+                            item["PlaylistItemId"]
+                        )
                     )
-                )
 
-            return emby_playlist
+                return emby_playlist
+            
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} get_playlist_items {utils.get_tag("playlist_id", playlist_id)} {utils.get_tag("error", e)}"

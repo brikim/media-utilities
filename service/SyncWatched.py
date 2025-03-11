@@ -141,7 +141,7 @@ class SyncWatched(ServiceBase):
                         plex_user_id = plex_user_info["user_id"]
                         if (
                             "friendly_name" in plex_user_info 
-                            and plex_user_info["friendly_name"]
+                            and plex_user_info["friendly_name"] is not None
                             and plex_user_info["friendly_name"] != ""
                         ):
                             plex_friendly_name = plex_user_info["friendly_name"]
@@ -294,7 +294,11 @@ class SyncWatched(ServiceBase):
                         plex_episode_location = self.__get_plex_path(
                             emby_episode_item["Path"]
                         )
-                        if episode and not episode.isWatched and episode.locations[0] == plex_episode_location:
+                        if (
+                            episode is not None 
+                            and not episode.isWatched 
+                            and episode.locations[0] == plex_episode_location
+                        ):
                             episode.markWatched()
                             
                             show_title = episode.grandparentTitle + " - " + episode.title
@@ -344,11 +348,14 @@ class SyncWatched(ServiceBase):
             )
         )
         if hours_since_play < 24:
-            if (jellystat_item["SeriesName"]
-                and self.emby_api.get_watched_status(
-                    user.emby_user_id,
-                    jellystat_item["EpisodeId"]
-                )
+            emby_watched_status = self.emby_api.get_watched_status(
+                user.emby_user_id,
+                jellystat_item["EpisodeId"]
+            )
+            if (
+                jellystat_item["SeriesName"] is not None
+                and emby_watched_status is not None 
+                and emby_watched_status
             ):
                 emby_series_item = self.emby_api.search_item(
                     jellystat_item["NowPlayingItemId"]
@@ -357,24 +364,26 @@ class SyncWatched(ServiceBase):
                     jellystat_item["EpisodeId"]
                 )
                 
-                if emby_series_item and emby_episode_item:
+                if emby_series_item is not None and emby_episode_item is not None:
                     self.__set_plex_show_watched(
                         emby_series_item["Path"],
                         emby_episode_item,
                         user
                     )
             else:
-                # Check that the item has been marked as watched by emby
-                if self.emby_api.get_watched_status(
+                emby_watched_status = self.emby_api.get_watched_status(
                     user.emby_user_id,
                     jellystat_item["NowPlayingItemId"]
-                ):
+                )
+                
+                # Check that the item has been marked as watched by emby
+                if emby_watched_status is not None and emby_watched_status:
                     emby_item = self.emby_api.search_item(
                         jellystat_item["NowPlayingItemId"]
                     )
                     
                     if (
-                        emby_item 
+                        emby_item is not None
                         and emby_item["Type"] == self.emby_api.get_media_type_movie_name()
                     ):
                         self.__set_plex_movie_watched(emby_item, user)
@@ -416,7 +425,7 @@ class SyncWatched(ServiceBase):
         
     def init_scheduler_jobs(self):
         if len(self.config_user_list) > 0:
-            if self.cron:
+            if self.cron is not None:
                 self.log_service_enabled()
                 
                 self.scheduler.add_job(

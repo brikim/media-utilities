@@ -211,7 +211,9 @@ class DeleteWatched(ServiceBase):
                                 item_id = item["EpisodeId"]
                             else:
                                 item_id = item["NowPlayingItemId"]
-                            if self.emby_api.get_watched_status(user.emby_user_id, item_id):
+                            
+                            emby_watched_status = self.emby_api.get_watched_status(user.emby_user_id, item_id)
+                            if emby_watched_status is not None and emby_watched_status:
                                 item_hours_since_play = self.hours_since_play(
                                     True, 
                                     datetime.fromisoformat(item["ActivityDateInserted"])
