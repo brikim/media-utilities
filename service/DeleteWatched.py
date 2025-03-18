@@ -1,4 +1,5 @@
 import os
+import math
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from logging import Logger
@@ -135,8 +136,9 @@ class DeleteWatched(ServiceBase):
                 )
                 current_id += 1
 
-            self.delete_time_hours = config["delete_time_hours"]
-            
+            if "delete_time_hours" in config:
+                self.delete_time_hours = config["delete_time_hours"]
+            self.get_history_days = int(math.ceil(self.delete_time_hours / 24) + 1)
         except Exception as e:
             self.log_error("Read config {}".format(utils.get_tag("error", e)))
     
@@ -155,7 +157,7 @@ class DeleteWatched(ServiceBase):
         return_deletes: list[DeleteFileInfo] = []
         try:
             if lib.plex_library_name != "":
-                date_time_string_for_history = utils.get_datetime_for_history_plex_string(1)
+                date_time_string_for_history = utils.get_datetime_for_history_plex_string(self.get_history_days)
                 for user in user_list:
                     if (
                         user.plex_user_name != "" 
