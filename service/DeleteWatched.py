@@ -140,7 +140,9 @@ class DeleteWatched(ServiceBase):
                 self.delete_time_hours = config["delete_time_hours"]
             self.get_history_days = int(math.ceil(self.delete_time_hours / 24) + 1)
         except Exception as e:
-            self.log_error("Read config {}".format(utils.get_tag("error", e)))
+            self.log_error(
+                f"Read config {utils.get_tag("error", e)}"
+            )
     
     def hours_since_play(self, use_utc_time: bool, play_date_time: datetime) -> int:
         current_date_time = (
@@ -190,9 +192,7 @@ class DeleteWatched(ServiceBase):
 
         except Exception as e:
             self.log_error(
-                "Find {} watched media {}".format(
-                    utils.get_formatted_plex(), utils.get_tag("error", e)
-                )
+                f"Find {utils.get_formatted_plex()} watched media {utils.get_tag("error", e)}"
             )
             
         return return_deletes
@@ -238,8 +238,7 @@ class DeleteWatched(ServiceBase):
         
         except Exception as e:
             self.log_error(
-                "Find {} watched media {}".format(
-                    utils.get_formatted_emby(), utils.get_tag("error", e))
+                f"Find {utils.get_formatted_emby()} watched media {utils.get_tag("error", e)}"
             )
             
         return return_deletes
@@ -258,16 +257,11 @@ class DeleteWatched(ServiceBase):
                         plex_library_id = self.tautulli_api.get_library_id(library_config.plex_library_name)
                     else:
                         self.log_warning(
-                            "{} no library found for {}".format(
-                                utils.get_formatted_tautulli(), 
-                                utils.get_tag("library", library_config.plex_library_name)
-                            )
+                            f"{utils.get_formatted_tautulli()} no library found for {utils.get_tag("library", library_config.plex_library_name)}"
                         )
                 else:
                     self.log_warning(
-                        "{} connection not currently valid".format(
-                            utils.get_formatted_tautulli()
-                        )
+                        f"{utils.get_formatted_tautulli()} connection not currently valid"
                     )
             
             emby_library_name: str = ""
@@ -280,16 +274,11 @@ class DeleteWatched(ServiceBase):
                         emby_library_id = library_id
                     else:
                         self.log_warning(
-                            "{} no library found for {}".format(
-                                utils.get_formatted_jellystat(), 
-                                utils.get_tag("library", library_config.emby_library_name)
-                            )
+                            f"{utils.get_formatted_jellystat()} no library found for {utils.get_tag("library", library_config.emby_library_name)}"
                         )
                 else:
                     self.log_warning(
-                        "{} connection not currently valid".format(
-                            utils.get_formatted_jellystat()
-                        )
+                        f"{utils.get_formatted_jellystat()} connection not currently valid"
                     )
             
             libraries.append(
@@ -332,10 +321,7 @@ class DeleteWatched(ServiceBase):
                             plex_friendly_name = plex_user_name
                     else:
                         self.log_warning(
-                            "{} could not find {}".format(
-                                utils.get_formatted_tautulli(), 
-                                utils.get_tag("user", user_config.plex_user_name)
-                            )
+                            f"{utils.get_formatted_tautulli()} could not find {utils.get_tag("user", user_config.plex_user_name)}"
                         )
                 else:
                     if not plex_api_valid:
@@ -355,10 +341,7 @@ class DeleteWatched(ServiceBase):
                     else:
                         emby_user_id = ""
                         self.log_warning(
-                            "{} could not find {}".format(
-                                utils.get_formatted_emby(), 
-                                utils.get_tag("user", user_config.emby_user_name)
-                            )
+                            f"{utils.get_formatted_emby()} could not find {utils.get_tag("user", user_config.emby_user_name)}"
                         )
                 else:
                     if not emby_api_valid:
@@ -401,11 +384,7 @@ class DeleteWatched(ServiceBase):
                 try:
                     os.remove(media.file_path)
                     self.log_info(
-                        "{} watched on {} deleting {}".format(
-                            media.user_name, 
-                            media.player, 
-                            utils.get_tag("file", media.file_path)
-                        )
+                        f"{media.user_name} watched on {media.player} deleting {utils.get_tag("file", media.file_path)}"
                     )
                     
                     # Check if this library needs to be added to the list to notify
@@ -418,10 +397,7 @@ class DeleteWatched(ServiceBase):
                         libraries_to_notify.append(media.library)
                 except Exception as e:
                     self.log_error(
-                        "Failed to delete {} {}".format(
-                            utils.get_tag("file", media.file_path), 
-                            utils.get_tag("error", e)
-                        )
+                        f"Failed to delete {utils.get_tag("file", media.file_path)} {utils.get_tag("error", e)}"
                     )
                 
         # If shows were deleted clean up folders and notify
@@ -446,10 +422,10 @@ class DeleteWatched(ServiceBase):
                     )
             
                 if target_name != "":
-                    self.log_info("Notified {} to refresh".format(target_name))
+                    self.log_info(f"Notified {target_name} to refresh")
         
         except Exception as e:
-            self.log_error("Clean up failed {}".format(utils.get_tag("error", e)))
+            self.log_error(f"Clean up failed {utils.get_tag("error", e)}")
         
     def init_scheduler_jobs(self):
         if self.cron is not None:

@@ -133,7 +133,7 @@ class DvrMaintainer(ServiceBase):
     
     def __get_files_in_path(self, path: str) -> List[FileInfo]:
         file_info: list[FileInfo] = []
-        for file in glob.glob(path + "/**/*", recursive=True):
+        for file in glob.glob(f"{path}/**/*", recursive=True):
             if file.endswith(".ts") or file.endswith(".mkv"):
                 file_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(file))
                 file_info.append(FileInfo(file, file_age.days + (file_age.seconds / 86400)))
@@ -211,7 +211,7 @@ class DvrMaintainer(ServiceBase):
     ) -> List[DeletedData]:
         deleted_data: list[DeletedData] = []
         for show in library.shows:
-            library_file_path = library.utility_path + "/" + show.name
+            library_file_path = f"{library.utility_path}/{show.name}"
             if os.path.exists(library_file_path):
                 if show.action_type == "KEEP_LAST":
                     try:

@@ -36,13 +36,13 @@ class EmbyAPI:
         )
     
     def __get_api_url(self) -> str:
-        return self.url + "/emby"
+        return f"{self.url}/emby"
     
     def get_valid(self) -> bool:
         try:
             payload = {"api_key": self.api_key}
             r = requests.get(
-                self.__get_api_url() + "/System/Configuration",
+                f"{self.__get_api_url()}/System/Configuration",
                 params=payload
             )
             if r.status_code < 300:
@@ -55,7 +55,7 @@ class EmbyAPI:
         try:
             payload = {"api_key": self.api_key}
             r = requests.get(
-                self.__get_api_url() + "/System/Info",
+                f"{self.__get_api_url()}/System/Info",
                 params=payload
             )
             response = r.json()
@@ -86,7 +86,7 @@ class EmbyAPI:
         try:
             payload = {"api_key": self.api_key}
             r = requests.get(
-                self.__get_api_url() + "/Users/Query",
+                f"{self.__get_api_url()}/Users/Query",
                 params=payload
             )
             response = r.json()
@@ -107,12 +107,12 @@ class EmbyAPI:
     def search_item(self, id: str) -> Any:
         try:
             payload = {
-            "api_key": self.api_key,
-            "Ids": id,
-            "Fields": "Path"}
-            
+                "api_key": self.api_key,
+                "Ids": id,
+                "Fields": "Path"
+            }
             r = requests.get(
-                self.__get_api_url() + "/Items",
+                f"{self.__get_api_url()}/Items",
                 params=payload
             )
             response = r.json()["Items"]
@@ -140,9 +140,10 @@ class EmbyAPI:
                 "api_key": self.api_key,
                 "Recursive": "true",
                 "Path": path,
-                "Fields": "Path"}
+                "Fields": "Path"
+            }
             r = requests.get(
-                self.__get_api_url() + "/Items",
+                f"{self.__get_api_url()}/Items",
                 params=payload
             )
             response = r.json()
@@ -160,12 +161,12 @@ class EmbyAPI:
     def get_watched_status(self, user_id: str, item_id: str) -> bool:
         try:
             payload = {
-            "api_key": self.api_key,
-            "Ids": item_id,
-            "IsPlayed": "true"}
-            
+                "api_key": self.api_key,
+                "Ids": item_id,
+                "IsPlayed": "true"
+            }
             r = requests.get(
-                self.__get_api_url() + "/Users/" + user_id + "/Items",
+                f"{self.__get_api_url()}/Users/{user_id}/Items",
                 params=payload
             )
             if r.status_code < 300:
@@ -184,8 +185,9 @@ class EmbyAPI:
     def set_watched_item(self, user_id: str, item_id: str):
         try:
             headers = {"accept": "application/json"}
-            embyUrl = self.__get_api_url() + "/Users/" + user_id + "/PlayedItems/" + item_id + "?api_key=" + self.api_key
-            requests.post(embyUrl, headers=headers)
+            payload = {"api_key": self.api_key}
+            embyUrl = f"{self.__get_api_url()}/Users/{user_id}/PlayedItems/{item_id}"
+            requests.post(embyUrl, headers=headers, params=payload)
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} set_watched_item {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", e)}"
@@ -201,7 +203,7 @@ class EmbyAPI:
                 "MetadataRefreshMode": "Default",
                 "ReplaceAllImages": "false",
                 "ReplaceAllMetadata": "false"}
-            embyUrl = self.__get_api_url() + "/Items/" + library_id + "/Refresh"
+            embyUrl = f"{self.__get_api_url()}/Items/{library_id}/Refresh"
             requests.post(embyUrl, headers=headers, params=payload)
         except Exception as e:
             self.logger.error(
@@ -212,7 +214,7 @@ class EmbyAPI:
         try:
             payload = {"api_key": self.api_key}
             r = requests.get(
-                self.__get_api_url() + "/Library/SelectableMediaFolders",
+                f"{self.__get_api_url()}/Library/SelectableMediaFolders",
                 params=payload
             )
             response = r.json()
@@ -234,7 +236,7 @@ class EmbyAPI:
         try:
             payload = {"api_key": self.api_key}
             r = requests.get(
-                self.__get_api_url() + "/Library/SelectableMediaFolders",
+                f"{self.__get_api_url()}/Library/SelectableMediaFolders",
                 params=payload
             )
             response = r.json()
@@ -255,7 +257,7 @@ class EmbyAPI:
                 "Recursive": "true",
                 "Fields": "Path"}
             r = requests.get(
-                self.__get_api_url() + "/Items",
+                f"{self.__get_api_url()}/Items",
                 params=payload
             )
             response = r.json()
@@ -282,11 +284,13 @@ class EmbyAPI:
         try:
             headers = {"accept": "application/json"}
             payload = {
+                "api_key": self.api_key,
                 "Name": playlist_name,
                 "Ids": self.__get_comma_separated_list(ids),
-                "MediaType": "Movies"}
-            embyUrl = self.__get_api_url() + "/Playlists" + "?api_key=" + self.api_key
-            r = requests.post(embyUrl, headers=headers, data=payload)
+                "MediaType": "Movies"
+            }
+            embyUrl = f"{self.__get_api_url()}/Playlists"
+            r = requests.post(embyUrl, headers=headers, params=payload)
             if r.status_code < 300:
                 response = r.json()
                 return response["Id"]
@@ -300,8 +304,11 @@ class EmbyAPI:
         try:
             playlist = self.search_item(playlist_id)
             if playlist is not None:
+                payload = {"api_key": self.api_key}
                 r = requests.get(
-                    self.__get_api_url() + "/Playlists/" + playlist_id + "/Items?api_key=" + self.api_key)
+                    f"{self.__get_api_url()}/Playlists/{playlist_id}/Items",
+                    params=payload
+                )
                 response = r.json()
 
                 emby_playlist = EmbyPlaylist(playlist["Name"], playlist_id)
@@ -326,8 +333,12 @@ class EmbyAPI:
     def add_playlist_items(self, playlist_id: str, item_ids: list[str]) -> bool:
         try:
             headers = {"accept": "application/json"}
-            embyUrl = self.__get_api_url()+ "/Playlists/" + playlist_id + "/Items" + "?Ids=" + self.__get_comma_separated_list(item_ids) + "&api_key=" + self.api_key
-            r = requests.post(embyUrl, headers=headers)
+            payload = {
+                "api_key": self.api_key,
+                "Ids": self.__get_comma_separated_list(item_ids)
+            }
+            embyUrl = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items"
+            r = requests.post(embyUrl, headers=headers, params=payload)
             if r.status_code < 300:
                 return True
         except Exception as e:
@@ -339,8 +350,12 @@ class EmbyAPI:
     def remove_playlist_items(self, playlist_id: str, playlist_item_ids: list[str]) -> bool:
         try:
             headers = {"accept": "application/json"}
-            embyUrl = self.__get_api_url()+ "/Playlists/" + playlist_id + "/Items/Delete" + "?EntryIds=" + self.__get_comma_separated_list(playlist_item_ids) + "&api_key=" + self.api_key
-            r = requests.post(embyUrl, headers=headers)
+            payload = {
+                "api_key": self.api_key,
+                "EntryIds": self.__get_comma_separated_list(playlist_item_ids)
+            }
+            embyUrl = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/Delete"
+            r = requests.post(embyUrl, headers=headers, params=payload)
             if r.status_code < 300:
                 return True
         except Exception as e:
@@ -352,8 +367,9 @@ class EmbyAPI:
     def set_move_playlist_item_to_index(self, playlist_id: str, playlist_item_id: str, index: int) -> bool:
         try:
             headers = {"accept": "application/json"}
-            embyUrl = self.__get_api_url()+ "/Playlists/" + playlist_id + "/Items/" + playlist_item_id + "/Move/" + str(index) + "?api_key=" + self.api_key
-            r = requests.post(embyUrl, headers=headers)
+            payload = {"api_key": self.api_key}
+            embyUrl = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/{playlist_item_id}/Move/{str(index)}"
+            r = requests.post(embyUrl, headers=headers, params=payload)
             if r.status_code < 300:
                 return True
         except Exception as e:

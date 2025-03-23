@@ -24,7 +24,7 @@ class JellystatAPI:
         try:
             payload = {}
             r = requests.get(
-                self.get_api_url() + "/getconfig",
+                f"{self.get_api_url()}/getconfig",
                 headers=self.get_headers(),
                 params=payload
             )
@@ -41,7 +41,7 @@ class JellystatAPI:
         return self.invalid_type
     
     def get_api_url(self) -> str:
-        return self.url + "/api"
+        return f"{self.url}/api"
     
     def get_headers(self) -> Any:
         return {"x-api-token": self.api_key,
@@ -51,7 +51,7 @@ class JellystatAPI:
         try:
             payload = {}
             r = requests.get(
-                self.get_api_url() + "/getLibraries",
+                f"{self.get_api_url()}/getLibraries",
                 headers=self.get_headers(),
                 params=payload
             )
@@ -71,7 +71,7 @@ class JellystatAPI:
             payload = {
                 "userid": userId}
             r = requests.post(
-                self.get_api_url() + "/getUserHistory",
+                f"{self.get_api_url()}/getUserHistory",
                 headers=self.get_headers(),
                 data=json.dumps(payload)
             )
@@ -93,7 +93,7 @@ class JellystatAPI:
             payload = {
                 "libraryid": libId}
             r = requests.post(
-                self.get_api_url() + "/getLibraryHistory",
+                f"{self.get_api_url()}/getLibraryHistory",
                 headers=self.get_headers(),
                 data=json.dumps(payload)
             )
@@ -114,7 +114,7 @@ class JellystatAPI:
         try:
             payload = {"Id": itemId}
             r = requests.post(
-                self.get_api_url() + "/getItemDetails",
+                f"{self.get_api_url()}/getItemDetails",
                 headers=self.get_headers(),
                 data=json.dumps(payload)
             )

@@ -2,7 +2,7 @@ from logging import Logger
 from apscheduler.schedulers.blocking import BlockingScheduler
 from common import utils
 from common.types import CronInfo
-from typing import Any, Optional
+from typing import Optional
 
 
 class ServiceBase:
@@ -10,7 +10,7 @@ class ServiceBase:
         self,
         ansi_code: str,
         service_name: str,
-        config: Any,
+        config: dict,
         logger: Logger,
         scheduler: BlockingScheduler
     ):
@@ -36,7 +36,7 @@ class ServiceBase:
         self.logger.error(f"{self.log_header} {message}")
     
     def log_service_enabled(self):
-        if self.cron:
+        if self.cron is not None:
             self.log_info(
                 f"Enabled - Running every {utils.get_tag("hour", self.cron.hours)} {utils.get_tag("minute", self.cron.minutes)}"
             )

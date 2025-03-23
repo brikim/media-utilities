@@ -127,7 +127,9 @@ class PlaylistSync(ServiceBase):
 
         if len(added_items) > 0 or len(deleted_playlist_items) > 0:
             if len(added_items) > 0:
-                if not self.emby_api.add_playlist_items(emby_playlist.id, added_items):
+                if self.emby_api.add_playlist_items(emby_playlist.id, added_items):
+                    time.sleep(self.time_between_syncs_seconds)
+                else:
                     playlist_tag = utils.get_tag("playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", added_items)
                     self.log_warning(
@@ -135,10 +137,12 @@ class PlaylistSync(ServiceBase):
                     )
             
             if len(deleted_playlist_items) > 0:
-                if not self.emby_api.remove_playlist_items(
+                if self.emby_api.remove_playlist_items(
                     emby_playlist.id, 
                     deleted_playlist_items
                 ):
+                    time.sleep(self.time_between_syncs_seconds)
+                else:
                     playlist_tag = utils.get_tag("playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", deleted_playlist_items)
                     self.log_warning(
@@ -180,11 +184,13 @@ class PlaylistSync(ServiceBase):
                     for correct_item_id in emby_item_ids:
                         for current_playlist_item in edited_emby_playlist.items:
                             if correct_item_id == current_playlist_item.id:
-                                if not self.emby_api.set_move_playlist_item_to_index(
+                                if self.emby_api.set_move_playlist_item_to_index(
                                     edited_emby_playlist.id,
                                     current_playlist_item.playlist_item_id,
                                     current_index
                                 ):
+                                    time.sleep(self.time_between_syncs_seconds)
+                                else:
                                     playlist_tag = utils.get_tag("playlist", original_emby_playlist.name)
                                     item_tag = utils.get_tag("item", current_playlist_item.playlist_item_id)
                                     index_tag = utils.get_tag("index", current_index)
@@ -207,7 +213,7 @@ class PlaylistSync(ServiceBase):
                 length_tag = utils.get_tag("length", len(emby_item_ids))
                 reported_length_tag = utils.get_tag("reported_length", len(edited_emby_playlist.items))
                 self.log_warning(
-                    f"{utils.get_emby_ansi_code()} sync {utils.get_plex_ansi_code()} {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
+                    f"{utils.get_formatted_emby()} sync {utils.get_formatted_plex()} {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
                 )
     
     def __sync_emby_playlist_with_plex_collection(self, plex_collection: PlexCollection):
@@ -220,7 +226,7 @@ class PlaylistSync(ServiceBase):
                 collection_tag =  utils.get_tag("collection", plex_collection.name)
                 item_tag = utils.get_tag("item", plex_item.title)
                 self.log_warning(
-                    f"{ utils.get_emby_ansi_code()} sync {utils.get_plex_ansi_code()} {collection_tag} item not found {item_tag}"
+                    f"{ utils.get_formatted_emby()} sync {utils.get_formatted_plex()} {collection_tag} item not found {item_tag}"
                 )
         
         emby_playlist_id = self.emby_api.get_playlist_id(plex_collection.name)
@@ -264,6 +270,7 @@ class PlaylistSync(ServiceBase):
                     self.log_warning(self.emby_api.get_connection_error_log())
     
     def init_scheduler_jobs(self):
+        self.__sync_playlists()
         if self.cron is not None:
             self.log_service_enabled()
             self.scheduler.add_job(

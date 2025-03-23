@@ -20,13 +20,14 @@ class TautulliAPI:
         )
 
     def __get_api_url(self) -> str:
-        return self.url + "/api/v2"
+        return f"{self.url}/api/v2"
     
     def get_valid(self) -> bool:
         try:
             payload = {
                 "apikey": self.api_key,
-                "cmd": "get_tautulli_info"}
+                "cmd": "get_tautulli_info"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             if r.status_code < 300:
                 return True
@@ -38,7 +39,8 @@ class TautulliAPI:
         try:
             payload = {
                 "apikey": self.api_key,
-                "cmd": "get_server_info"}
+                "cmd": "get_server_info"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             return r.json()["response"]["data"]["pms_name"]
         except Exception as e:
@@ -63,8 +65,8 @@ class TautulliAPI:
         try:
             payload = {
                 "apikey": self.api_key,
-                "cmd": "get_libraries"}
-
+                "cmd": "get_libraries"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
             for lib in response["response"]["data"]:
@@ -78,11 +80,11 @@ class TautulliAPI:
         return "0"
             
     def get_user_id(self, user_name: str) -> str:
-        payload = {
-            "apikey": self.api_key,
-            "cmd": "get_users"}
-
         try:
+            payload = {
+                "apikey": self.api_key,
+                "cmd": "get_users"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
             for userData in response["response"]["data"]:
@@ -96,11 +98,11 @@ class TautulliAPI:
         return self.get_invalid_item()
     
     def get_user_info(self, user_name: str) -> Any:
-        payload = {
-            "apikey": self.api_key,
-            "cmd": "get_users_table"}
-
         try:
+            payload = {
+                "apikey": self.api_key,
+                "cmd": "get_users_table"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
             for user_info in response["response"]["data"]["data"]:
@@ -114,14 +116,14 @@ class TautulliAPI:
         return self.get_invalid_item()
     
     def get_watch_history_for_user(self, user_id: str, dateTimeStringForHistory: str) -> Any:
-        payload = {
-            "apikey": self.api_key,
-            "cmd": "get_history",
-            "include_activity": 0,
-            "user_id": user_id,
-            "after": dateTimeStringForHistory}
-
         try:
+            payload = {
+                "apikey": self.api_key,
+                "cmd": "get_history",
+                "include_activity": 0,
+                "user_id": user_id,
+                "after": dateTimeStringForHistory
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
             return response["response"]["data"]["data"]
@@ -131,15 +133,15 @@ class TautulliAPI:
             )
             
     def get_watch_history_for_user_and_library(self, user_id: str, lib_id: str, dateTimeStringForHistory: str) -> Any:
-        payload = {
-            "apikey": self.api_key,
-            "cmd": "get_history",
-            "include_activity": 0,
-            "user_id": user_id,
-            "section_id": lib_id,
-            "after": dateTimeStringForHistory}
-
         try:
+            payload = {
+                "apikey": self.api_key,
+                "cmd": "get_history",
+                "include_activity": 0,
+                "user_id": user_id,
+                "section_id": lib_id,
+                "after": dateTimeStringForHistory
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
             return response["response"]["data"]["data"]
@@ -153,7 +155,8 @@ class TautulliAPI:
             payload = {
                 "apikey": self.api_key,
                 "rating_key": str(key),
-                "cmd": "get_metadata"}
+                "cmd": "get_metadata"
+            }
             r = requests.get(self.__get_api_url(), params=payload)
             response = r.json()
 

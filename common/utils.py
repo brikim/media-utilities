@@ -88,9 +88,9 @@ def remove_ansi_code_from_text(text: str) -> str:
 def build_target_string(current_target: str, new_target: str, library: str) -> str:
     if current_target != "":
         if library == "":
-            return current_target + f" & {new_target}"
+            return f"{current_target} & {new_target}"
         else:
-            return current_target + f" & {new_target}:{library}"
+            return f"{current_target} & {new_target}:{library}"
     else:
         if library == "":
             return new_target

@@ -19,9 +19,13 @@ class GotifyHandler(logging.Handler):
     def emit(self, record: logging.LogRecord):
         try:
             formatted_message = self.formatter.format(record)
-            requests.post(self.url + '/message?token=' + self.app_token, json={
-                        "message": formatted_message,
-                        "priority": self.priority,
-                        "title": self.title + ' - ' + record.levelname})
+            requests.post(
+                f"{self.url}/message?token={self.app_token}", 
+                json={
+                    "message": formatted_message,
+                    "priority": self.priority,
+                    "title": f"{self.title} - {record.levelname}"
+                }
+            )
         except:
             self.handleError(record)

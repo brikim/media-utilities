@@ -2,7 +2,7 @@
 Media Utilities
 """
 
-version = "v2.3.3"
+version = "v2.3.4"
 
 import sys
 import os
@@ -48,15 +48,14 @@ services: list[ServiceBase] = []
 conf_loc_path_file = ""
 config_file_valid = True
 
-def handle_sigterm(signum, frame):
+def _handle_sigterm(signum, frame):
     logger.info("SIGTERM received, shutting down ...")
     for service in services:
         service.shutdown()
     scheduler.shutdown(wait=True)
     sys.exit(0)
 
-
-def do_nothing():
+def _do_nothing():
     """ Do nothing """
     pass
 
@@ -75,7 +74,7 @@ if config_file_valid and os.path.exists(conf_loc_path_file):
         # Main script run ####################################################
 
         # Set up signal termination handle
-        signal.signal(signal.SIGTERM, handle_sigterm)
+        signal.signal(signal.SIGTERM, _handle_sigterm)
 
         # date format
         date_format = "%Y-%m-%d %H:%M:%S"
@@ -295,7 +294,7 @@ if config_file_valid and os.path.exists(conf_loc_path_file):
         
         # Add a job to do nothing to keep the script alive
         scheduler.add_job(
-            do_nothing,
+            _do_nothing,
             trigger="interval",
             hours=24
         )

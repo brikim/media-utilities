@@ -301,7 +301,7 @@ class SyncWatched(ServiceBase):
                         ):
                             episode.markWatched()
                             
-                            show_title = episode.grandparentTitle + " - " + episode.title
+                            show_title = f"{episode.grandparentTitle} - {episode.title}"
                             self.log_info(
                                 f"{user.emby_user_name} watched {show_title} on {utils.get_formatted_emby()} sync {utils.get_formatted_plex()} watch status"
                             )
