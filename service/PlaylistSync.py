@@ -44,7 +44,7 @@ class PlaylistSync(ServiceBase):
         self.emby_api = emby_api
         self.plex_collection_configs: list[PlexCollectionConfig] = []
         
-        self.time_for_emby_to_update_seconds: float = 1.0
+        self.time_for_emby_to_update_seconds: float = 5.0
         if "time_for_emby_to_update_seconds" in config:
             self.time_for_emby_to_update_seconds = float(
                 config["time_for_emby_to_update_seconds"]
@@ -127,9 +127,7 @@ class PlaylistSync(ServiceBase):
 
         if len(added_items) > 0 or len(deleted_playlist_items) > 0:
             if len(added_items) > 0:
-                if self.emby_api.add_playlist_items(emby_playlist.id, added_items):
-                    time.sleep(self.time_between_syncs_seconds)
-                else:
+                if not self.emby_api.add_playlist_items(emby_playlist.id, added_items):
                     playlist_tag = utils.get_tag("playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", added_items)
                     self.log_warning(
@@ -137,19 +135,17 @@ class PlaylistSync(ServiceBase):
                     )
             
             if len(deleted_playlist_items) > 0:
-                if self.emby_api.remove_playlist_items(
+                if not self.emby_api.remove_playlist_items(
                     emby_playlist.id, 
                     deleted_playlist_items
                 ):
-                    time.sleep(self.time_between_syncs_seconds)
-                else:
                     playlist_tag = utils.get_tag("playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", deleted_playlist_items)
                     self.log_warning(
                         f"{utils.get_formatted_emby()} failed {playlist_tag} removing {items_tag}"
                     )
-
-            # Give emby time to update the playlist
+                    
+            # Give Emby time to update the playlist
             time.sleep(self.time_for_emby_to_update_seconds)
             
             return AddDeleteInfo(len(added_items), len(deleted_playlist_items))
