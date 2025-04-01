@@ -1,33 +1,38 @@
 
 import os
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+
 from logging import Logger
-from typing import Any, List
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common import utils
-from common import utils_server
 
 from service.ServiceBase import ServiceBase
 
-from api.plex import PlexAPI
-from api.emby import EmbyAPI
+from api.api_manager import ApiManager
+
+
+@dataclass
+class MediaServerInfo:
+    server_name: str
+    library_name: str
+
 
 @dataclass
 class PathInfo:
     path: str
-    plex_library_name: str
-    emby_library_name: str
-    emby_library_id: str
+    plex_server_list: list[MediaServerInfo] = field(default_factory=list)
+    emby_server_list: list[MediaServerInfo] = field(default_factory=list)
+
 
 class FolderCleanup(ServiceBase):
     def __init__(
         self,
         ansi_code: str,
-        plex_api: PlexAPI,
-        emby_api: EmbyAPI,
-        config: Any,
+        api_manager: ApiManager,
+        config: dict,
         logger: Logger,
         scheduler: BlockingScheduler
     ):
@@ -35,45 +40,74 @@ class FolderCleanup(ServiceBase):
             ansi_code,
             self.__module__,
             config,
+            api_manager,
             logger,
             scheduler
         )
-        
-        self.plex_api = plex_api
-        self.emby_api = emby_api
+
         self.paths: list[PathInfo] = []
         self.ignore_folder_in_empty_check: list[str] = []
         self.ignore_file_in_empty_check: list[str] = []
-        
+
         try:
             for path in config["paths_to_check"]:
-                plex_library_name = ""
-                if "plex_library_name" in path:
-                    plex_library_name = path["plex_library_name"]
-                
-                emby_library_name = ""
-                if "emby_library_name" in path:
-                    emby_library_name = path["emby_library_name"]
-                
-                self.paths.append(
-                    PathInfo(
-                        path["path"],
-                        plex_library_name,
-                        emby_library_name,
-                        ""
-                    )
-                )
-                
+                if "path" in path:
+                    path_info = PathInfo(path["path"])
+
+                    for plex_server in path["plex"]:
+                        if "server" in plex_server and "library_name" in plex_server:
+                            plex_api = self.api_manager.get_plex_api(
+                                plex_server["server"])
+                            if plex_api is not None:
+                                if plex_api.get_valid() and plex_api.get_library(plex_server["library_name"]) == plex_api.get_invalid_type():
+                                    self.log_warning(
+                                        f"No {utils.get_formatted_plex()}:{plex_server['server']} library found for {plex_server['library_name']}"
+                                    )
+
+                                path_info.plex_server_list.append(
+                                    MediaServerInfo(
+                                        plex_server["server"],
+                                        plex_server["library_name"]
+                                    )
+                                )
+                            else:
+                                self.log_warning(
+                                    f"No {utils.get_formatted_plex()} server found for {plex_server['server']} ... Skipping"
+                                )
+
+                    for emby_server in path["emby"]:
+                        if "server" in emby_server and "library_name" in emby_server:
+                            emby_api = self.api_manager.get_emby_api(
+                                emby_server["server"])
+                            if emby_api is not None:
+                                if emby_api.get_valid() and emby_api.get_library_from_name(emby_server["library_name"]) == emby_api.get_invalid_item_id():
+                                    self.log_warning(
+                                        f"No {utils.get_formatted_emby()}:{emby_server['server']} library found for {emby_server['library_name']}"
+                                    )
+
+                                path_info.emby_server_list.append(
+                                    MediaServerInfo(
+                                        emby_server["server"],
+                                        emby_server["library_name"]
+                                    )
+                                )
+                            else:
+                                self.log_warning(
+                                    f"No {utils.get_formatted_emby()} server found for {emby_server['server']} ... Skipping"
+                                )
+
+                    self.paths.append(path_info)
+
             for folder in config["ignore_folder_in_empty_check"]:
                 self.ignore_folder_in_empty_check.append(
                     folder["ignore_folder"]
                 )
-        
+
             for file in config["ignore_file_in_empty_check"]:
                 self.ignore_folder_in_empty_check.append(
                     file["ignore_file"]
                 )
-            
+
         except Exception as e:
             self.log_error(
                 f"Read config {utils.get_tag("error", e)}"
@@ -89,11 +123,11 @@ class FolderCleanup(ServiceBase):
                         break
             else:
                 dir_empty = False
-                
+
             if not dir_empty:
                 break
         return dir_empty
-    
+
     def __is_files_empty(self, filenames: List[str]) -> bool:
         filenames_empty: bool = True
         for filename in filenames:
@@ -104,31 +138,33 @@ class FolderCleanup(ServiceBase):
                         break
             else:
                 filenames_empty = False
-            
+
             if not filenames_empty:
                 break
         return filenames_empty
-    
+
     def __check_delete_empty_folders(self):
         deleted_paths: list[PathInfo] = []
         for path in self.paths:
-            connection_info = utils_server.get_connection_info(
-                self.plex_api,
-                path.plex_library_name,
-                self.emby_api,
-                path.emby_library_name
-            )
-            
-            if (
-                (
-                    path.plex_library_name == "" 
-                    or connection_info.plex_valid
-                ) 
-                and (
-                    path.emby_library_name == ""
-                    or connection_info.emby_valid
-                )
-            ):
+            connections_valid = True
+            for plex_server in path.plex_server_list:
+                plex_api = self.api_manager.get_plex_api(
+                    plex_server.server_name)
+                if not plex_api.get_valid():
+                    connections_valid = False
+                    self.log_warning(plex_api.get_connection_error_log())
+                    break
+
+            if connections_valid:
+                for emby_server in path.emby_server_list:
+                    emby_api = self.api_manager.get_emby_api(
+                        emby_server.server_name)
+                    if not emby_api.get_valid():
+                        connections_valid = False
+                        self.log_warning(emby_api.get_connection_error_log())
+                        break
+
+            if connections_valid:
                 folders_deleted = False
 
                 keep_running: bool = True
@@ -144,43 +180,38 @@ class FolderCleanup(ServiceBase):
                             folders_deleted = True
 
                 if folders_deleted:
-                    deleted_paths.append(
-                        PathInfo(
-                            path.path,
-                            path.plex_library_name,
-                            path.emby_library_name,
-                            connection_info.emby_library_id
-                        )
-                    )
+                    deleted_paths.append(path)
             else:
-                if path.plex_library_name != "" and not connection_info.plex_valid:
-                    self.log_warning(self.plex_api.get_connection_error_log())
-                if path.emby_library_name != "" and not connection_info.emby_valid:
-                    self.log_warning(self.emby_api.get_connection_error_log())
-        
+                self.log_warning(
+                    f"Skipping {utils.get_tag("path", path.path)} due to invalid connections"
+                )
+
         for deleted_path in deleted_paths:
             target_name: str = ""
-            if deleted_path.plex_library_name != "":
-                self.plex_api.switch_plex_account_admin()
-                self.plex_api.set_library_scan(deleted_path.plex_library_name)
+            for plex_server in deleted_path.plex_server_list:
+                plex_api = self.api_manager.get_plex_api(
+                    plex_server.server_name)
+                plex_api.set_library_scan(plex_server.library_name)
                 target_name = utils.build_target_string(
                     target_name,
-                    utils.get_formatted_plex(),
-                    deleted_path.plex_library_name
+                    f"{utils.get_formatted_plex()}:{plex_server.server_name}",
+                    plex_server.library_name
                 )
-            if deleted_path.emby_library_id != "":
-                self.emby_api.set_library_scan(deleted_path.emby_library_id)
+            for emby_server in deleted_path.emby_server_list:
+                emby_api = self.api_manager.get_emby_api(
+                    emby_server.server_name)
+                emby_api.set_library_scan(emby_server.library_name)
                 target_name = utils.build_target_string(
                     target_name,
-                    utils.get_formatted_emby(),
-                    deleted_path.emby_library_name
+                    f"{utils.get_formatted_emby()}:{emby_server.server_name}",
+                    emby_server.library_name
                 )
 
             if target_name != "":
                 self.log_info(
                     f"Notified {target_name} to refresh"
                 )
-    
+
     def init_scheduler_jobs(self):
         if self.cron is not None:
             self.log_service_enabled()

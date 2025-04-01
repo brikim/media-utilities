@@ -1,9 +1,12 @@
-import requests
-import json
 from logging import Logger
 from typing import Any
-from common import utils
 from dataclasses import dataclass, field
+
+import requests
+
+from api.api_base import ApiBase
+from common import utils
+
 
 @dataclass
 class EmbyPlaylistItem:
@@ -17,23 +20,37 @@ class EmbyPlaylist:
     id: str
     items: list[EmbyPlaylistItem] = field(default_factory=list)
     
-class EmbyAPI:
+class EmbyAPI(ApiBase):
+    """
+    Provides an interface for interacting with the Emby Media Server API.
+
+    This class extends ApiBase and provides methods for checking server
+    validity, retrieving server name, checking library existence, and
+    triggering library scans.
+    """
+    
     def __init__(
         self,
+        server_name: str,
         url: str,
         api_key: str,
         media_path: str,
         logger: Logger
     ):
-        self.url = url.rstrip("/")
-        self.api_key = api_key
-        self.media_path = media_path
-        self.logger = logger
-        self.invalid_item_id = "0"
-        self.log_header = utils.get_log_header(
-            utils.get_emby_ansi_code(),
-            self.__module__
+        """
+        Initializes the EmbyAPI with the server URL, API key, and logger.
+
+        Args:
+            server_name (str): The name of this emby server
+            url (str): The base URL of the Emby Media Server.
+            api_key (str): The API key for authenticating with the Emby server.
+            logger (Logger): The logger instance for logging messages.
+        """
+        super().__init__(
+            server_name, url, api_key, utils.get_emby_ansi_code(), self.__module__, logger
         )
+
+        self.media_path = media_path
     
     def __get_api_url(self) -> str:
         return f"{self.url}/emby"
@@ -48,19 +65,21 @@ class EmbyAPI:
         try:
             r = requests.get(
                 f"{self.__get_api_url()}/System/Configuration",
-                params=self.__get_default_payload()
+                params=self.__get_default_payload(),
+                timeout=5
             )
             if r.status_code < 300:
                 return True
-        except Exception as e:
+        except Exception:
             pass
         return False
     
-    def get_name(self) -> str:
+    def get_server_reported_name(self) -> str:
         try:
             r = requests.get(
                 f"{self.__get_api_url()}/System/Info",
-                params=self.__get_default_payload()
+                params=self.__get_default_payload(),
+                timeout=5
             )
             response = r.json()
             return response["ServerName"]
@@ -72,7 +91,7 @@ class EmbyAPI:
         return self.invalid_item_id
     
     def get_connection_error_log(self) -> str:
-        return f"Could not connect to {utils.get_formatted_emby()} server {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return f"Could not connect to {utils.get_formatted_emby()}:{self.server_name} server {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
         
     def get_media_type_episode_name(self) -> str:
         return "Episode"
@@ -90,7 +109,8 @@ class EmbyAPI:
         try:
             r = requests.get(
                 f"{self.__get_api_url()}/Users/Query",
-                params=self.__get_default_payload()
+                params=self.__get_default_payload(),
+                timeout=5
             )
             response = r.json()
             
@@ -116,7 +136,8 @@ class EmbyAPI:
             }
             r = requests.get(
                 f"{self.__get_api_url()}/Items",
-                params=payload
+                params=payload,
+                timeout=5
             )
             response = r.json()["Items"]
             response_length = len(response)
@@ -147,7 +168,8 @@ class EmbyAPI:
             }
             r = requests.get(
                 f"{self.__get_api_url()}/Items",
-                params=payload
+                params=payload,
+                timeout=5
             )
             response = r.json()
 
@@ -170,7 +192,8 @@ class EmbyAPI:
             }
             r = requests.get(
                 f"{self.__get_api_url()}/Users/{user_id}/Items",
-                params=payload
+                params=payload,
+                timeout=5
             )
             if r.status_code < 300:
                 return r.json()["TotalRecordCount"] > 0
@@ -188,7 +211,7 @@ class EmbyAPI:
     def set_watched_item(self, user_id: str, item_id: str):
         try:
             emby_url = f"{self.__get_api_url()}/Users/{user_id}/PlayedItems/{item_id}"
-            requests.post(emby_url, headers=self.__get_default_header(), params=self.__get_default_payload())
+            requests.post(emby_url, headers=self.__get_default_header(), params=self.__get_default_payload(), timeout=5)
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} set_watched_item {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", e)}"
@@ -205,7 +228,7 @@ class EmbyAPI:
                 "ReplaceAllMetadata": "false",
             }
             emby_url = f"{self.__get_api_url()}/Items/{library_id}/Refresh"
-            requests.post(emby_url, headers=self.__get_default_header(), params=payload)
+            requests.post(emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
         except Exception as e:
             self.logger.error(
                 f"{self.log_header} set_library_scan {utils.get_tag("library_id", library_id)} {utils.get_tag("error", e)}"
@@ -215,7 +238,8 @@ class EmbyAPI:
         try:
             r = requests.get(
                 f"{self.__get_api_url()}/Library/SelectableMediaFolders",
-                params=self.__get_default_payload()
+                params=self.__get_default_payload(),
+                timeout=5
             )
             response = r.json()
 
@@ -236,7 +260,8 @@ class EmbyAPI:
         try:
             r = requests.get(
                 f"{self.__get_api_url()}/Library/SelectableMediaFolders",
-                params=self.__get_default_payload()
+                params=self.__get_default_payload(),
+                timeout=5
             )
             response = r.json()
 
@@ -258,7 +283,8 @@ class EmbyAPI:
             }
             r = requests.get(
                 f"{self.__get_api_url()}/Items",
-                params=payload
+                params=payload,
+                timeout=5
             )
             response = r.json()
 
@@ -289,7 +315,7 @@ class EmbyAPI:
                 "MediaType": "Movies",
             }
             emby_url = f"{self.__get_api_url()}/Playlists"
-            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload)
+            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
             if r.status_code < 300:
                 response = r.json()
                 return response["Id"]
@@ -297,7 +323,7 @@ class EmbyAPI:
             self.logger.error(
                 f"{self.log_header} create_playlist {utils.get_tag("playlist", playlist_name)} {utils.get_tag("error", e)}"
             )
-        return self.invalid_item_id()
+        return self.invalid_item_id
     
     def get_playlist_items(self, playlist_id: str) -> EmbyPlaylist:
         try:
@@ -305,7 +331,8 @@ class EmbyAPI:
             if playlist is not None:
                 r = requests.get(
                     f"{self.__get_api_url()}/Playlists/{playlist_id}/Items",
-                    params=self.__get_default_payload()
+                    params=self.__get_default_payload(),
+                    timeout=5
                 )
                 response = r.json()
 
@@ -335,7 +362,7 @@ class EmbyAPI:
                 "Ids": self.__get_comma_separated_list(item_ids),
             }
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items"
-            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload)
+            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
             if r.status_code < 300:
                 return True
         except Exception as e:
@@ -351,7 +378,7 @@ class EmbyAPI:
                 "EntryIds": self.__get_comma_separated_list(playlist_item_ids),
             }
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/Delete"
-            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload)
+            r = requests.post(emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
             if r.status_code < 300:
                 return True
         except Exception as e:
@@ -363,7 +390,7 @@ class EmbyAPI:
     def set_move_playlist_item_to_index(self, playlist_id: str, playlist_item_id: str, index: int) -> bool:
         try:
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/{playlist_item_id}/Move/{str(index)}"
-            r = requests.post(emby_url, headers=self.__get_default_header(), params=self.__get_default_payload())
+            r = requests.post(emby_url, headers=self.__get_default_header(), params=self.__get_default_payload(), timeout=5)
             if r.status_code < 300:
                 return True
         except Exception as e:

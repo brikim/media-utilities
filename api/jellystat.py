@@ -7,10 +7,12 @@ from common import utils
 class JellystatAPI:
     def __init__(
         self,
+        server_name: str,
         url: str,
         api_key: str,
         logger: Logger
     ):
+        self.server_name = server_name
         self.url = url.rstrip("/")
         self.api_key = api_key
         self.logger = logger
@@ -20,22 +22,26 @@ class JellystatAPI:
             self.__module__
         )
         
+    def get_server_name(self) -> str:
+        return self.server_name
+    
     def get_valid(self) -> bool:
         try:
             payload = {}
             r = requests.get(
                 f"{self.get_api_url()}/getconfig",
                 headers=self.get_headers(),
-                params=payload
+                params=payload,
+                timeout=5
             )
             if r.status_code < 300:
                 return True
-        except Exception as e:
+        except Exception:
             pass
         return False
 
     def get_connection_error_log(self) -> str:
-        return f"Could not connect to {utils.get_formatted_jellystat()} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return f"Could not connect to {utils.get_formatted_jellystat()}:{self.server_name} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
     
     def get_invalid_type(self) -> Any:
         return self.invalid_type
@@ -53,7 +59,8 @@ class JellystatAPI:
             r = requests.get(
                 f"{self.get_api_url()}/getLibraries",
                 headers=self.get_headers(),
-                params=payload
+                params=payload,
+                timeout=5
             )
             response = r.json()
             for lib in response:
@@ -69,11 +76,13 @@ class JellystatAPI:
     def get_user_watch_history(self, userId: str) -> Any:
         try:
             payload = {
-                "userid": userId}
+                "userid": userId
+            }
             r = requests.post(
                 f"{self.get_api_url()}/getUserHistory",
                 headers=self.get_headers(),
-                data=json.dumps(payload)
+                data=json.dumps(payload),
+                timeout=5
             )
             
             response = r.json()
@@ -91,11 +100,13 @@ class JellystatAPI:
     def get_library_history(self, libId: str) -> Any:
         try:
             payload = {
-                "libraryid": libId}
+                "libraryid": libId
+            }
             r = requests.post(
                 f"{self.get_api_url()}/getLibraryHistory",
                 headers=self.get_headers(),
-                data=json.dumps(payload)
+                data=json.dumps(payload),
+                timeout=5
             )
             
             response = r.json()
@@ -116,7 +127,8 @@ class JellystatAPI:
             r = requests.post(
                 f"{self.get_api_url()}/getItemDetails",
                 headers=self.get_headers(),
-                data=json.dumps(payload)
+                data=json.dumps(payload),
+                timeout=5
             )
             return r.json()
         except Exception as e:

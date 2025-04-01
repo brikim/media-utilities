@@ -1,18 +1,33 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass
+class UserPlexInfo:
+    server_name: str
+    user_name: str
+    friendly_name: str
+    user_id: int
+    can_sync: bool
+
+
+@dataclass
+class UserEmbyInfo:
+    server_name: str
+    user_name: str
+    user_id: str
+
 
 @dataclass
 class UserInfo:
-    plex_user_name: str
-    plex_friendly_name: str
-    plex_user_id: int
-    can_sync_plex_watch: bool
-    emby_user_name: str
-    emby_user_id: str
-    
+    plex_users: list[UserPlexInfo] = field(default_factory=list)
+    emby_users: list[UserEmbyInfo] = field(default_factory=list)
+
+
 @dataclass
 class CronInfo:
     hours: str
     minutes: str
+
 
 @dataclass
 class MediaServerInfo:

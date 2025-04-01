@@ -17,16 +17,16 @@ class PlexCollection:
 class PlexAPI:
     def __init__(
         self,
+        server_name: str,
         url: str,
         api_key: str,
-        admin_user_name: str,
         media_path: str,
         logger: Logger
     ):
+        self.server_name = server_name
         self.url = url
         self.api_key = api_key
         self.plex_server = server.PlexServer(url.rstrip("/"), api_key)
-        self.admin_user_name = admin_user_name
         self.media_path = media_path
         self.logger = logger
         self.item_invalid_type = None
@@ -34,7 +34,10 @@ class PlexAPI:
             utils.get_plex_ansi_code(),
             self.__module__
         )
-        
+
+    def get_server_name(self) -> str:
+        return self.server_name
+
     def get_valid(self) -> bool:
         try:
             self.plex_server.library.sections()
@@ -42,12 +45,21 @@ class PlexAPI:
         except Exception as e:
             pass
         return False
-    
+
+    def get_server_reported_name(self) -> str:
+        """
+        Retrieves the friendly name of the Plex Media Server.
+
+        Returns:
+            str: The friendly name of the Plex server.
+        """
+        return self.plex_server.friendlyName
+
     def get_name(self) -> str:
         return self.plex_server.friendlyName
     
     def get_connection_error_log(self) -> str:
-        return f"Could not connect to {utils.get_formatted_plex()} server {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return f"Could not connect to {utils.get_formatted_plex()}:{self.server_name} server {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
     
     def get_media_type_show_name(self) -> str:
         return "show"
@@ -70,11 +82,8 @@ class PlexAPI:
             self.logger.error(
                 f"{self.log_header} switch_plex_account {utils.get_tag("user", user_name)} {utils.get_tag("error", e)}"
             )
-    
-    def switch_plex_account_admin(self):
-        self.switch_plex_account(self.admin_user_name)
         
-    def fetchItem(self, rating_key: Any) -> Any:
+    def fetch_item(self, rating_key: Any) -> Any:
         returnItem = self.get_invalid_type()
         try:
             returnItem = self.plex_server.fetchItem(rating_key)

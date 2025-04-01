@@ -4,6 +4,8 @@ from common import utils
 from common.types import CronInfo
 from typing import Optional
 
+from api.api_manager import ApiManager
+
 
 class ServiceBase:
     def __init__(
@@ -11,9 +13,11 @@ class ServiceBase:
         ansi_code: str,
         service_name: str,
         config: dict,
+        api_manager: ApiManager,
         logger: Logger,
         scheduler: BlockingScheduler
     ):
+        self.api_manager = api_manager
         self.logger = logger
         self.scheduler = scheduler
         self.cron: Optional[CronInfo] = None

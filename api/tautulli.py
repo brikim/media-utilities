@@ -5,11 +5,13 @@ from common import utils
 
 class TautulliAPI:
     def __init__(
-        self, 
+        self,
+        server_name: str,
         url: str,
         api_key: str,
         logger: Logger
     ):
+        self.server_name = server_name
         self.url = url.rstrip("/")
         self.api_key = api_key
         self.logger = logger
@@ -21,7 +23,10 @@ class TautulliAPI:
 
     def __get_api_url(self) -> str:
         return f"{self.url}/api/v2"
-    
+
+    def get_server_name(self) -> str:
+        return self.server_name
+
     def get_valid(self) -> bool:
         try:
             payload = {
@@ -35,13 +40,13 @@ class TautulliAPI:
             pass
         return False
     
-    def get_name(self) -> str:
+    def get_server_reported_name(self) -> str:
         try:
             payload = {
                 "apikey": self.api_key,
                 "cmd": "get_server_info"
             }
-            r = requests.get(self.__get_api_url(), params=payload)
+            r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             return r.json()["response"]["data"]["pms_name"]
         except Exception as e:
             self.logger.error(
@@ -50,7 +55,7 @@ class TautulliAPI:
         return self.invalid_item_id
     
     def get_connection_error_log(self) -> str:
-        return f"Could not connect to {utils.get_formatted_tautulli()} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return f"Could not connect to {utils.get_formatted_tautulli()}:{self.server_name} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
     
     def get_media_type_episode_name(self) -> str:
         return "episode"
