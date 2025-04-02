@@ -42,7 +42,7 @@ class FolderCleanup(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            self.__module__,
+            "Folder Cleanup",
             config,
             api_manager,
             logger,

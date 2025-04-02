@@ -78,7 +78,7 @@ class DeleteWatched(ServiceBase):
         logger: Logger,
         scheduler: BlockingScheduler
     ):
-        super().__init__(ansi_code, self.__module__, config, api_manager, logger, scheduler)
+        super().__init__(ansi_code, "Delete Watched", config, api_manager, logger, scheduler)
 
         self.library_configs: list[LibraryConfigInfo] = []
         self.delete_time_hours: int = 24

@@ -44,7 +44,7 @@ class PlaylistSync(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            self.__module__,
+            "Playlist Sync",
             config,
             api_manager,
             logger,

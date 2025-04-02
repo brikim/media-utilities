@@ -57,7 +57,7 @@ class DvrMaintainer(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            self.__module__,
+            "DVR Maintainer",
             config,
             api_manager,
             logger,
