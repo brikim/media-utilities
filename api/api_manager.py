@@ -54,11 +54,9 @@ class ApiManager:
                         )
                     )
 
-                    tag_server = utils.get_tag("server", server["server_name"])
-
                     if self.plex_api_list[-1].get_valid():
                         self.logger.info(
-                            f"Connected to {tag_server} {utils.get_formatted_plex()}({self.plex_api_list[-1].get_server_reported_name()}) successfully"
+                            f"Connected to {utils.get_formatted_plex()}({self.plex_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
                         tag_plex_url = utils.get_tag(
@@ -68,12 +66,12 @@ class ApiManager:
                             "api_key", server["plex_api_key"]
                         )
                         self.logger.warning(
-                            f"{utils.get_formatted_plex()} {tag_server} server not available. Is this correct {tag_plex_url} {tag_plex_api}"
+                            f"{utils.get_formatted_plex()}({server["server_name"]}) server not available. Is this correct {tag_plex_url} {tag_plex_api}"
                         )
 
                     if self.tautulli_api_list[-1].get_valid():
                         logger.info(
-                            f"Connected to {tag_server} {utils.get_formatted_tautulli()}({self.tautulli_api_list[-1].get_server_reported_name()}) successfully"
+                            f"Connected to {utils.get_formatted_tautulli()}({self.tautulli_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
                         tag_tautulli_url = utils.get_tag(
@@ -81,7 +79,7 @@ class ApiManager:
                         tag_tautulli_api = utils.get_tag(
                             "api_key", server["tautulli_api_key"])
                         logger.warning(
-                            f"{utils.get_formatted_tautulli()} {tag_server} not available. Is this correct {tag_tautulli_url} {tag_tautulli_api}"
+                            f"{utils.get_formatted_tautulli()}({server["server_name"]}) not available. Is this correct {tag_tautulli_url} {tag_tautulli_api}"
                         )
 
                 else:
@@ -117,13 +115,9 @@ class ApiManager:
                         )
                     )
 
-                    tag_server = utils.get_tag(
-                        "server", self.emby_api_list[-1].get_server_name()
-                    )
-
                     if self.emby_api_list[-1].get_valid():
                         self.logger.info(
-                            f"Connected to {tag_server} {utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_reported_name()}) successfully"
+                            f"Connected to {utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
                         tag_emby_url = utils.get_tag(
@@ -133,14 +127,12 @@ class ApiManager:
                             "api_key", server["emby_api_key"]
                         )
                         self.logger.warning(
-                            f"{utils.get_formatted_emby()} {tag_server} server not available. Is this correct {tag_emby_url} {tag_emby_api}"
+                            f"{utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_name()}) server not available. Is this correct {tag_emby_url} {tag_emby_api}"
                         )
 
                     if self.jellystat_api_list[-1].get_valid():
-                        tag_server = utils.get_tag(
-                            "server", self.jellystat_api_list[-1].get_server_name())
                         logger.info(
-                            f"Connected to {tag_server} {utils.get_formatted_jellystat()} successfully"
+                            f"Connected to {utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) successfully"
                         )
                     else:
                         tag_jellystat_url = utils.get_tag(
@@ -148,7 +140,7 @@ class ApiManager:
                         tag_jellystat_api = utils.get_tag(
                             "api_key", server["jellystat_api_key"])
                         logger.warning(
-                            f"{utils.get_formatted_jellystat()} {tag_server} not available. Is this correct {tag_jellystat_url} {tag_jellystat_api}"
+                            f"{utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) not available. Is this correct {tag_jellystat_url} {tag_jellystat_api}"
                         )
 
                 else:

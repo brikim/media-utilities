@@ -1,10 +1,14 @@
-import requests
 import json
 from typing import Any
 from logging import Logger
+
+import requests
+
+from api.api_base import ApiBase
 from common import utils
 
-class JellystatAPI:
+
+class JellystatAPI(ApiBase):
     def __init__(
         self,
         server_name: str,
@@ -12,19 +16,26 @@ class JellystatAPI:
         api_key: str,
         logger: Logger
     ):
-        self.server_name = server_name
-        self.url = url.rstrip("/")
-        self.api_key = api_key
-        self.logger = logger
-        self.invalid_type = None
-        self.log_header = utils.get_log_header(
-            utils.get_jellystat_ansi_code(),
-            self.__module__
+        super().__init__(
+            server_name, url, api_key, utils.get_jellystat_ansi_code(), self.__module__, logger
         )
-        
+
     def get_server_name(self) -> str:
         return self.server_name
-    
+
+    def get_connection_error_log(self) -> str:
+        return f"Could not connect to {utils.get_formatted_jellystat()}:{self.server_name} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+
+    def get_invalid_type(self) -> Any:
+        return self.invalid_item_type
+
+    def get_api_url(self) -> str:
+        return f"{self.url}/api"
+
+    def get_headers(self) -> Any:
+        return {"x-api-token": self.api_key,
+                "Content-Type": "application/json"}
+
     def get_valid(self) -> bool:
         try:
             payload = {}
@@ -40,19 +51,6 @@ class JellystatAPI:
             pass
         return False
 
-    def get_connection_error_log(self) -> str:
-        return f"Could not connect to {utils.get_formatted_jellystat()}:{self.server_name} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
-    
-    def get_invalid_type(self) -> Any:
-        return self.invalid_type
-    
-    def get_api_url(self) -> str:
-        return f"{self.url}/api"
-    
-    def get_headers(self) -> Any:
-        return {"x-api-token": self.api_key,
-                "Content-Type": "application/json"}
-        
     def get_library_id(self, libName: str) -> str:
         try:
             payload = {}
@@ -70,9 +68,9 @@ class JellystatAPI:
             self.logger.error(
                 f"{self.log_header} get_library_id {utils.get_tag("library_id", libName)} {utils.get_tag("error", e)}"
             )
-            
+
         return self.get_invalid_type()
-        
+
     def get_user_watch_history(self, userId: str) -> Any:
         try:
             payload = {
@@ -84,7 +82,7 @@ class JellystatAPI:
                 data=json.dumps(payload),
                 timeout=5
             )
-            
+
             response = r.json()
             if "results" in response:
                 return response["results"]
@@ -94,9 +92,9 @@ class JellystatAPI:
             self.logger.error(
                 f"{self.log_header} get_user_watch_history {utils.get_tag("user_id", userId)} {utils.get_tag("error", e)}"
             )
-        
+
         return self.get_invalid_type()
-            
+
     def get_library_history(self, libId: str) -> Any:
         try:
             payload = {
@@ -108,7 +106,7 @@ class JellystatAPI:
                 data=json.dumps(payload),
                 timeout=5
             )
-            
+
             response = r.json()
             if "results" in response:
                 return response["results"]
@@ -118,9 +116,9 @@ class JellystatAPI:
             self.logger.error(
                 f"{self.log_header} get_library_history {utils.get_tag("lib_id", libId)} {utils.get_tag("error", e)}"
             )
-        
+
         return self.get_invalid_type()
-    
+
     def get_item_details(self, itemId: str) -> Any:
         try:
             payload = {"Id": itemId}
@@ -135,5 +133,5 @@ class JellystatAPI:
             self.logger.error(
                 f"{self.log_header} get_item_details {utils.get_tag("item", itemId)} {utils.get_tag("error", e)}"
             )
-            
+
         return self.get_invalid_type()

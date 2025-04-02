@@ -61,7 +61,7 @@ class FolderCleanup(ServiceBase):
                             if plex_api is not None:
                                 if plex_api.get_valid() and plex_api.get_library(plex_server["library_name"]) == plex_api.get_invalid_type():
                                     self.log_warning(
-                                        f"No {utils.get_formatted_plex()}:{plex_server['server']} library found for {plex_server['library_name']}"
+                                        f"No {utils.get_formatted_plex()}({plex_server['server']}) library found for {plex_server['library_name']}"
                                     )
 
                                 path_info.plex_server_list.append(
@@ -82,7 +82,7 @@ class FolderCleanup(ServiceBase):
                             if emby_api is not None:
                                 if emby_api.get_valid() and emby_api.get_library_from_name(emby_server["library_name"]) == emby_api.get_invalid_item_id():
                                     self.log_warning(
-                                        f"No {utils.get_formatted_emby()}:{emby_server['server']} library found for {emby_server['library_name']}"
+                                        f"No {utils.get_formatted_emby()}({emby_server['server']}) library found for {emby_server['library_name']}"
                                     )
 
                                 path_info.emby_server_list.append(
@@ -194,7 +194,7 @@ class FolderCleanup(ServiceBase):
                 plex_api.set_library_scan(plex_server.library_name)
                 target_name = utils.build_target_string(
                     target_name,
-                    f"{utils.get_formatted_plex()}:{plex_server.server_name}",
+                    f"{utils.get_formatted_plex()}({plex_server.server_name})",
                     plex_server.library_name
                 )
             for emby_server in deleted_path.emby_server_list:
@@ -203,7 +203,7 @@ class FolderCleanup(ServiceBase):
                 emby_api.set_library_scan(emby_server.library_name)
                 target_name = utils.build_target_string(
                     target_name,
-                    f"{utils.get_formatted_emby()}:{emby_server.server_name}",
+                    f"{utils.get_formatted_emby()}({emby_server.server_name})",
                     emby_server.library_name
                 )
 

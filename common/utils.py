@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime, timedelta
+
 from common.types import CronInfo
 
 ANSI_CODE_START: str = "\33[38;5;"

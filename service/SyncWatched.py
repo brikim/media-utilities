@@ -136,7 +136,7 @@ class SyncWatched(ServiceBase):
                 ):
                     plex_user_info = tautulli_api.get_user_info(
                         config_plex_user.user_name)
-                    if plex_user_info != tautulli_api.get_invalid_item():
+                    if plex_user_info != tautulli_api.get_invalid_type():
                         plex_friendly_name: str = ""
                         plex_user_id: str = plex_user_info["user_id"]
                         if (
@@ -158,10 +158,8 @@ class SyncWatched(ServiceBase):
                             )
                         )
                     else:
-                        tag_server = utils.get_tag(
-                            "server", config_plex_user.server_name)
                         self.log_warning(
-                            f"No {utils.get_formatted_plex()} {tag_server} user found for {config_user.plex_user_name} ... Skipping User"
+                            f"No {utils.get_formatted_plex()}({config_plex_user.server_name}) user found for {config_user.plex_user_name} ... Skipping User"
                         )
 
             for config_emby_user in config_user.emby_user_list:
@@ -186,10 +184,8 @@ class SyncWatched(ServiceBase):
                             )
                         )
                     else:
-                        tag_server = utils.get_tag(
-                            "server", config_emby_user.server_name)
                         self.log_warning(
-                            f"No {utils.get_formatted_emby()} {tag_server} user found for {config_emby_user.user_name} ... Skipping User"
+                            f"No {utils.get_formatted_emby()}({config_emby_user.server_name}) user found for {config_emby_user.user_name} ... Skipping User"
                         )
 
             if (len(new_user_info.plex_users) + len(new_user_info.emby_users)) > 1:
@@ -217,7 +213,7 @@ class SyncWatched(ServiceBase):
             emby_api.set_watched_item(user.user_id, item_id)
         except Exception as e:
             self.log_error(
-                f"Set {utils.get_formatted_emby()} watched {utils.get_tag("error", e)}"
+                f"Set {utils.get_formatted_emby()}({emby_api.get_server_name()}) watched {utils.get_tag("error", e)}"
             )
 
     def __set_emby_emby_watched_item(
@@ -230,7 +226,7 @@ class SyncWatched(ServiceBase):
             sync_emby_api.set_watched_item(sync_user.user_id, item_id)
         except Exception as e:
             self.log_error(
-                f"Set {utils.get_formatted_emby()} watched {utils.get_tag("error", e)}"
+                f"Set {utils.get_formatted_emby()}({sync_emby_api.get_server_name()}) watched {utils.get_tag("error", e)}"
             )
 
     def __get_emby_path_from_plex_path(self, plex_api: PlexAPI, emby_api: EmbyAPI, plex_path: str) -> str:
@@ -329,7 +325,7 @@ class SyncWatched(ServiceBase):
                         )
         except Exception as e:
             self.log_error(
-                f"Get {utils.get_formatted_plex()} history {utils.get_tag("error", e)}"
+                f"Get {utils.get_formatted_plex()}({current_user.server_name}) history {utils.get_tag("error", e)}"
             )
 
     def __set_plex_show_watched(
@@ -381,7 +377,7 @@ class SyncWatched(ServiceBase):
                         break
         except Exception as e:
             self.log_error(
-                f"Error with {utils.get_formatted_plex()}:{user.server_name} movie watched {utils.get_tag("error", e)}"
+                f"Error with {utils.get_formatted_plex()}({user.server_name}) movie watched {utils.get_tag("error", e)}"
             )
 
         return return_watched
@@ -415,7 +411,7 @@ class SyncWatched(ServiceBase):
                     break
         except Exception as e:
             self.log_error(
-                f"Error with {utils.get_formatted_plex()} movie watched {utils.get_tag("error", e)}"
+                f"Error with {utils.get_formatted_plex()}({user.server_name}) movie watched {utils.get_tag("error", e)}"
             )
 
         return marked_watched
@@ -581,7 +577,7 @@ class SyncWatched(ServiceBase):
                             )
         except Exception as e:
             self.log_error(
-                f"{utils.get_formatted_emby()} watch status {utils.get_tag("error", e)}"
+                f"{utils.get_formatted_emby()}({current_user.server_name}) watch status {utils.get_tag("error", e)}"
             )
 
     def __sync_watch_status(self):

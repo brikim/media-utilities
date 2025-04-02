@@ -94,7 +94,7 @@ class PlaylistSync(ServiceBase):
                                 collection_tag = utils.get_tag(
                                     "collection", collection_name)
                                 self.log_warning(
-                                    f"{utils.get_formatted_plex()} {library_tag} {collection_tag} not found on server"
+                                    f"{utils.get_formatted_plex()}({server_name}) {library_tag} {collection_tag} not found on server"
                                 )
 
                             self.plex_collection_configs.append(
@@ -140,7 +140,7 @@ class PlaylistSync(ServiceBase):
                         "playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", added_items)
                     self.log_warning(
-                        f"{utils.get_formatted_emby()}:{emby_api.get_server_name()} failed {playlist_tag} adding {items_tag}"
+                        f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) failed {playlist_tag} adding {items_tag}"
                     )
 
             if len(deleted_playlist_items) > 0:
@@ -152,7 +152,7 @@ class PlaylistSync(ServiceBase):
                         "playlist", emby_playlist.name)
                     items_tag = utils.get_tag("items", deleted_playlist_items)
                     self.log_warning(
-                        f"{utils.get_formatted_emby()}:{emby_api.get_server_name()} failed {playlist_tag} removing {items_tag}"
+                        f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) failed {playlist_tag} removing {items_tag}"
                     )
 
             # Give Emby time to update the playlist
@@ -207,7 +207,7 @@ class PlaylistSync(ServiceBase):
                                     index_tag = utils.get_tag(
                                         "index", current_index)
                                     self.log_warning(
-                                        f"{utils.get_formatted_emby()}:{emby_api.get_server_name()} failed {playlist_tag} moving {item_tag} to {index_tag}"
+                                        f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) failed {playlist_tag} moving {item_tag} to {index_tag}"
                                     )
                                 current_index += 1
                                 break
@@ -226,7 +226,7 @@ class PlaylistSync(ServiceBase):
                             "reordered", playlist_changed
                         )
                         self.log_info(
-                            f"Syncing {utils.get_formatted_plex()}:{plex_api.get_server_name()} {collection_tag} to {utils.get_formatted_emby()}:{emby_api.get_server_name()} {added_tag} {deleted_tag} {reordered_tag}"
+                            f"Syncing {utils.get_formatted_plex()}({plex_api.get_server_name()}) {collection_tag} to {utils.get_formatted_emby()}({emby_api.get_server_name()}) {added_tag} {deleted_tag} {reordered_tag}"
                         )
             else:
                 collection_tag = utils.get_tag(
@@ -235,7 +235,7 @@ class PlaylistSync(ServiceBase):
                 reported_length_tag = utils.get_tag(
                     "reported_length", len(edited_emby_playlist.items))
                 self.log_warning(
-                    f"{utils.get_formatted_emby()}:{emby_api.get_server_name()} sync {utils.get_formatted_plex()}:{plex_api.get_server_name()} {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
+                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) sync {utils.get_formatted_plex()}({plex_api.get_server_name()}) {collection_tag} playlist update failed. Playlist length should be {length_tag} {reported_length_tag}!"
                 )
 
     def __sync_emby_playlist_with_plex_collection(
@@ -254,7 +254,7 @@ class PlaylistSync(ServiceBase):
                     "collection", plex_collection.name)
                 item_tag = utils.get_tag("item", plex_item.title)
                 self.log_warning(
-                    f"{utils.get_formatted_emby()}:{emby_api.get_server_name()} sync {utils.get_formatted_plex()}:{plex_api.get_server_name()} {collection_tag} item not found {item_tag}"
+                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) sync {utils.get_formatted_plex()}({plex_api.get_server_name()}) {collection_tag} item not found {item_tag}"
                 )
 
         emby_playlist_id = emby_api.get_playlist_id(plex_collection.name)
@@ -263,7 +263,7 @@ class PlaylistSync(ServiceBase):
 
             collection_tag = utils.get_tag("collection", plex_collection.name)
             self.log_info(
-                f"Syncing {utils.get_formatted_plex()}:{plex_api.get_server_name()} {collection_tag} to {utils.get_formatted_emby()}:{emby_api.get_server_name()}"
+                f"Creating {utils.get_formatted_plex()}({plex_api.get_server_name()}) {collection_tag} on {utils.get_formatted_emby()}({emby_api.get_server_name()})"
             )
         else:
             emby_playlist: EmbyPlaylist = emby_api.get_playlist_items(

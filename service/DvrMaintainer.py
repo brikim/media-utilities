@@ -76,7 +76,7 @@ class DvrMaintainer(ServiceBase):
                         if plex_api is not None:
                             if plex_api.get_valid() and plex_api.get_library(plex_server["library_name"]) == plex_api.get_invalid_type():
                                 self.log_warning(
-                                    f"No {utils.get_formatted_plex()}:{plex_server['server']} library found for {plex_server['library_name']}"
+                                    f"No {utils.get_formatted_plex()}({plex_server['server']}) library found for {plex_server['library_name']}"
                                 )
                             plex_server_list.append(
                                 MediaServerInfo(
@@ -98,7 +98,7 @@ class DvrMaintainer(ServiceBase):
                         if emby_api is not None:
                             if emby_api.get_valid() and emby_api.get_library_from_name(emby_server["library_name"]) == emby_api.get_invalid_item_id():
                                 self.log_warning(
-                                    f"No {utils.get_formatted_emby()}:{emby_server['server']} library found for {emby_server['library_name']}"
+                                    f"No {utils.get_formatted_emby()}({emby_server['server']}) library found for {emby_server['library_name']}"
                                 )
                             emby_server_list.append(
                                 MediaServerInfo(
@@ -372,7 +372,7 @@ class DvrMaintainer(ServiceBase):
                             emby_server.library_name
                         )
 
-                    if target_name != "":
+                    if target_name:
                         self.log_info(
                             f"Notified {target_name} to refresh"
                         )

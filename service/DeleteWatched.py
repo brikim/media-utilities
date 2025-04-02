@@ -251,7 +251,7 @@ class DeleteWatched(ServiceBase):
 
         except Exception as e:
             self.log_error(
-                f"Find {utils.get_formatted_plex()} watched media {utils.get_tag("error", e)}"
+                f"Find {utils.get_formatted_plex()}({lib.server_name}) watched media {utils.get_tag("error", e)}"
             )
 
         return return_deletes
@@ -311,7 +311,7 @@ class DeleteWatched(ServiceBase):
 
         except Exception as e:
             self.log_error(
-                f"Find {utils.get_formatted_emby()} watched media {utils.get_tag("error", e)}"
+                f"Find {utils.get_formatted_emby()}({lib.server_name}) watched media {utils.get_tag("error", e)}"
             )
 
         return return_deletes
@@ -331,7 +331,7 @@ class DeleteWatched(ServiceBase):
                     library_id = tautulli_api.get_library_id(
                         plex_library_config.library_name
                     )
-                    if library_id != tautulli_api.get_invalid_item():
+                    if library_id != tautulli_api.get_invalid_type():
                         plex_library_list.append(
                             MediaServerLibraryInfo(
                                 plex_library_config.server_name,
@@ -345,7 +345,7 @@ class DeleteWatched(ServiceBase):
                             plex_user_info = tautulli_api.get_user_info(
                                 plex_user
                             )
-                            if plex_user_info != tautulli_api.get_invalid_item():
+                            if plex_user_info != tautulli_api.get_invalid_type():
                                 friendly_name = plex_user
                                 plex_user_id = plex_user_info["user_id"]
                                 if (
@@ -364,7 +364,7 @@ class DeleteWatched(ServiceBase):
                                 )
                             else:
                                 self.log_warning(
-                                    f"{utils.get_formatted_tautulli()} could not find {utils.get_tag("user", plex_user)}"
+                                    f"{utils.get_formatted_tautulli()}({tautulli_api.get_server_name()}) could not find {utils.get_tag("user", plex_user)}"
                                 )
 
             for emby_library_config in library_config.emby_library_list:
@@ -397,7 +397,7 @@ class DeleteWatched(ServiceBase):
                                 )
                             else:
                                 self.log_warning(
-                                    f"{utils.get_formatted_emby()} could not find {utils.get_tag("user", emby_user)}"
+                                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) could not find {utils.get_tag("user", emby_user)}"
                                 )
 
             libraries.append(

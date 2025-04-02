@@ -34,7 +34,8 @@ class ApiBase:
         self.api_key = api_key
         self.logger = logger
         self.invalid_item_id = "0"
-        self.log_header = get_log_header(ansi_code, module)
+        self.invalid_item_type = None
+        self.log_header = get_log_header(ansi_code, f"{module}({self.server_name})")
 
     def get_valid(self) -> bool:
         """
