@@ -1,3 +1,7 @@
+""" 
+DVR Maintainer Service
+    Deletes shows based on age or number of shows within the folder
+"""
 
 import os
 import glob
@@ -10,7 +14,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from api.api_manager import ApiManager
 from common import utils
-from service.ServiceBase import ServiceBase
+from service.service_base import ServiceBase
 
 
 @dataclass

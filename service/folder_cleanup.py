@@ -1,3 +1,7 @@
+""" 
+Folder Cleanup Service
+    Deletes empty folders and notified media servers
+"""
 
 import os
 import shutil
@@ -9,7 +13,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common import utils
 
-from service.ServiceBase import ServiceBase
+from service.service_base import ServiceBase
 
 from api.api_manager import ApiManager
 

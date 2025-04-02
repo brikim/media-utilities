@@ -1,3 +1,8 @@
+""" 
+Playlist Sync Service
+    Synchronize plex collections to emby playlists
+"""
+
 from dataclasses import dataclass, field
 import time
 from typing import Any
@@ -7,7 +12,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common import utils
 
-from service.ServiceBase import ServiceBase
+from service.service_base import ServiceBase
 
 from api.api_manager import ApiManager
 from api.plex import PlexAPI, PlexCollection

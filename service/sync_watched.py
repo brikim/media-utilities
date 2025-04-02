@@ -1,3 +1,8 @@
+""" 
+Synchronize Watch Service
+    Synchronize watch status between media servers. Uses 
+    Plex with Tautulli and Emby with Jellystat
+"""
 
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
@@ -8,7 +13,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from common.types import UserInfo, UserEmbyInfo, UserPlexInfo
 from common import utils
 
-from service.ServiceBase import ServiceBase
+from service.service_base import ServiceBase
 
 from api.api_manager import ApiManager
 from api.emby import EmbyAPI

@@ -1,3 +1,8 @@
+"""
+Delete Watched Service
+    Deletes watched shows set up from a config file.
+"""
+
 import os
 import math
 from datetime import datetime, timezone
@@ -9,7 +14,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from api.api_manager import ApiManager
 from common import utils
-from service.ServiceBase import ServiceBase
+from service.service_base import ServiceBase
 
 
 @dataclass

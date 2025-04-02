@@ -62,7 +62,7 @@ class TautulliAPI(ApiBase):
             self.logger.error(
                 f"{self.log_header} get_server_info {utils.get_tag("error", e)}"
             )
-        return self.invalid_item_type
+        return self.get_invalid_type()
 
     def get_library_id(self, lib_name: str) -> str:
         try:
