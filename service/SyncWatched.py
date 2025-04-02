@@ -286,7 +286,7 @@ class SyncWatched(ServiceBase):
 
                 return_target = utils.build_target_string(
                     target_name,
-                    f"{utils.get_emby_ansi_code()}({emby_api.get_server_name()})",
+                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()})",
                     ""
                 )
 
@@ -450,7 +450,7 @@ class SyncWatched(ServiceBase):
                     ):
                         return_target_name = utils.build_target_string(
                             target_name,
-                            f"{utils.get_plex_ansi_code()}({plex_user.server_name})",
+                            f"{utils.get_formatted_plex()}({plex_user.server_name})",
                             ""
                         )
         else:
@@ -534,7 +534,7 @@ class SyncWatched(ServiceBase):
 
                     return_target_name = utils.build_target_string(
                         target_name,
-                        f"{utils.get_emby_ansi_code()}({sync_emby_user.server_name})",
+                        f"{utils.get_formatted_emby()}({sync_emby_user.server_name})",
                         ""
                     )
 
