@@ -11,7 +11,7 @@ def get_connection_info(
     plex_valid: bool = (
         plex_library != ""
         and plex_api.get_valid()
-        and plex_api.get_library(plex_library) != plex_api.get_invalid_type()
+        and plex_api.get_library_valid(plex_library)
     )
     
     emby_valid: bool = False

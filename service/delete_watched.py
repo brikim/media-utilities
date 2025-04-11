@@ -40,6 +40,7 @@ class UserLibraryInfo:
     user_name: str
     friendly_name: str
     user_id: str
+    user_id_int: int
 
 
 @dataclass
@@ -78,7 +79,8 @@ class DeleteWatched(ServiceBase):
         logger: Logger,
         scheduler: BlockingScheduler
     ):
-        super().__init__(ansi_code, "Delete Watched", config, api_manager, logger, scheduler)
+        super().__init__(ansi_code, "Delete Watched",
+                         config, api_manager, logger, scheduler)
 
         self.library_configs: list[LibraryConfigInfo] = []
         self.delete_time_hours: int = 24
@@ -229,18 +231,19 @@ class DeleteWatched(ServiceBase):
                     and lib.media_path != ""
                 ):
                     watched_items = tautulli_api.get_watch_history_for_user_and_library(
-                        user.user_id,
+                        user.user_id_int,
                         lib.library_id,
                         date_time_string_for_history
                     )
-                    for item in watched_items:
-                        if item["watched_status"] == 1:
-                            file_name = tautulli_api.get_filename(
-                                item["rating_key"])
+                    for item in watched_items.items:
+                        if item.watched is not None and item.watched:
+                            file_name = tautulli_api.get_filename(item.id)
                             if len(file_name) > 0:
                                 item_hours_since_play = self.hours_since_play(
-                                    False, datetime.fromtimestamp(
-                                        item["stopped"])
+                                    False,
+                                    datetime.fromtimestamp(
+                                        item.date_watched
+                                    )
                                 )
                                 if item_hours_since_play >= self.delete_time_hours:
                                     return_deletes.append(
@@ -270,9 +273,9 @@ class DeleteWatched(ServiceBase):
         return_deletes: list[DeleteFileInfo] = []
         try:
             if (lib.library_name != ""
-                    and lib.library_id != ""
-                    and lib.media_path != ""
-                    ):
+                and lib.library_id != ""
+                and lib.media_path != ""
+                ):
                 emby_api = self.api_manager.get_emby_api(lib.server_name)
                 jellystat_api = self.api_manager.get_jellystat_api(
                     lib.server_name
@@ -280,14 +283,14 @@ class DeleteWatched(ServiceBase):
                 watched_items = jellystat_api.get_library_history(
                     lib.library_id
                 )
-                for item in watched_items:
+                for item in watched_items.items:
                     for user in lib.user_list:
-                        if user.user_name != "" and item["UserName"] == user.user_name:
+                        if user.user_name != "" and item.user_name == user.user_name:
                             item_id = "0"
-                            if "EpisodeId" in item and item["EpisodeId"] is not None:
-                                item_id = item["EpisodeId"]
+                            if item.episode_id:
+                                item_id = item.episode_id
                             else:
-                                item_id = item["NowPlayingItemId"]
+                                item_id = item.id
 
                             emby_watched_status = emby_api.get_watched_status(
                                 user.user_id, item_id
@@ -295,8 +298,7 @@ class DeleteWatched(ServiceBase):
                             if emby_watched_status is not None and emby_watched_status:
                                 item_hours_since_play = self.hours_since_play(
                                     True,
-                                    datetime.fromisoformat(
-                                        item["ActivityDateInserted"])
+                                    datetime.fromisoformat(item.date_watched)
                                 )
 
                                 if item_hours_since_play >= self.delete_time_hours:
@@ -305,7 +307,7 @@ class DeleteWatched(ServiceBase):
                                         return_deletes.append(
                                             DeleteFileInfo(
                                                 lib_id,
-                                                emby_item["Path"].replace(
+                                                emby_item.path.replace(
                                                     lib.media_path,
                                                     utilities_path),
                                                 user.user_name,
@@ -352,18 +354,15 @@ class DeleteWatched(ServiceBase):
                             )
                             if plex_user_info != tautulli_api.get_invalid_type():
                                 friendly_name = plex_user
-                                plex_user_id = plex_user_info["user_id"]
-                                if (
-                                    "friendly_name" in plex_user_info
-                                    and plex_user_info["friendly_name"] is not None
-                                    and plex_user_info["friendly_name"] != ""
-                                ):
-                                    friendly_name = plex_user_info["friendly_name"]
+                                plex_user_id = plex_user_info.id
+                                if plex_user_info.friendly_name:
+                                    friendly_name = plex_user_info.friendly_name
 
                                 plex_library_list[-1].user_list.append(
                                     UserLibraryInfo(
                                         plex_user,
                                         friendly_name,
+                                        "",
                                         plex_user_id
                                     )
                                 )
@@ -397,7 +396,8 @@ class DeleteWatched(ServiceBase):
                                     UserLibraryInfo(
                                         emby_user,
                                         emby_user,
-                                        emby_user_id
+                                        emby_user_id,
+                                        None
                                     )
                                 )
                             else:

@@ -63,7 +63,7 @@ class FolderCleanup(ServiceBase):
                             plex_api = self.api_manager.get_plex_api(
                                 plex_server["server"])
                             if plex_api is not None:
-                                if plex_api.get_valid() and plex_api.get_library(plex_server["library_name"]) == plex_api.get_invalid_type():
+                                if plex_api.get_valid() and not plex_api.get_library_valid(plex_server["library_name"]):
                                     self.log_warning(
                                         f"No {utils.get_formatted_plex()}({plex_server['server']}) library found for {plex_server['library_name']}"
                                     )
@@ -84,7 +84,7 @@ class FolderCleanup(ServiceBase):
                             emby_api = self.api_manager.get_emby_api(
                                 emby_server["server"])
                             if emby_api is not None:
-                                if emby_api.get_valid() and emby_api.get_library_from_name(emby_server["library_name"]) == emby_api.get_invalid_item_id():
+                                if emby_api.get_valid() and not emby_api.get_library_valid(emby_server["library_name"]):
                                     self.log_warning(
                                         f"No {utils.get_formatted_emby()}({emby_server['server']}) library found for {emby_server['library_name']}"
                                     )
