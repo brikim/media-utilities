@@ -38,6 +38,19 @@ class EmbyPlaylist:
     items: list[EmbyPlaylistItem] = field(default_factory=list)
 
 
+@dataclass
+class EmbyUserPlayState:
+    """ Class a users playlist of an item """
+    user_id: str
+    item_id: str
+    item_path: str
+    playback_percentage: float
+    playback_position_ticks: int
+    play_count: int
+    is_favorite: bool
+    played: bool
+
+
 class EmbyAPI(ApiBase):
     """
     Provides an interface for interacting with the Emby Media Server API.
@@ -218,12 +231,12 @@ class EmbyAPI(ApiBase):
     def get_item_id_from_path(self, path) -> str:
         """ Get the id of an item by path """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "Recursive": "true",
-                "Path": path,
-                "Fields": "Path"
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Recursive"] = "true"
+            payload["Path"] = path
+            payload["Fields"] = "Path"
+
             r = requests.get(
                 f"{self.__get_api_url()}/Items",
                 params=payload,
@@ -241,14 +254,68 @@ class EmbyAPI(ApiBase):
 
         return self.get_invalid_item_id()
 
+    def get_user_play_state(self, user_id: str, item_id: str) -> EmbyUserPlayState:
+        """ Get the play state of a user for an item """
+        try:
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Ids"] = item_id
+            payload["Fields"] = "Path,UserDataLastPlayedDate,UserDataPlayCount"
+
+            r = requests.get(
+                f"{self.__get_api_url()}/Users/{user_id}/Items",
+                params=payload,
+                timeout=5
+            )
+            if r.status_code < 300:
+                response = r.json()
+                if response["TotalRecordCount"] > 0:
+                    item = response["Items"][0]
+                    if "UserData" in item:
+                        played_percentage: float = 0.0
+                        if "PlayedPercentage" in item["UserData"]:
+                            played_percentage = item["UserData"]["PlayedPercentage"]
+
+                        playback_position_ticks: int = 0
+                        if "PlaybackPositionTicks" in item["UserData"]:
+                            playback_position_ticks = item["UserData"]["PlaybackPositionTicks"]
+
+                        play_count: int = 0
+                        if "PlayCount" in item["UserData"]:
+                            play_count = item["UserData"]["PlayCount"]
+
+                        is_favorite: bool = False
+                        if "IsFavorite" in item["UserData"]:
+                            is_favorite = item["UserData"]["IsFavorite"]
+
+                        played: bool = False
+                        if "Played" in item["UserData"]:
+                            played = item["UserData"]["Played"]
+
+                        return EmbyUserPlayState(
+                            user_id,
+                            item_id,
+                            item["Path"],
+                            played_percentage,
+                            playback_position_ticks,
+                            play_count,
+                            is_favorite,
+                            played
+                        )
+        except RequestException as e:
+            self.logger.error(
+                f"{self.log_header} get_user_play_state {utils.get_tag("user_id", user_id)} {utils.get_tag("item_id", item_id)} {utils.get_tag("error", e)}"
+            )
+        return None
+
     def get_watched_status(self, user_id: str, item_id: str) -> bool:
         """ Get the watched status of an item """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "Ids": item_id,
-                "IsPlayed": "true"
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Ids"] = item_id
+            payload["IsPlayed"] = "true"
+
             r = requests.get(
                 f"{self.__get_api_url()}/Users/{user_id}/Items",
                 params=payload,
@@ -267,6 +334,25 @@ class EmbyAPI(ApiBase):
 
         return None
 
+    def set_play_state(self, user_id: str, item_id: str, position_ticks: int, played_date: str) -> None:
+        """ Set the play state of an item """
+        try:
+            emby_url = f"{self.__get_api_url()}/Users/{user_id}/Items/{item_id}/UserData"
+            data: dict = {
+                "PlaybackPositionTicks": position_ticks,
+                "LastPlayedDate": played_date
+            }
+            r = requests.post(
+                emby_url, headers=self.__get_default_header(),
+                params=self.__get_default_payload(),
+                json=data, timeout=5)
+            if r.status_code < 300:
+                return True
+        except RequestException as e:
+            self.logger.error(
+                f"{self.log_header} set_play_state {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", e)}"
+            )
+
     def set_watched_item(self, user_id: str, item_id: str) -> None:
         """ Set an item as watched """
         try:
@@ -282,14 +368,14 @@ class EmbyAPI(ApiBase):
     def set_library_scan(self, library_id: str) -> None:
         """ Tells emby to scan a library """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "Recursive": "true",
-                "ImageRefreshMode": "Default",
-                "MetadataRefreshMode": "Default",
-                "ReplaceAllImages": "false",
-                "ReplaceAllMetadata": "false",
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Recursive"] = "true"
+            payload["ImageRefreshMode"] = "Default"
+            payload["MetadataRefreshMode"] = "Default"
+            payload["ReplaceAllImages"] = "false"
+            payload["ReplaceAllMetadata"] = "false"
+
             emby_url = f"{self.__get_api_url()}/Items/{library_id}/Refresh"
             requests.post(
                 emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
@@ -342,12 +428,12 @@ class EmbyAPI(ApiBase):
     def get_playlist_id(self, playlist_name: str) -> str:
         """ Get a playlist id by name """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "SearchTerm": playlist_name,
-                "Recursive": "true",
-                "Fields": "Path",
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Recursive"] = "true"
+            payload["SearchTerm"] = playlist_name
+            payload["Fields"] = "Path"
+
             r = requests.get(
                 f"{self.__get_api_url()}/Items",
                 params=payload,
@@ -377,12 +463,12 @@ class EmbyAPI(ApiBase):
     ) -> str:
         """ Create a playlist """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "Name": playlist_name,
-                "Ids": self.__get_comma_separated_list(ids),
-                "MediaType": "Movies",
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Name"] = playlist_name
+            payload["Ids"] = self.__get_comma_separated_list(ids)
+            payload["MediaType"] = "Movies"
+
             emby_url = f"{self.__get_api_url()}/Playlists"
             r = requests.post(
                 emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
@@ -429,10 +515,10 @@ class EmbyAPI(ApiBase):
     def add_playlist_items(self, playlist_id: str, item_ids: list[str]) -> bool:
         """ Add items to a playlist """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "Ids": self.__get_comma_separated_list(item_ids),
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["Ids"] = self.__get_comma_separated_list(item_ids)
+
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items"
             r = requests.post(
                 emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
@@ -447,10 +533,11 @@ class EmbyAPI(ApiBase):
     def remove_playlist_items(self, playlist_id: str, playlist_item_ids: list[str]) -> bool:
         """ Remove items from a playlist """
         try:
-            payload = {
-                "api_key": self.api_key,
-                "EntryIds": self.__get_comma_separated_list(playlist_item_ids),
-            }
+            # Setup the required payload
+            payload = self.__get_default_payload()
+            payload["EntryIds"] = self.__get_comma_separated_list(
+                playlist_item_ids)
+
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/Delete"
             r = requests.post(
                 emby_url, headers=self.__get_default_header(), params=payload, timeout=5)

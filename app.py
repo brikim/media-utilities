@@ -13,7 +13,7 @@ from common import utils
 from common.log_manager import LogManager
 from service.service_manager import ServiceManager
 
-MEDIA_UTILITIES_VERSION: str = "v3.0.1"
+MEDIA_UTILITIES_VERSION: str = "v3.1.0"
 
 log_manager = LogManager(__name__)
 api_manager: ApiManager = None

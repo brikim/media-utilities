@@ -10,6 +10,9 @@ from service.dvr_maintainer import DvrMaintainer
 from service.folder_cleanup import FolderCleanup
 from service.playlist_sync import PlaylistSync
 from service.sync_watched import SyncWatched
+from service.sync_emby_play_state import SyncEmbyPlayState
+
+from logging import Logger
 
 
 class ServiceManager:
@@ -83,6 +86,17 @@ class ServiceManager:
                     f"{utils.ANSI_CODE_START}171{utils.ANSI_CODE_END}",
                     api_manager,
                     config["playlist_sync"],
+                    self.logger,
+                    scheduler
+                )
+            )
+            
+        if "sync_emby_play_state" in config and config["sync_emby_play_state"]["enabled"] == "True":
+            self.services.append(
+                SyncEmbyPlayState(
+                    f"{utils.ANSI_CODE_START}121{utils.ANSI_CODE_END}",
+                    api_manager,
+                    config["sync_emby_play_state"],
                     self.logger,
                     scheduler
                 )

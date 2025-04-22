@@ -81,8 +81,12 @@ class TautulliAPI(ApiBase):
     def get_valid(self) -> bool:
         """ Get if the Tautulli server is valid """
         try:
-            r = requests.get(self.__get_api_url(), params=self.__get_payload(
-                "get_tautulli_info"), timeout=5)
+            r = requests.get(
+                self.__get_api_url(),
+                params=self.__get_payload("get_tautulli_info"),
+                timeout=5,
+            )
+
             if r.status_code < 300:
                 return True
         except RequestException:
@@ -92,8 +96,11 @@ class TautulliAPI(ApiBase):
     def get_server_reported_name(self) -> str:
         """ Get the name reported by the Tautulli server """
         try:
-            r = requests.get(self.__get_api_url(), params=self.__get_payload(
-                "get_server_info"), timeout=5)
+            r = requests.get(
+                self.__get_api_url(),
+                params=self.__get_payload("get_server_info"),
+                timeout=5
+            )
             return r.json()["response"]["data"]["pms_name"]
         except RequestException as e:
             self.logger.error(
@@ -104,8 +111,11 @@ class TautulliAPI(ApiBase):
     def get_library_id(self, lib_name: str) -> str:
         """ Get the id of a library by name """
         try:
-            r = requests.get(self.__get_api_url(), params=self.__get_payload(
-                "get_libraries"), timeout=5)
+            r = requests.get(
+                self.__get_api_url(),
+                params=self.__get_payload("get_libraries"),
+                timeout=5
+            )
             response = r.json()
             if "response" in response and "data" in response["response"]:
                 for lib in response["response"]["data"]:
@@ -123,7 +133,8 @@ class TautulliAPI(ApiBase):
         try:
             r = requests.get(
                 self.__get_api_url(),
-                params=self.__get_payload("get_users"), timeout=5
+                params=self.__get_payload("get_users"),
+                timeout=5
             )
             response = r.json()
 
@@ -141,8 +152,11 @@ class TautulliAPI(ApiBase):
     def get_user_info(self, user_name: str) -> TautulliUserInfo:
         """ Get the info of a user by name """
         try:
-            r = requests.get(self.__get_api_url(), params=self.__get_payload(
-                "get_users_table"), timeout=5)
+            r = requests.get(
+                self.__get_api_url(),
+                params=self.__get_payload("get_users_table"),
+                timeout=5
+            )
             response = r.json()
 
             if "response" in response and "data" in response["response"] and "data" in response["response"]["data"]:
@@ -198,13 +212,12 @@ class TautulliAPI(ApiBase):
         """ Get the watch history of a user """
         return_items: TautulliHistoryItems = TautulliHistoryItems()
         try:
-            payload = {
-                "apikey": self.api_key,
-                "cmd": "get_history",
-                "include_activity": 0,
-                "user_id": user_id,
-                "after": date_time_for_history
-            }
+            # Setup the required payload
+            payload = self.__get_payload("get_history")
+            payload["include_activity"] = 0
+            payload["user_id"] = user_id
+            payload["after"] = date_time_for_history
+            
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 
@@ -224,14 +237,13 @@ class TautulliAPI(ApiBase):
 
         return_items: TautulliHistoryItems = TautulliHistoryItems()
         try:
-            payload = {
-                "apikey": self.api_key,
-                "cmd": "get_history",
-                "include_activity": 0,
-                "user_id": user_id,
-                "section_id": lib_id,
-                "after": date_time_for_history
-            }
+            # Setup the required payload
+            payload = self.__get_payload("get_history")
+            payload["include_activity"] = 0
+            payload["user_id"] = user_id
+            payload["section_id"] = lib_id
+            payload["after"] = date_time_for_history
+            
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 
@@ -251,11 +263,10 @@ class TautulliAPI(ApiBase):
     def get_filename(self, key: int) -> str:
         """ Get the filename of a key """
         try:
-            payload = {
-                "apikey": self.api_key,
-                "rating_key": key,
-                "cmd": "get_metadata"
-            }
+            # Setup the required payload
+            payload = self.__get_payload("get_metadata")
+            payload["rating_key"] = key
+            
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 

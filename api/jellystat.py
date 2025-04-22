@@ -21,6 +21,7 @@ class JellystatHistoryItem:
     date_watched: str
     series_name: str
     episode_id: str
+    activity_date: str
 
 
 @dataclass
@@ -126,13 +127,18 @@ class JellystatAPI(ApiBase):
         if "EpisodeId" in item:
             item_episode_id = item["EpisodeId"]
         
+        activity_date_inserted: str = ""
+        if "ActivityDateInserted" in item:
+            activity_date_inserted = item["ActivityDateInserted"]
+
         return JellystatHistoryItem(
             item_name,
             item_id,
             item_user_name,
             item_activity_date,
             item_series_name,
-            item_episode_id
+            item_episode_id,
+            activity_date_inserted
         )
 
     def get_user_watch_history(self, user_id: str) -> JellystatHistoryItems:
