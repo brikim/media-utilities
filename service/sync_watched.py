@@ -4,7 +4,7 @@ Synchronize Watch Service
     Plex with Tautulli and Emby with Jellystat
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from dataclasses import dataclass, field
 from logging import Logger
 from typing import Any, List
@@ -195,16 +195,6 @@ class SyncWatched(ServiceBase):
                 user_list.append(new_user_info)
 
         return user_list
-
-    def __get_hours_since_play(
-        self,
-        use_utc_time: bool,
-        play_date_time: datetime
-    ) -> int:
-        current_date_time = datetime.now(
-            timezone.utc) if use_utc_time else datetime.now()
-        time_difference = current_date_time - play_date_time
-        return (time_difference.days * 24) + (time_difference.seconds / 3600)
 
     def __set_plex_emby_watched_item(
         self,
@@ -509,7 +499,7 @@ class SyncWatched(ServiceBase):
 
             if (history_items != jellystat_api.get_invalid_type()):
                 for item in history_items.items:
-                    hours_since_play = self.__get_hours_since_play(
+                    hours_since_play = utils.get_hours_since_play(
                         True,
                         datetime.fromisoformat(item.date_watched)
                     )

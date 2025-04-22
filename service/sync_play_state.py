@@ -1,9 +1,10 @@
 """
-Synchronize Emby Play States
-    Synchronize the play status of users across emby servers
+Synchronize Play States
+    Synchronize the play status of users across servers
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from logging import Logger
 from typing import Any, List
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -19,26 +20,27 @@ from api.jellystat import JellystatHistoryItem
 
 
 @dataclass
-class UserEmbyConfig:
-    """ Single emby server/user pair """
+class UserSyncConfig:
+    """ Single server/user pair """
     server_name: str
     user_name: str
 
 
 @dataclass
-class UserEmbyConfigs:
-    """ List of Emby configs to be synced """
-    user_list: list[UserEmbyConfig] = field(default_factory=list)
+class UserSyncConfigs:
+    """ List of configs to be synced """
+    user_list: list[UserSyncConfig] = field(default_factory=list)
 
 
 @dataclass
-class EmbySyncGroup:
-    """ List of Emby user infos to be synced """
+class UserSyncGroup:
+    """ List of user infos to be synced """
     user_list: list[UserEmbyInfo] = field(default_factory=list)
 
 
-class SyncEmbyPlayState(ServiceBase):
-    """ Sync Emby Play State Service """
+class SyncPlayState(ServiceBase):
+    """ Sync Play State Service """
+
     def __init__(
         self,
         ansi_code: str,
@@ -49,20 +51,20 @@ class SyncEmbyPlayState(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            "Sync Emby Play State",
+            "Sync Play State",
             config,
             api_manager,
             logger,
             scheduler
         )
 
-        self.config_user_list: list[UserEmbyConfigs] = []
+        self.config_user_list: list[UserSyncConfigs] = []
 
         try:
-            for emby_user_sync in config["emby_user_sync"]:
-                new_emby_configs = UserEmbyConfigs()
+            for user_sync in config["user_sync"]:
+                new_emby_configs = UserSyncConfigs()
 
-                for user in emby_user_sync["user"]:
+                for user in user_sync["user"]:
                     if "server" in user and "user_name" in user:
                         emby_api_valid = self.api_manager.get_emby_api(
                             user["server"]) is not None
@@ -70,7 +72,7 @@ class SyncEmbyPlayState(ServiceBase):
                             user["server"]) is not None
                         if emby_api_valid and jellystat_api_valid:
                             new_emby_configs.user_list.append(
-                                UserEmbyConfig(
+                                UserSyncConfig(
                                     user["server"],
                                     user["user_name"]
                                 )
@@ -95,10 +97,12 @@ class SyncEmbyPlayState(ServiceBase):
         except Exception as e:
             self.log_error(f"Read config {utils.get_tag("error", e)}")
 
-    def __get_sync_groups(self) -> List[EmbySyncGroup]:
-        user_list: list[EmbySyncGroup] = []
+    def __get_sync_groups(self) -> List[UserSyncGroup]:
+        """ Get a list of users to sync with all data set """
+
+        user_list: list[UserSyncGroup] = []
         for config_user in self.config_user_list:
-            new_emby_infos = EmbySyncGroup()
+            new_emby_infos = UserSyncGroup()
             for config_user in config_user.user_list:
                 emby_api = self.api_manager.get_emby_api(
                     config_user.server_name)
@@ -138,6 +142,8 @@ class SyncEmbyPlayState(ServiceBase):
         sync_emby_user: UserEmbyInfo,
         target_name: str
     ) -> str:
+        """ Sync the users to a specific user play state """
+
         return_target_name: str = ""
 
         if not current_user_play_state.played:
@@ -167,23 +173,25 @@ class SyncEmbyPlayState(ServiceBase):
                         sync_emby_user.user_id,
                         sync_emby_item_id,
                         current_user_play_state.playback_position_ticks,
-                        jellystat_item.activity_date
+                        jellystat_item.date_watched
                     )
 
                     return_target_name = utils.build_target_string(
                         target_name,
-                        f"{utils.get_formatted_emby()}({sync_emby_user.server_name}):{sync_emby_user.user_name}",
-                        ""
+                        f"{utils.get_formatted_emby()}({sync_emby_user.server_name})",
+                        sync_emby_user.user_name
                     )
 
         return return_target_name
 
-    def __sync_emby_group(self, sync_group: EmbySyncGroup):
+    def __sync_emby_group(self, sync_group: UserSyncGroup):
+        """ Synchronize a specific user group"""
         for user in sync_group.user_list:
             emby_api = self.api_manager.get_emby_api(user.server_name)
             jellystat_api = self.api_manager.get_jellystat_api(
                 user.server_name
             )
+
             history_items = jellystat_api.get_user_watch_history(
                 user.user_id
             )
@@ -191,38 +199,39 @@ class SyncEmbyPlayState(ServiceBase):
             if (history_items != jellystat_api.get_invalid_type()):
                 for item in history_items.items:
                     target_name: str = ""
-                    user_play_state: EmbyUserPlayState = None
 
-                    if item.series_name:
-                        user_play_state = emby_api.get_user_play_state(
-                            user.user_id, item.episode_id
-                        )
-                    else:
-                        user_play_state = emby_api.get_user_play_state(
-                            user.user_id, item.id
+                    hours_since_play = utils.get_hours_since_play(
+                        True,
+                        datetime.fromisoformat(item.date_watched)
+                    )
+                    if hours_since_play <= 24:
+                        user_play_state: EmbyUserPlayState = emby_api.get_user_play_state(
+                            user.user_id,
+                            item.episode_id if item.series_name else item.id
                         )
 
-                    if user_play_state is not None:
-                        for sync_user in sync_group.user_list:
-                            if sync_user.server_name != user.server_name:
-                                target_name = self.__sync_user_play_state(
-                                    emby_api, user_play_state, item, sync_user, target_name
+                        if user_play_state is not None:
+                            for sync_user in sync_group.user_list:
+                                if sync_user.server_name != user.server_name:
+                                    target_name = self.__sync_user_play_state(
+                                        emby_api, user_play_state, item, sync_user, target_name
+                                    )
+
+                            if target_name:
+                                full_title = f"{item.series_name} - {item.name}" if item.series_name else item.name
+                                self.log_info(
+                                    f"{utils.get_formatted_emby()}({user.server_name}):{user.user_name} watched {full_title} to {int(user_play_state.playback_percentage)}% sync {target_name}"
                                 )
 
-                        if target_name:
-                            full_title = f"{item.series_name} - {item.name}" if item.series_name else item.name
-                            self.log_info(
-                                f"{utils.get_formatted_emby()}({user.server_name}):{user.user_name} watched {int(user_play_state.playback_percentage)}% of {full_title} sync {target_name}"
-                            )
-
     def __sync_emby_play_state(self):
+        """ Synchronize the play state of all user groups """
         sync_groups = self.__get_sync_groups()
         for sync_group in sync_groups:
             self.__sync_emby_group(sync_group)
 
     def init_scheduler_jobs(self):
+        """ Initialize all scheduler jobs """
         if len(self.config_user_list) > 0:
-            self.__sync_emby_play_state()
             if self.cron is not None:
                 self.log_service_enabled()
 

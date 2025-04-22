@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from common.types import CronInfo
 
@@ -77,6 +77,17 @@ def get_datetime_for_history_plex_string(deltaDays: float) -> str:
     return get_datetime_for_history(deltaDays).strftime("%Y-%m-%d")
 
 
+def get_hours_since_play(
+    use_utc_time: bool,
+    play_date_time: datetime
+) -> int:
+    """ Get the hours since a play based on a time string """
+    current_date_time = datetime.now(
+        timezone.utc) if use_utc_time else datetime.now()
+    time_difference = current_date_time - play_date_time
+    return (time_difference.days * 24) + (time_difference.seconds / 3600)
+
+
 def remove_year_from_name(name: str) -> str:
     """ Remove year in format (2018) from a string """
     open_par_index = name.find(" (")
@@ -109,10 +120,10 @@ def remove_ansi_code_from_text(text: str) -> str:
     return ansi_escape.sub('', text)
 
 
-def build_target_string(current_target: str, new_target: str, library: str) -> str:
+def build_target_string(current_target: str, new_target: str, extra_info: str) -> str:
     """
     Builds a target string by combining current and new targets, optionally with a library.
     """
     if not current_target:
-        return f"{new_target}:{library}" if library else new_target
-    return f"{current_target} & {new_target}:{library}" if library else f"{current_target} & {new_target}"
+        return f"{new_target}:{extra_info}" if extra_info else new_target
+    return f"{current_target},{new_target}:{extra_info}" if extra_info else f"{current_target},{new_target}"
