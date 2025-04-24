@@ -41,7 +41,7 @@ class ConfigUserInfo:
     emby_user_list: list[UserEmbyConfig] = field(default_factory=list)
 
 
-class SyncState(ServiceBase):
+class MediaServerSync(ServiceBase):
     def __init__(
         self,
         ansi_code: str,
@@ -52,7 +52,7 @@ class SyncState(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            "Sync State",
+            "Media Server Sync",
             config,
             api_manager,
             logger,
