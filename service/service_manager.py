@@ -9,8 +9,7 @@ from service.delete_watched import DeleteWatched
 from service.dvr_maintainer import DvrMaintainer
 from service.folder_cleanup import FolderCleanup
 from service.playlist_sync import PlaylistSync
-from service.sync_watched import SyncWatched
-from service.sync_play_state import SyncPlayState
+from service.sync_state import SyncState
 
 
 class ServiceManager:
@@ -34,12 +33,12 @@ class ServiceManager:
         self.scheduler = scheduler
 
         # Create the Sync Watched Status Service
-        if "sync_watched" in config and config["sync_watched"]["enabled"] == "True":
+        if "sync_state" in config and config["sync_state"]["enabled"] == "True":
             self.services.append(
-                SyncWatched(
+                SyncState(
                     f"{utils.ANSI_CODE_START}45{utils.ANSI_CODE_END}",
                     api_manager,
-                    config["sync_watched"],
+                    config["sync_state"],
                     self.logger,
                     scheduler
                 )
@@ -84,17 +83,6 @@ class ServiceManager:
                     f"{utils.ANSI_CODE_START}171{utils.ANSI_CODE_END}",
                     api_manager,
                     config["playlist_sync"],
-                    self.logger,
-                    scheduler
-                )
-            )
-            
-        if "sync_play_state" in config and config["sync_play_state"]["enabled"] == "True":
-            self.services.append(
-                SyncPlayState(
-                    f"{utils.ANSI_CODE_START}122{utils.ANSI_CODE_END}",
-                    api_manager,
-                    config["sync_play_state"],
                     self.logger,
                     scheduler
                 )

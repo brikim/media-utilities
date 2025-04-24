@@ -16,7 +16,7 @@ from common import utils
 from service.service_base import ServiceBase
 
 from api.api_manager import ApiManager
-from api.emby import EmbyAPI, EmbyItem
+from api.emby import EmbyAPI, EmbyItem, EmbyUserPlayState
 from api.plex import PlexAPI
 from api.jellystat import JellystatHistoryItem
 from api.tautulli import TautulliHistoryItem
@@ -41,7 +41,7 @@ class ConfigUserInfo:
     emby_user_list: list[UserEmbyConfig] = field(default_factory=list)
 
 
-class SyncWatched(ServiceBase):
+class SyncState(ServiceBase):
     def __init__(
         self,
         ansi_code: str,
@@ -52,7 +52,7 @@ class SyncWatched(ServiceBase):
     ):
         super().__init__(
             ansi_code,
-            "Sync Watched",
+            "Sync State",
             config,
             api_manager,
             logger,
@@ -196,30 +196,17 @@ class SyncWatched(ServiceBase):
 
         return user_list
 
-    def __set_plex_emby_watched_item(
+    def __set_emby_watch_state(
         self,
         emby_api: EmbyAPI,
         user: UserEmbyInfo,
-        item_id: str
+        item_id: str,
     ):
         try:
             emby_api.set_watched_item(user.user_id, item_id)
         except Exception as e:
             self.log_error(
                 f"Set {utils.get_formatted_emby()}({emby_api.get_server_name()}) watched {utils.get_tag("error", e)}"
-            )
-
-    def __set_emby_emby_watched_item(
-        self,
-        sync_emby_api: EmbyAPI,
-        sync_user: UserEmbyInfo,
-        item_id: str,
-    ):
-        try:
-            sync_emby_api.set_watched_item(sync_user.user_id, item_id)
-        except Exception as e:
-            self.log_error(
-                f"Set {utils.get_formatted_emby()}({sync_emby_api.get_server_name()}) watched {utils.get_tag("error", e)}"
             )
 
     def __get_emby_path_from_plex_path(self, plex_api: PlexAPI, emby_api: EmbyAPI, plex_path: str) -> str:
@@ -236,52 +223,53 @@ class SyncWatched(ServiceBase):
             1
         )
 
-    def __get_emby_item_id(self, plex_api: PlexAPI, emby_api: EmbyAPI, tautulli_item: TautulliHistoryItem) -> str:
+    def __get_emby_item_id_from_plex_item(self, plex_api: PlexAPI, emby_api: EmbyAPI, tautulli_item: TautulliHistoryItem) -> str:
         plex_path = plex_api.get_item_path(tautulli_item.id)
-        if plex_path is not plex_api.get_invalid_type():
-            if plex_path:
-                return emby_api.get_item_id_from_path(
-                    self.__get_emby_path_from_plex_path(
-                        plex_api,
-                        emby_api,
-                        plex_path
-                    )
+        if plex_path is not plex_api.get_invalid_type() and plex_path:
+            return emby_api.get_item_id_from_path(
+                self.__get_emby_path_from_plex_path(
+                    plex_api,
+                    emby_api,
+                    plex_path
                 )
+            )
 
         return emby_api.get_invalid_item_id()
 
-    def __sync_emby_with_plex_watch_status(
+    def __sync_emby_with_plex_watch_state(
         self,
         plex_api: PlexAPI,
         tautulli_item: TautulliHistoryItem,
-        user: UserEmbyInfo,
+        sync_emby_user: UserEmbyInfo,
         target_name: str
     ) -> str:
         return_target: str = ""
-        emby_api = self.api_manager.get_emby_api(user.server_name)
-        emby_item_id = self.__get_emby_item_id(
-            plex_api, emby_api, tautulli_item)
+
+        sync_emby_api = self.api_manager.get_emby_api(
+            sync_emby_user.server_name)
+        sync_emby_item_id = self.__get_emby_item_id_from_plex_item(
+            plex_api, sync_emby_api, tautulli_item)
 
         # If the item id is valid and the user has not already watched the item
-        if emby_item_id != emby_api.get_invalid_item_id():
-            emby_watched_status = emby_api.get_watched_status(
-                user.user_id, emby_item_id)
+        if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
+            emby_watched_status = sync_emby_api.get_watched_status(
+                sync_emby_user.user_id, sync_emby_item_id)
             if emby_watched_status is not None and not emby_watched_status:
-                self.__set_plex_emby_watched_item(
-                    emby_api,
-                    user,
-                    emby_item_id
+                self.__set_emby_watch_state(
+                    sync_emby_api,
+                    sync_emby_user,
+                    sync_emby_item_id
                 )
 
                 return_target = utils.build_target_string(
                     target_name,
-                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()})",
+                    f"{utils.get_formatted_emby()}({sync_emby_api.get_server_name()})",
                     ""
                 )
 
         return return_target
 
-    def __sync_plex_watch_status(
+    def __sync_plex_watch_state(
         self,
         current_user: UserPlexInfo,
         user: UserInfo,
@@ -299,17 +287,17 @@ class SyncWatched(ServiceBase):
             for history_item in watch_history_data.items:
                 if history_item.watched is not None and history_item.watched:
                     target_name: str = ""
-                    for plex_user in user.plex_users:
+                    for sync_plex_user in user.plex_users:
                         if (
-                            plex_user.user_name != current_user.user_name
-                            and plex_user.can_sync
+                            current_user.server_name != sync_plex_user.server_name
+                            and sync_plex_user.can_sync
                         ):
                             # todo future capability
                             pass
 
-                    for emby_user in user.emby_users:
-                        target_name = self.__sync_emby_with_plex_watch_status(
-                            plex_api, history_item, emby_user, target_name
+                    for sync_emby_user in user.emby_users:
+                        target_name = self.__sync_emby_with_plex_watch_state(
+                            plex_api, history_item, sync_emby_user, target_name
                         )
 
                     if target_name:
@@ -367,98 +355,68 @@ class SyncWatched(ServiceBase):
         )
         return plex_api.set_movie_watched(lower_title, plex_movie_location)
 
-    def __sync_plex_with_emby_watch_status(
+    def __sync_plex_with_emby_watched_state(
         self,
         emby_api: EmbyAPI,
-        current_user: UserEmbyInfo,
         jellystat_item: JellystatHistoryItem,
         plex_user: UserPlexInfo,
         target_name: str
     ) -> str:
         return_target_name: str = ""
+
         if jellystat_item.series_name:
-            emby_watched_status = emby_api.get_watched_status(
-                current_user.user_id,
-                jellystat_item.episode_id
-            )
-            if (emby_watched_status is not None and emby_watched_status):
-                emby_series_item = emby_api.search_item(
-                    jellystat_item.id
-                )
-                emby_episode_item = emby_api.search_item(
-                    jellystat_item.episode_id
-                )
-                if emby_series_item is not None and emby_episode_item is not None:
-                    if self.__set_plex_show_watched(
-                        emby_api,
-                        emby_series_item.path,
-                        emby_episode_item,
-                        plex_user
-                    ):
-                        return_target_name = utils.build_target_string(
-                            target_name,
-                            f"{utils.get_formatted_plex()}({plex_user.server_name})",
-                            ""
-                        )
-        else:
-            emby_watched_status = emby_api.get_watched_status(
-                current_user.user_id,
+            emby_series_item = emby_api.search_item(
                 jellystat_item.id
             )
+            emby_episode_item = emby_api.search_item(
+                jellystat_item.episode_id
+            )
 
-            # Check that the item has been marked as watched by emby
-            if emby_watched_status is not None and emby_watched_status:
-                emby_item = emby_api.search_item(
-                    jellystat_item.id
-                )
-
-                if (
-                    emby_item is not None
-                    and emby_item.type == emby_api.get_media_type_movie_name()
+            if emby_series_item is not None and emby_episode_item is not None:
+                if self.__set_plex_show_watched(
+                    emby_api,
+                    emby_series_item.path,
+                    emby_episode_item,
+                    plex_user
                 ):
-                    if self.__set_plex_movie_watched(emby_api, emby_item, plex_user):
-                        return_target_name = utils.build_target_string(
-                            target_name,
-                            f"{utils.get_formatted_plex()}({plex_user.server_name})",
-                            ""
-                        )
+                    return_target_name = utils.build_target_string(
+                        target_name,
+                        f"{utils.get_formatted_plex()}({plex_user.server_name})",
+                        ""
+                    )
+        else:
+            emby_item = emby_api.search_item(
+                jellystat_item.id
+            )
+            if (
+                emby_item is not None
+                and emby_item.type == emby_api.get_media_type_movie_name()
+            ):
+                if self.__set_plex_movie_watched(emby_api, emby_item, plex_user):
+                    return_target_name = utils.build_target_string(
+                        target_name,
+                        f"{utils.get_formatted_plex()}({plex_user.server_name})",
+                        ""
+                    )
 
         return return_target_name
 
-    def __sync_emby_with_emby_watch_status(
+    def __sync_emby_with_emby_watched_state(
         self,
         emby_api: EmbyAPI,
-        current_user: UserEmbyInfo,
         jellystat_item: JellystatHistoryItem,
         sync_emby_user: UserEmbyInfo,
         target_name: str
     ) -> str:
         return_target_name: str = ""
-        sync_emby_api = self.api_manager.get_emby_api(
-            sync_emby_user.server_name
-        )
-        emby_item: EmbyItem = None
 
-        if jellystat_item.series_name:
-            emby_watched_status = emby_api.get_watched_status(
-                current_user.user_id,
-                jellystat_item.episode_id
-            )
-            emby_item = emby_api.search_item(jellystat_item.episode_id)
-        else:
-            emby_watched_status = emby_api.get_watched_status(
-                current_user.user_id,
-                jellystat_item.id
-            )
-            emby_item = emby_api.search_item(
-                jellystat_item.id
-            )
+        emby_item = emby_api.search_item(
+            jellystat_item.episode_id if jellystat_item.series_name else jellystat_item.id)
 
-        if (
-            emby_watched_status is not None
-            and emby_watched_status
-            and emby_item is not None
-        ):
+        if (emby_item is not None):
+            sync_emby_api = self.api_manager.get_emby_api(
+                sync_emby_user.server_name
+            )
             sync_emby_item_id = sync_emby_api.get_item_id_from_path(
                 emby_item.path.replace(
                     emby_api.get_media_path(),
@@ -473,7 +431,7 @@ class SyncWatched(ServiceBase):
                     sync_emby_user.user_id, sync_emby_item_id
                 )
                 if sync_emby_watched_status is not None and not sync_emby_watched_status:
-                    self.__set_emby_emby_watched_item(
+                    self.__set_emby_watch_state(
                         sync_emby_api,
                         sync_emby_user,
                         sync_emby_item_id
@@ -487,7 +445,109 @@ class SyncWatched(ServiceBase):
 
         return return_target_name
 
-    def __sync_emby_watch_status(self, current_user: UserEmbyInfo, user: UserInfo):
+    def __sync_emby_watched_state(
+        self,
+        emby_api: EmbyAPI,
+        current_user: UserEmbyInfo,
+        jellystat_item: JellystatHistoryItem,
+        user: UserInfo
+    ):
+        target_name: str = ""
+
+        for sync_plex_user in user.plex_users:
+            target_name = self.__sync_plex_with_emby_watched_state(
+                emby_api, jellystat_item, sync_plex_user, target_name
+            )
+
+        for sync_emby_user in user.emby_users:
+            if current_user.server_name != sync_emby_user.server_name:
+                target_name = self.__sync_emby_with_emby_watched_state(
+                    emby_api, jellystat_item, sync_emby_user, target_name
+                )
+
+        if target_name:
+            full_title = f"{jellystat_item.series_name} - {jellystat_item.name}" if jellystat_item.series_name else jellystat_item.name
+            self.log_info(
+                f"{current_user.user_name} watched {full_title} on {utils.get_formatted_emby()}({current_user.server_name}) sync {target_name} watch status"
+            )
+
+    def __sync_emby_with_emby_play_state(
+        self,
+        emby_api: EmbyAPI,
+        current_play_state: EmbyUserPlayState,
+        jellystat_item: JellystatHistoryItem,
+        sync_emby_user: UserEmbyInfo,
+        target_name: str
+    ) -> str:
+        """ Sync the Emby users to a specific Emby user play state """
+
+        return_target_name: str = ""
+
+        sync_emby_api = self.api_manager.get_emby_api(
+            sync_emby_user.server_name
+        )
+
+        sync_emby_item_id = sync_emby_api.get_item_id_from_path(
+            current_play_state.item_path.replace(
+                emby_api.get_media_path(),
+                sync_emby_api.get_media_path(),
+                1
+            )
+        )
+
+        # If the item id is valid and the user has not already watched the item
+        if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
+            sync_user_play_state = sync_emby_api.get_user_play_state(
+                sync_emby_user.user_id, sync_emby_item_id
+            )
+            if (
+                sync_user_play_state is not None
+                and not sync_user_play_state.played
+                and current_play_state.playback_position_ticks != sync_user_play_state.playback_position_ticks
+            ):
+                sync_emby_api.set_play_state(
+                    sync_emby_user.user_id,
+                    sync_emby_item_id,
+                    current_play_state.playback_position_ticks,
+                    jellystat_item.date_watched
+                )
+
+                return_target_name = utils.build_target_string(
+                    target_name,
+                    f"{utils.get_formatted_emby()}({sync_emby_user.server_name})",
+                    sync_emby_user.user_name
+                )
+
+        return return_target_name
+
+    def __sync_emby_play_state(
+        self,
+        emby_api: EmbyAPI,
+        current_user: UserEmbyInfo,
+        current_play_state: EmbyUserPlayState,
+        jellystat_item: JellystatHistoryItem,
+        emby_user_list: List[UserEmbyInfo]
+    ):
+        target_name: str = ""
+
+        # Can only sync emby to emby play state currently per available API's
+        for sync_emby_user in emby_user_list:
+            if current_user.server_name != sync_emby_user.server_name:
+                target_name = self.__sync_emby_with_emby_play_state(
+                    emby_api,
+                    current_play_state,
+                    jellystat_item,
+                    sync_emby_user,
+                    target_name
+                )
+
+        if target_name:
+            full_title = f"{jellystat_item.series_name} - {jellystat_item.name}" if jellystat_item.series_name else jellystat_item.name
+            self.log_info(
+                f"{utils.get_formatted_emby()}({current_user.server_name}):{current_user.user_name} watched {full_title} to {int(current_play_state.playback_percentage)}% sync {target_name}"
+            )
+
+    def __sync_emby_state(self, current_user: UserEmbyInfo, user: UserInfo):
         try:
             emby_api = self.api_manager.get_emby_api(current_user.server_name)
             jellystat_api = self.api_manager.get_jellystat_api(
@@ -504,22 +564,26 @@ class SyncWatched(ServiceBase):
                         datetime.fromisoformat(item.date_watched)
                     )
                     if hours_since_play <= 24:
-                        target_name: str = ""
-                        for plex_user in user.plex_users:
-                            target_name = self.__sync_plex_with_emby_watch_status(
-                                emby_api, current_user, item, plex_user, target_name
+                        current_play_state: EmbyUserPlayState = emby_api.get_user_play_state(
+                            current_user.user_id,
+                            item.episode_id if item.series_name else item.id
+                        )
+
+                        # Determine if we need to sync watch state or play state
+                        if current_play_state.played:
+                            self.__sync_emby_watched_state(
+                                emby_api,
+                                current_user,
+                                item,
+                                user
                             )
-
-                        for emby_user in user.emby_users:
-                            if current_user.server_name != emby_user.server_name:
-                                target_name = self.__sync_emby_with_emby_watch_status(
-                                    emby_api, current_user, item, emby_user, target_name
-                                )
-
-                        if target_name:
-                            full_title = f"{item.series_name} - {item.name}" if item.series_name else item.name
-                            self.log_info(
-                                f"{current_user.user_name} watched {full_title} on {utils.get_formatted_emby()}({current_user.server_name}) sync {target_name} watch status"
+                        else:
+                            self.__sync_emby_play_state(
+                                emby_api,
+                                current_user,
+                                current_play_state,
+                                item,
+                                user.emby_users
                             )
         except Exception as e:
             self.log_error(
@@ -531,17 +595,18 @@ class SyncWatched(ServiceBase):
         user_list = self.__get_user_data()
         for user in user_list:
             for plex_user in user.plex_users:
-                self.__sync_plex_watch_status(
+                self.__sync_plex_watch_state(
                     plex_user,
                     user,
                     date_time_for_history
                 )
 
             for emby_user in user.emby_users:
-                self.__sync_emby_watch_status(emby_user, user)
+                self.__sync_emby_state(emby_user, user)
 
     def init_scheduler_jobs(self):
         if len(self.config_user_list) > 0:
+            self.__sync_watch_status()
             if self.cron is not None:
                 self.log_service_enabled()
 
