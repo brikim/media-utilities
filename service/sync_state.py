@@ -590,7 +590,7 @@ class SyncState(ServiceBase):
                 f"{utils.get_formatted_emby()}({current_user.server_name}) watch status {utils.get_tag("error", e)}"
             )
 
-    def __sync_watch_status(self):
+    def __sync_state(self):
         date_time_for_history = utils.get_datetime_for_history_plex_string(1)
         user_list = self.__get_user_data()
         for user in user_list:
@@ -606,12 +606,11 @@ class SyncState(ServiceBase):
 
     def init_scheduler_jobs(self):
         if len(self.config_user_list) > 0:
-            self.__sync_watch_status()
             if self.cron is not None:
                 self.log_service_enabled()
 
                 self.scheduler.add_job(
-                    self.__sync_watch_status,
+                    self.__sync_state,
                     trigger="cron",
                     hour=self.cron.hours,
                     minute=self.cron.minutes
