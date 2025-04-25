@@ -21,6 +21,7 @@ from api.emby import EmbyAPI, EmbyPlaylist
 
 @dataclass
 class PlexCollectionConfig:
+    """ Class representing a Plex collection configuration """
     server_name: str
     library_name: str
     collection_name: str
@@ -29,11 +30,14 @@ class PlexCollectionConfig:
 
 @dataclass
 class AddDeleteInfo:
+    """ Class representing the number of items added and deleted """
     added_items: int
     deleted_items: int
 
 
 class PlaylistSync(ServiceBase):
+    """ Playlist Sync service """
+
     def __init__(
         self,
         ansi_code: str,
@@ -219,7 +223,10 @@ class PlaylistSync(ServiceBase):
 
                     if playlist_changed or add_delete_info.added_items > 0 or add_delete_info.deleted_items > 0:
                         collection_tag = utils.get_tag(
-                            "collection", original_emby_playlist.name
+                            "collection",
+                            utils.get_standout_text(
+                                original_emby_playlist.name
+                            )
                         )
                         added_tag = utils.get_tag(
                             "added", add_delete_info.added_items

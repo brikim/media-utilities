@@ -177,7 +177,7 @@ class FolderCleanup(ServiceBase):
                     for dirpath, dirnames, filenames in os.walk(path.path, topdown=False):
                         if self.__is_dir_empty(dirnames) and self.__is_files_empty(filenames):
                             self.log_info(
-                                f"Deleting empty {utils.get_tag("folder", dirpath)}"
+                                f"Deleting empty {utils.get_tag("folder", utils.get_standout_text(dirpath))}"
                             )
                             shutil.rmtree(dirpath, ignore_errors=True)
                             keep_running = True

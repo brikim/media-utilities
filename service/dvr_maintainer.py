@@ -211,7 +211,7 @@ class DvrMaintainer(ServiceBase):
                             utils.get_tag_ansi_code(),
                             utils.get_log_ansi_code(),
                             file.age_days,
-                            utils.get_tag("file", file.path)
+                            utils.get_tag("file", utils.get_standout_text(file.path))
                         )
                     )
                     self.__delete_file(file.path)
@@ -239,7 +239,7 @@ class DvrMaintainer(ServiceBase):
                         utils.get_tag_ansi_code(),
                         utils.get_log_ansi_code(),
                         file.age_days,
-                        utils.get_tag("file", file.path)
+                        utils.get_tag("file", utils.get_standout_text(file.path))
                     )
                 )
                 self.__delete_file(file.path)

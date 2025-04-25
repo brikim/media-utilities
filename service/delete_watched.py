@@ -79,8 +79,14 @@ class DeleteWatched(ServiceBase):
         logger: Logger,
         scheduler: BlockingScheduler
     ):
-        super().__init__(ansi_code, "Delete Watched",
-                         config, api_manager, logger, scheduler)
+        super().__init__(
+            ansi_code,
+            "Delete Watched",
+            config,
+            api_manager,
+            logger,
+            scheduler
+        )
 
         self.library_configs: list[LibraryConfigInfo] = []
         self.delete_time_hours: int = 24
@@ -273,9 +279,9 @@ class DeleteWatched(ServiceBase):
         return_deletes: list[DeleteFileInfo] = []
         try:
             if (lib.library_name != ""
-                and lib.library_id != ""
-                and lib.media_path != ""
-                ):
+                    and lib.library_id != ""
+                    and lib.media_path != ""
+                    ):
                 emby_api = self.api_manager.get_emby_api(lib.server_name)
                 jellystat_api = self.api_manager.get_jellystat_api(
                     lib.server_name
@@ -444,7 +450,7 @@ class DeleteWatched(ServiceBase):
                 try:
                     os.remove(media.file_path)
                     self.log_info(
-                        f"{media.user_name} watched on {media.player} deleting {utils.get_tag("file", media.file_path)}"
+                        f"{media.user_name} watched on {media.player} deleting {utils.get_tag("file", utils.get_standout_text(media.file_path))}"
                     )
 
                     # Check if this library needs to be added to the list to notify
