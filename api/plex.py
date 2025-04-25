@@ -1,3 +1,5 @@
+""" The API to the Plex Server """
+
 from logging import Logger
 from typing import Any
 from dataclasses import dataclass, field

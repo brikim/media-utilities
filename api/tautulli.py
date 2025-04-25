@@ -26,10 +26,12 @@ class TautulliHistoryItem:
     id: int
     watched: bool
     date_watched: int
+    playback_percentage: int
 
 
 @dataclass
 class TautulliHistoryItems:
+    """ Class representing an Tautulli History items """
     items: list[TautulliHistoryItem] = field(default_factory=list)
 
 
@@ -200,12 +202,17 @@ class TautulliAPI(ApiBase):
         if "stopped" in item:
             item_watched_date = item["stopped"]
 
+        item_playback_percentage: int = None
+        if "percent_complete" in item:
+            item_playback_percentage = item["percent_complete"]
+
         return TautulliHistoryItem(
             item_name,
             item_full_name,
             item_id,
             item_watched,
-            item_watched_date
+            item_watched_date,
+            item_playback_percentage
         )
 
     def get_watch_history_for_user(self, user_id: int, date_time_for_history: str) -> TautulliHistoryItems:
@@ -217,7 +224,7 @@ class TautulliAPI(ApiBase):
             payload["include_activity"] = 0
             payload["user_id"] = user_id
             payload["after"] = date_time_for_history
-            
+
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 
@@ -243,7 +250,7 @@ class TautulliAPI(ApiBase):
             payload["user_id"] = user_id
             payload["section_id"] = lib_id
             payload["after"] = date_time_for_history
-            
+
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 
@@ -266,7 +273,7 @@ class TautulliAPI(ApiBase):
             # Setup the required payload
             payload = self.__get_payload("get_metadata")
             payload["rating_key"] = key
-            
+
             r = requests.get(self.__get_api_url(), params=payload, timeout=5)
             response = r.json()
 

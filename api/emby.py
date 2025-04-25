@@ -20,6 +20,7 @@ class EmbyItem:
     series_name: str
     season_num: int
     episode_num: int
+    run_time_ticks: int
 
 
 @dataclass
@@ -216,7 +217,11 @@ class EmbyAPI(ApiBase):
                 if "IndexNumber" in main_response:
                     item_episode_num = main_response["IndexNumber"]
 
-                return EmbyItem(item_name, emby_id, item_path, item_type, item_series_name, item_season_num, item_episode_num)
+                item_run_time_ticks: int = None
+                if "RunTimeTicks" in main_response:
+                    item_run_time_ticks = main_response["RunTimeTicks"]
+
+                return EmbyItem(item_name, emby_id, item_path, item_type, item_series_name, item_season_num, item_episode_num, item_run_time_ticks)
             else:
                 self.logger.warning(
                     f"{self.log_header} search_item returned no results {utils.get_tag("item", id)}"
@@ -334,7 +339,13 @@ class EmbyAPI(ApiBase):
 
         return None
 
-    def set_play_state(self, user_id: str, item_id: str, position_ticks: int, played_date: str) -> None:
+    def set_play_state(
+        self,
+        user_id: str,
+        item_id: str,
+        position_ticks: int,
+        played_date: str
+    ) -> bool:
         """ Set the play state of an item """
         try:
             emby_url = f"{self.__get_api_url()}/Users/{user_id}/Items/{item_id}/UserData"
@@ -342,16 +353,20 @@ class EmbyAPI(ApiBase):
                 "PlaybackPositionTicks": position_ticks,
                 "LastPlayedDate": played_date
             }
+
             r = requests.post(
                 emby_url, headers=self.__get_default_header(),
                 params=self.__get_default_payload(),
-                json=data, timeout=5)
+                json=data,
+                timeout=5
+            )
             if r.status_code < 300:
                 return True
         except RequestException as e:
             self.logger.error(
                 f"{self.log_header} set_play_state {utils.get_tag("user", user_id)} {utils.get_tag("item", item_id)} {utils.get_tag("error", e)}"
             )
+        return False
 
     def set_watched_item(self, user_id: str, item_id: str) -> None:
         """ Set an item as watched """

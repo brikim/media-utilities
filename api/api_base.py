@@ -1,3 +1,5 @@
+""" Api Base """
+
 from logging import Logger
 from common.utils import get_log_header
 
@@ -35,7 +37,9 @@ class ApiBase:
         self.logger = logger
         self.invalid_item_id = "0"
         self.invalid_item_type = None
-        self.log_header = get_log_header(ansi_code, f"{module}({self.server_name})")
+        self.log_header = get_log_header(
+            ansi_code, f"{module}({self.server_name})"
+        )
 
     def get_valid(self) -> bool:
         """

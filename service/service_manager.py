@@ -1,3 +1,5 @@
+""" Service Manager """
+
 from logging import Logger
 from apscheduler.schedulers.blocking import BlockingScheduler
 

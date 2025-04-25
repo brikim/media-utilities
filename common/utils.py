@@ -1,3 +1,5 @@
+""" Common Utilities """
+
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -13,7 +15,7 @@ ANSI_CODE_PLEX = f"{ANSI_CODE_START}220{ANSI_CODE_END}"
 ANSI_CODE_TAUTULLI = f"{ANSI_CODE_START}136{ANSI_CODE_END}"
 ANSI_CODE_EMBY = f"{ANSI_CODE_START}77{ANSI_CODE_END}"
 ANSI_CODE_JELLYSTAT = f"{ANSI_CODE_START}63{ANSI_CODE_END}"
-
+ANSI_CODE_STANDOUT = f"{ANSI_CODE_START}159{ANSI_CODE_END}"
 
 def get_log_ansi_code() -> str:
     """Get assigned log ANSI code."""
@@ -46,34 +48,46 @@ def get_jellystat_ansi_code() -> str:
 
 
 def get_log_header(module_ansi_code: str, module: str) -> str:
+    """ Get a log header formatted string """
     return f"{module_ansi_code}{module}{get_log_ansi_code()}:"
 
 
 def get_tag(tag_name: str, tag_value) -> str:
+    """ Get a tag formatted string """
     return f"{get_tag_ansi_code()}{tag_name}={get_log_ansi_code()}{tag_value}"
 
 
 def get_formatted_plex() -> str:
+    """ Get an ANSI code formatted Plex string """
     return f"{get_plex_ansi_code()}Plex{get_log_ansi_code()}"
 
 
 def get_formatted_tautulli() -> str:
+    """ Get an ANSI code formatted Tautulli string """
     return f"{get_tautulli_ansi_code()}Tautulli{get_log_ansi_code()}"
 
 
 def get_formatted_emby() -> str:
+    """ Get an ANSI code formatted Emby string """
     return f"{get_emby_ansi_code()}Emby{get_log_ansi_code()}"
 
 
 def get_formatted_jellystat() -> str:
+    """ Get an ANSI code formatted Jellystat string """
     return f"{get_jellystat_ansi_code()}Jellystat{get_log_ansi_code()}"
 
 
+def get_standout_text(text: str) -> str:
+    """ Get an ANSI code formatted standout text string """
+    return f"{ANSI_CODE_STANDOUT}{text}{get_log_ansi_code()}"
+    
 def get_datetime_for_history(deltaDays: float) -> datetime:
+    """ From days get a date and time for plex history """
     return datetime.now() - timedelta(deltaDays)
 
 
 def get_datetime_for_history_plex_string(deltaDays: float) -> str:
+    """ From days get a date and time for plex history """
     return get_datetime_for_history(deltaDays).strftime("%Y-%m-%d")
 
 
@@ -115,7 +129,7 @@ def get_cron_from_string(
 
 
 def remove_ansi_code_from_text(text: str) -> str:
-    """Removes ANSI escape codes from a string."""
+    """ Removes ANSI escape codes from a string """
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     return ansi_escape.sub('', text)
 
@@ -127,3 +141,8 @@ def build_target_string(current_target: str, new_target: str, extra_info: str) -
     if not current_target:
         return f"{new_target}:{extra_info}" if extra_info else new_target
     return f"{current_target},{new_target}:{extra_info}" if extra_info else f"{current_target},{new_target}"
+
+def convert_epoch_time_to_emby_time_string(epoch_time: int) -> str:
+    """ Convert an epoch time to a compatible Emby time string """
+    date_time: datetime = datetime.fromtimestamp(epoch_time)
+    return f"{date_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23]}Z"

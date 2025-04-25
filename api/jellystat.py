@@ -25,6 +25,7 @@ class JellystatHistoryItem:
 
 @dataclass
 class JellystatHistoryItems:
+    """ Class representing an Jellystat History items """
     items: list[JellystatHistoryItem] = field(default_factory=list)
 
 
