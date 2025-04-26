@@ -197,7 +197,7 @@ class DvrMaintainer(ServiceBase):
         file_info = self.__get_files_in_path(path)
         if len(file_info) > keep_last:
             self.log_info(
-                f"KEEP_LAST_{keep_last} {utils.get_tag("episodes", len(file_info))} {utils.get_tag("path", path)}"
+                f"KEEP_LAST_{keep_last} {utils.get_tag("episodes", len(file_info))} {utils.get_tag("path", utils.get_standout_text(utils.get_short_path(path)))}"
             )
             try:
                 sorted_file_info = sorted(
@@ -239,7 +239,7 @@ class DvrMaintainer(ServiceBase):
                         utils.get_tag_ansi_code(),
                         utils.get_log_ansi_code(),
                         file.age_days,
-                        utils.get_tag("file", utils.get_standout_text(file.path))
+                        utils.get_tag("file", utils.get_standout_text(utils.get_short_path(file.path)))
                     )
                 )
                 self.__delete_file(file.path)

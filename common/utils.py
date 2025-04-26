@@ -17,6 +17,7 @@ ANSI_CODE_EMBY = f"{ANSI_CODE_START}77{ANSI_CODE_END}"
 ANSI_CODE_JELLYSTAT = f"{ANSI_CODE_START}63{ANSI_CODE_END}"
 ANSI_CODE_STANDOUT = f"{ANSI_CODE_START}159{ANSI_CODE_END}"
 
+
 def get_log_ansi_code() -> str:
     """Get assigned log ANSI code."""
     return ANSI_CODE_LOG
@@ -80,7 +81,8 @@ def get_formatted_jellystat() -> str:
 def get_standout_text(text: str) -> str:
     """ Get an ANSI code formatted standout text string """
     return f"{ANSI_CODE_STANDOUT}{text}{get_log_ansi_code()}"
-    
+
+
 def get_datetime_for_history(deltaDays: float) -> datetime:
     """ From days get a date and time for plex history """
     return datetime.now() - timedelta(deltaDays)
@@ -142,7 +144,24 @@ def build_target_string(current_target: str, new_target: str, extra_info: str) -
         return f"{new_target}:{extra_info}" if extra_info else new_target
     return f"{current_target},{new_target}:{extra_info}" if extra_info else f"{current_target},{new_target}"
 
+
 def convert_epoch_time_to_emby_time_string(epoch_time: int) -> str:
     """ Convert an epoch time to a compatible Emby time string """
     date_time: datetime = datetime.fromtimestamp(epoch_time)
     return f"{date_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23]}Z"
+
+
+def get_short_path(path: str) -> str:
+    """ Get the folder name from the path """
+    last_index = path.rfind("/")
+    if last_index != -1:
+        short_path = path[last_index + 1:]
+
+        # Check if Season is in the folder name and the length is less then Season ## as an example
+        if short_path.find("Season") != -1 and len(short_path) < 10:
+            season_last_index = path.rfind("/", 0, last_index)
+            if season_last_index != -1:
+                return path[season_last_index + 1:]
+        else:
+            return short_path
+    return path

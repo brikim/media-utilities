@@ -395,7 +395,7 @@ class MediaServerSync(ServiceBase):
                 return_target_name = utils.build_target_string(
                     target_name,
                     f"{utils.get_formatted_emby()}({sync_emby_user.server_name})",
-                    sync_emby_user.user_name
+                    ""
                 )
 
         return return_target_name
