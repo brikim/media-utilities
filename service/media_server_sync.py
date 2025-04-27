@@ -1,13 +1,14 @@
 """
 Media Server Synchronize Service
-    Synchronize watch and play state between media servers. 
-    Uses Plex with Tautulli and Emby with Jellystat
+
+Synchronize watch and play state between media servers.
+Uses Plex with Tautulli and Emby with Jellystat
 """
 
 from datetime import datetime
 from dataclasses import dataclass, field
 from logging import Logger
-from typing import Any, List
+from typing import List
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common.types import UserInfo, UserEmbyInfo, UserPlexInfo
@@ -51,7 +52,7 @@ class MediaServerSync(ServiceBase):
         self,
         ansi_code: str,
         api_manager: ApiManager,
-        config: Any,
+        config: dict,
         logger: Logger,
         scheduler: BlockingScheduler
     ):
@@ -71,54 +72,20 @@ class MediaServerSync(ServiceBase):
             new_config_user = ConfigUserInfo()
 
             if "plex" in user:
-                for plex_config in user["plex"]:
-                    if "server" in plex_config and "user_name" in plex_config:
-                        can_sync = "can_sync" in plex_config and plex_config["can_sync"] == "True"
-                        plex_api_valid = self.api_manager.get_plex_api(
-                            plex_config["server"]) is not None
-                        tautulli_api_valid = self.api_manager.get_tautulli_api(
-                            plex_config["server"]) is not None
-                        if plex_api_valid and tautulli_api_valid:
-                            new_config_user.plex_user_list.append(
-                                ConfigPlexUser(
-                                    plex_config["server"],
-                                    plex_config["user_name"],
-                                    can_sync
-                                )
-                            )
-                        else:
-                            if not plex_api_valid:
-                                self.log_warning(
-                                    f"No {utils.get_formatted_plex()} server found for {plex_config['server']} ... Skipping {utils.get_tag('user', plex_config['user_name'])}"
-                                )
-                            if not tautulli_api_valid:
-                                self.log_warning(
-                                    f"No {utils.get_formatted_tautulli()} server found for {plex_config['server']} ... Skipping {utils.get_tag('user', plex_config['user_name'])}"
-                                )
+                for plex_user in user["plex"]:
+                    plex_user_config = self.__read_plex_config_user(plex_user)
+                    if plex_user_config is not None:
+                        new_config_user.plex_user_list.append(
+                            plex_user_config
+                        )
 
             if "emby" in user:
-                for emby_config in user["emby"]:
-                    if "server" in emby_config and "user_name" in emby_config:
-                        emby_api_valid = self.api_manager.get_emby_api(
-                            emby_config["server"]) is not None
-                        jellystat_api_valid = self.api_manager.get_jellystat_api(
-                            emby_config["server"]) is not None
-                        if emby_api_valid and jellystat_api_valid:
-                            new_config_user.emby_user_list.append(
-                                ConfigEmbyUser(
-                                    emby_config["server"],
-                                    emby_config["user_name"]
-                                )
-                            )
-                        else:
-                            if not emby_api_valid:
-                                self.log_warning(
-                                    f"No {utils.get_formatted_emby()} server found for {emby_config['server']} ... Skipping {utils.get_tag('user', emby_config['user_name'])}"
-                                )
-                            if not jellystat_api_valid:
-                                self.log_warning(
-                                    f"No {utils.get_formatted_jellystat()} server found for {emby_config['server']} ... Skipping {utils.get_tag('user', emby_config['user_name'])}"
-                                )
+                for emby_user in user["emby"]:
+                    emby_user_config = self.__read_emby_config_user(emby_user)
+                    if emby_user_config is not None:
+                        new_config_user.emby_user_list.append(
+                            emby_user_config
+                        )
 
             if (len(new_config_user.plex_user_list) + len(new_config_user.emby_user_list)) > 1:
                 self.config_user_list.append(new_config_user)
@@ -126,6 +93,65 @@ class MediaServerSync(ServiceBase):
                 self.log_warning(
                     "Only 1 user found in user group must have at least 2 to sync"
                 )
+
+    def __read_plex_config_user(self, user: dict) -> ConfigPlexUser:
+        if "server" in user and "user_name" in user:
+            can_sync = "can_sync" in user and user["can_sync"] == "True"
+
+            plex_api = self.api_manager.get_plex_api(user["server"])
+            plex_api_valid = plex_api is not None
+
+            tautulli_api = self.api_manager.get_tautulli_api(user["server"])
+            tautulli_api_valid = tautulli_api is not None
+
+            if plex_api_valid and tautulli_api_valid:
+                return ConfigPlexUser(
+                    user["server"],
+                    user["user_name"],
+                    can_sync
+                )
+            else:
+                if not plex_api_valid:
+                    self.log_warning(
+                        f"No {utils.get_formatted_plex()} server found for "
+                        f"{user['server']} ... "
+                        f"Skipping {utils.get_tag('user', user['user_name'])}"
+                    )
+                if not tautulli_api_valid:
+                    self.log_warning(
+                        f"No {utils.get_formatted_tautulli()} server found for "
+                        f"{user['server']} ... "
+                        f"Skipping {utils.get_tag('user', user['user_name'])}"
+                    )
+        return None
+
+    def __read_emby_config_user(self, user: dict) -> ConfigEmbyUser:
+        if "server" in user and "user_name" in user:
+            emby_api = self.api_manager.get_emby_api(user["server"])
+            emby_api_valid = emby_api is not None
+
+            js_api = self.api_manager.get_jellystat_api(user["server"])
+            js_api_valid = js_api is not None
+
+            if emby_api_valid and js_api_valid:
+                return ConfigEmbyUser(
+                    user["server"],
+                    user["user_name"]
+                )
+            else:
+                if not emby_api_valid:
+                    self.log_warning(
+                        f"No {utils.get_formatted_emby()} server found for "
+                        f"{user['server']} ... "
+                        f"Skipping {utils.get_tag('user', user['user_name'])}"
+                    )
+                if not js_api_valid:
+                    self.log_warning(
+                        f"No {utils.get_formatted_jellystat()} server found for "
+                        f"{user['server']} ... "
+                        f"Skipping {utils.get_tag('user', user['user_name'])}"
+                    )
+        return None
 
     def __get_user_data(self) -> List[UserInfo]:
         """ Get User Data from the servers based on the configuration """
@@ -166,19 +192,20 @@ class MediaServerSync(ServiceBase):
                         )
                     else:
                         self.log_warning(
-                            f"No {utils.get_formatted_plex()}({config_plex_user.server_name}) user found for {config_plex_user.user_name} ... Skipping User"
+                            f"No {utils.get_formatted_plex()}({config_plex_user.server_name}) "
+                            f"user found for {config_plex_user.user_name} ... Skipping User"
                         )
 
             for config_emby_user in config_user.emby_user_list:
                 emby_api = self.api_manager.get_emby_api(
                     config_emby_user.server_name)
-                jellystat_api = self.api_manager.get_jellystat_api(
+                js_api = self.api_manager.get_jellystat_api(
                     config_emby_user.server_name)
                 if (
                     emby_api is not None
                     and emby_api.get_valid()
-                    and jellystat_api is not None
-                    and jellystat_api.get_valid()
+                    and js_api is not None
+                    and js_api.get_valid()
                 ):
                     emby_user_id = emby_api.get_user_id(
                         config_emby_user.user_name)
@@ -192,7 +219,8 @@ class MediaServerSync(ServiceBase):
                         )
                     else:
                         self.log_warning(
-                            f"No {utils.get_formatted_emby()}({config_emby_user.server_name}) user found for {config_emby_user.user_name} ... Skipping User"
+                            f"No {utils.get_formatted_emby()}({config_emby_user.server_name}) "
+                            f"user found for {config_emby_user.user_name} ... Skipping User"
                         )
 
             if (len(new_user_info.plex_users) + len(new_user_info.emby_users)) > 1:
@@ -209,7 +237,12 @@ class MediaServerSync(ServiceBase):
         """ Set the state of an Emby item for a user as watched """
         emby_api.set_watched_item(user.user_id, item_id)
 
-    def __get_emby_path_from_plex_path(self, plex_api: PlexAPI, emby_api: EmbyAPI, plex_path: str) -> str:
+    def __get_emby_path_from_plex_path(
+        self,
+        plex_api: PlexAPI,
+        emby_api: EmbyAPI,
+        plex_path: str
+    ) -> str:
         """ Get the Emby path from the Plex path """
         return plex_path.replace(
             plex_api.get_media_path(),
@@ -217,7 +250,12 @@ class MediaServerSync(ServiceBase):
             1
         )
 
-    def __get_plex_path_from_emby_path(self, emby_api: EmbyAPI, plex_api: PlexAPI, emby_path: str) -> str:
+    def __get_plex_path_from_emby_path(
+        self,
+        emby_api: EmbyAPI,
+        plex_api: PlexAPI,
+        emby_path: str
+    ) -> str:
         """ Get the Plex path from the Emby path """
         return emby_path.replace(
             emby_api.get_media_path(),
@@ -225,7 +263,12 @@ class MediaServerSync(ServiceBase):
             1
         )
 
-    def __get_emby_item_id_from_plex_item(self, plex_api: PlexAPI, emby_api: EmbyAPI, tautulli_item: TautulliHistoryItem) -> str:
+    def __get_emby_item_id_from_plex_item(
+        self,
+        plex_api: PlexAPI,
+        emby_api: EmbyAPI,
+        tautulli_item: TautulliHistoryItem
+    ) -> str:
         """ Get the Emby item id from a plex item"""
         plex_path = plex_api.get_item_path(tautulli_item.id)
         if plex_path is not plex_api.get_invalid_type() and plex_path:
@@ -251,18 +294,18 @@ class MediaServerSync(ServiceBase):
 
         sync_emby_api = self.api_manager.get_emby_api(
             sync_emby_user.server_name)
-        sync_emby_item_id = self.__get_emby_item_id_from_plex_item(
+        sync_item_id = self.__get_emby_item_id_from_plex_item(
             plex_api, sync_emby_api, tautulli_item)
 
         # If the item id is valid and the user has not already watched the item
-        if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
+        if sync_item_id != sync_emby_api.get_invalid_item_id():
             emby_watched_status = sync_emby_api.get_watched_status(
-                sync_emby_user.user_id, sync_emby_item_id)
+                sync_emby_user.user_id, sync_item_id)
             if emby_watched_status is not None and not emby_watched_status:
                 self.__set_emby_watch_state(
                     sync_emby_api,
                     sync_emby_user,
-                    sync_emby_item_id
+                    sync_item_id
                 )
 
                 return_target = utils.build_target_string(
@@ -283,7 +326,9 @@ class MediaServerSync(ServiceBase):
     ):
         """ Log a watch state update """
         self.log_info(
-            f"{play_server_type}({play_server}):{play_user_name} watched {utils.get_standout_text(played_item_name)} sync {target_name} watch state"
+            f"{play_server_type}({play_server}):{play_user_name} "
+            f"watched {utils.get_standout_text(played_item_name)} "
+            f"sync {target_name} watch state"
         )
 
     def __log_play_state_update(
@@ -297,7 +342,9 @@ class MediaServerSync(ServiceBase):
     ):
         """ Log a play state update """
         self.log_info(
-            f"{play_server_type}({play_server}):{play_user_name} played {percentage}% of {utils.get_standout_text(played_item_name)} sync {target_name} play state"
+            f"{play_server_type}({play_server}):{play_user_name} "
+            f"played {percentage}% of {utils.get_standout_text(played_item_name)} "
+            f"sync {target_name} play state"
         )
 
     def __sync_emby_with_plex_watched_state(
@@ -364,30 +411,35 @@ class MediaServerSync(ServiceBase):
             sync_emby_user.server_name
         )
 
-        sync_emby_item_id = self.__get_emby_item_id_from_plex_item(
+        sync_item_id = self.__get_emby_item_id_from_plex_item(
             plex_api, sync_emby_api, tautulli_item
         )
 
         # If the item id is valid and the user has not already watched the item
-        if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
+        if sync_item_id != sync_emby_api.get_invalid_item_id():
             sync_user_play_state = sync_emby_api.get_user_play_state(
-                sync_emby_user.user_id, sync_emby_item_id
+                sync_emby_user.user_id, sync_item_id
             )
-            emby_item = sync_emby_api.search_item(sync_emby_item_id)
+            emby_item = sync_emby_api.search_item(sync_item_id)
             if (
                 sync_user_play_state is not None
                 and emby_item is not None
-                and tautulli_item.playback_percentage != round(sync_user_play_state.playback_percentage)
+                and (
+                    tautulli_item.playback_percentage
+                    != round(sync_user_play_state.state.percentage)
+                )
             ):
                 # Get the play location ticks
-                emby_tick_location: int = int(emby_item.run_time_ticks * (
-                    tautulli_item.playback_percentage / 100
-                ))
+                emby_tick_location: int = int(
+                    emby_item.run_time_ticks * (
+                        tautulli_item.playback_percentage / 100
+                    )
+                )
 
                 # Set the emby play state for this user
                 sync_emby_api.set_play_state(
                     sync_emby_user.user_id,
-                    sync_emby_item_id,
+                    sync_item_id,
                     emby_tick_location,
                     utils.convert_epoch_time_to_emby_time_string(
                         tautulli_item.date_watched
@@ -452,7 +504,9 @@ class MediaServerSync(ServiceBase):
         user: UserInfo,
         date_time_for_history: str
     ):
-        """ For a specific plex user find watched items and sync corresponding emby users watch state """
+        """
+        For a specific plex user find watched items and sync corresponding emby users watch state
+        """
         plex_api = self.api_manager.get_plex_api(current_user.server_name)
         tautulli_api = self.api_manager.get_tautulli_api(
             current_user.server_name)
@@ -487,7 +541,7 @@ class MediaServerSync(ServiceBase):
         """ From an Emby show item sync a Plex user to watched state """
         plex_api = self.api_manager.get_plex_api(user.server_name)
         cleaned_show_name = utils.remove_year_from_name(
-            emby_episode_item.series_name
+            emby_episode_item.series.name
         ).lower()
         plex_show_path = self.__get_plex_path_from_emby_path(
             emby_api, plex_api, emby_series_path
@@ -498,8 +552,8 @@ class MediaServerSync(ServiceBase):
 
         return plex_api.set_episode_watched(
             cleaned_show_name,
-            emby_episode_item.season_num,
-            emby_episode_item.episode_num,
+            emby_episode_item.series.season_num,
+            emby_episode_item.series.episode_num,
             plex_show_path,
             plex_episode_location
         )
@@ -521,19 +575,19 @@ class MediaServerSync(ServiceBase):
     def __sync_plex_with_emby_watched_state(
         self,
         emby_api: EmbyAPI,
-        jellystat_item: JellystatHistoryItem,
+        js_item: JellystatHistoryItem,
         plex_user: UserPlexInfo,
         target_name: str
     ) -> str:
         """ For an Emby watched item sync a Plex user to watched state """
         return_target_name: str = ""
 
-        if jellystat_item.series_name:
+        if js_item.series_name:
             emby_series_item = emby_api.search_item(
-                jellystat_item.id
+                js_item.id
             )
             emby_episode_item = emby_api.search_item(
-                jellystat_item.episode_id
+                js_item.episode_id
             )
 
             if emby_series_item is not None and emby_episode_item is not None:
@@ -550,11 +604,11 @@ class MediaServerSync(ServiceBase):
                     )
         else:
             emby_item = emby_api.search_item(
-                jellystat_item.id
+                js_item.id
             )
             if (
                 emby_item is not None
-                and emby_item.type == emby_api.get_media_type_movie_name()
+                and emby_item.type == emby_api.get_media_type_movie()
             ):
                 if self.__set_plex_movie_watched(emby_api, emby_item, plex_user):
                     return_target_name = utils.build_target_string(
@@ -568,7 +622,7 @@ class MediaServerSync(ServiceBase):
     def __sync_emby_with_emby_watched_state(
         self,
         emby_api: EmbyAPI,
-        jellystat_item: JellystatHistoryItem,
+        js_item: JellystatHistoryItem,
         sync_emby_user: UserEmbyInfo,
         target_name: str
     ) -> str:
@@ -576,13 +630,13 @@ class MediaServerSync(ServiceBase):
         return_target_name: str = ""
 
         emby_item = emby_api.search_item(
-            jellystat_item.episode_id if jellystat_item.series_name else jellystat_item.id)
+            js_item.episode_id if js_item.series_name else js_item.id)
 
-        if (emby_item is not None):
+        if emby_item is not None:
             sync_emby_api = self.api_manager.get_emby_api(
                 sync_emby_user.server_name
             )
-            sync_emby_item_id = sync_emby_api.get_item_id_from_path(
+            sync_item_id = sync_emby_api.get_item_id_from_path(
                 emby_item.path.replace(
                     emby_api.get_media_path(),
                     sync_emby_api.get_media_path(),
@@ -591,15 +645,15 @@ class MediaServerSync(ServiceBase):
             )
 
             # If the item id is valid and the user has not already watched the item
-            if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
+            if sync_item_id != sync_emby_api.get_invalid_item_id():
                 sync_emby_watched_status = sync_emby_api.get_watched_status(
-                    sync_emby_user.user_id, sync_emby_item_id
+                    sync_emby_user.user_id, sync_item_id
                 )
                 if sync_emby_watched_status is not None and not sync_emby_watched_status:
                     self.__set_emby_watch_state(
                         sync_emby_api,
                         sync_emby_user,
-                        sync_emby_item_id
+                        sync_item_id
                     )
 
                     return_target_name = utils.build_target_string(
@@ -614,7 +668,7 @@ class MediaServerSync(ServiceBase):
         self,
         emby_api: EmbyAPI,
         current_user: UserEmbyInfo,
-        jellystat_item: JellystatHistoryItem,
+        js_item: JellystatHistoryItem,
         user: UserInfo
     ):
         """ Set an Emby user watch state from another emby server item """
@@ -622,17 +676,21 @@ class MediaServerSync(ServiceBase):
 
         for sync_plex_user in user.plex_users:
             target_name = self.__sync_plex_with_emby_watched_state(
-                emby_api, jellystat_item, sync_plex_user, target_name
+                emby_api, js_item, sync_plex_user, target_name
             )
 
         for sync_emby_user in user.emby_users:
             if current_user.server_name != sync_emby_user.server_name:
                 target_name = self.__sync_emby_with_emby_watched_state(
-                    emby_api, jellystat_item, sync_emby_user, target_name
+                    emby_api, js_item, sync_emby_user, target_name
                 )
 
         if target_name:
-            full_title = f"{jellystat_item.series_name} - {jellystat_item.name}" if jellystat_item.series_name else jellystat_item.name
+            full_title = (
+                f"{js_item.series_name} - {js_item.name}"
+                if js_item.series_name else
+                js_item.name
+            )
             self.__log_watch_state_update(
                 utils.get_formatted_emby(),
                 current_user.server_name,
@@ -645,7 +703,7 @@ class MediaServerSync(ServiceBase):
         self,
         emby_api: EmbyAPI,
         current_play_state: EmbyUserPlayState,
-        jellystat_item: JellystatHistoryItem,
+        js_item: JellystatHistoryItem,
         sync_emby_user: UserEmbyInfo,
         target_name: str
     ) -> str:
@@ -656,7 +714,7 @@ class MediaServerSync(ServiceBase):
             sync_emby_user.server_name
         )
 
-        sync_emby_item_id = sync_emby_api.get_item_id_from_path(
+        sync_item_id = sync_emby_api.get_item_id_from_path(
             current_play_state.item_path.replace(
                 emby_api.get_media_path(),
                 sync_emby_api.get_media_path(),
@@ -665,20 +723,20 @@ class MediaServerSync(ServiceBase):
         )
 
         # If the item id is valid and the user has not already watched the item
-        if sync_emby_item_id != sync_emby_api.get_invalid_item_id():
-            sync_user_play_state = sync_emby_api.get_user_play_state(
-                sync_emby_user.user_id, sync_emby_item_id
+        if sync_item_id != sync_emby_api.get_invalid_item_id():
+            sync_play_state = sync_emby_api.get_user_play_state(
+                sync_emby_user.user_id, sync_item_id
             )
             if (
-                sync_user_play_state is not None
-                and not sync_user_play_state.played
-                and current_play_state.playback_position_ticks != sync_user_play_state.playback_position_ticks
+                sync_play_state is not None
+                and not sync_play_state.state.played
+                and (current_play_state.state.ticks != sync_play_state.state.ticks)
             ):
                 sync_emby_api.set_play_state(
                     sync_emby_user.user_id,
-                    sync_emby_item_id,
-                    current_play_state.playback_position_ticks,
-                    jellystat_item.date_watched
+                    sync_item_id,
+                    current_play_state.state.ticks,
+                    js_item.date_watched
                 )
 
                 return_target_name = utils.build_target_string(
@@ -694,7 +752,7 @@ class MediaServerSync(ServiceBase):
         emby_api: EmbyAPI,
         current_user: UserEmbyInfo,
         current_play_state: EmbyUserPlayState,
-        jellystat_item: JellystatHistoryItem,
+        js_item: JellystatHistoryItem,
         emby_user_list: List[UserEmbyInfo]
     ):
         """ Sync a user play state in Emby from another Emby user instance """
@@ -706,18 +764,22 @@ class MediaServerSync(ServiceBase):
                 target_name = self.__sync_emby_with_emby_play_state(
                     emby_api,
                     current_play_state,
-                    jellystat_item,
+                    js_item,
                     sync_emby_user,
                     target_name
                 )
 
         if target_name:
-            full_title: str = f"{jellystat_item.series_name} - {jellystat_item.name}" if jellystat_item.series_name else jellystat_item.name
+            full_title: str = (
+                f"{js_item.series_name} - {js_item.name}"
+                if js_item.series_name else
+                js_item.name
+            )
             self.__log_play_state_update(
                 utils.get_formatted_emby(),
                 current_user.server_name,
                 current_user.user_name,
-                int(current_play_state.playback_percentage),
+                int(current_play_state.state.percentage),
                 full_title,
                 target_name
             )
@@ -725,14 +787,14 @@ class MediaServerSync(ServiceBase):
     def __sync_emby_state(self, current_user: UserEmbyInfo, user: UserInfo):
         """ Sync the state of an Emby user to configured media servers """
         emby_api = self.api_manager.get_emby_api(current_user.server_name)
-        jellystat_api = self.api_manager.get_jellystat_api(
+        js_api = self.api_manager.get_jellystat_api(
             current_user.server_name
         )
-        history_items = jellystat_api.get_user_watch_history(
+        history_items = js_api.get_user_watch_history(
             current_user.user_id
         )
 
-        if (history_items != jellystat_api.get_invalid_type()):
+        if history_items != js_api.get_invalid_type():
             for item in history_items.items:
                 hours_since_play = utils.get_hours_since_play(
                     True,
@@ -748,7 +810,7 @@ class MediaServerSync(ServiceBase):
                         continue
 
                     # Determine if we need to sync watch state or play state
-                    if current_play_state.played:
+                    if current_play_state.state.played:
                         self.__sync_emby_watched_state(
                             emby_api,
                             current_user,

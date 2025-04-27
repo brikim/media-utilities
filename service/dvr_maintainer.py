@@ -1,6 +1,6 @@
 """ 
 DVR Maintainer Service
-    Deletes shows based on age or number of shows within the folder
+Deletes shows based on age or number of shows within the folder
 """
 
 import os
@@ -8,7 +8,7 @@ import glob
 from dataclasses import dataclass, field
 from datetime import datetime
 from logging import Logger
-from typing import Any, List
+from typing import List
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -79,47 +79,19 @@ class DvrMaintainer(ServiceBase):
         for library in config["libraries"]:
             plex_server_list: list[MediaServerInfo] = []
             for plex_server in library["plex"]:
-                if "server" in plex_server and "library_name" in plex_server:
-                    plex_api = self.api_manager.get_plex_api(
-                        plex_server["server"])
-                    if plex_api is not None:
-                        if plex_api.get_valid() and not plex_api.get_library_valid(plex_server["library_name"]):
-                            self.log_warning(
-                                f"No {utils.get_formatted_plex()}({plex_server['server']}) library found for {plex_server['library_name']}"
-                            )
-                        plex_server_list.append(
-                            MediaServerInfo(
-                                plex_server["server"],
-                                plex_server["library_name"],
-                                ""
-                            )
-                        )
-                    else:
-                        self.log_warning(
-                            f"No {utils.get_formatted_plex()} server found for {plex_server['server']} ... Skipping"
-                        )
+                plex_server_info = self.__read_plex_server_info(
+                    plex_server
+                )
+                if plex_server_info is not None:
+                    plex_server_list.append(plex_server_info)
 
             emby_server_list: list[MediaServerInfo] = []
             for emby_server in library["emby"]:
-                if "server" in emby_server and "library_name" in emby_server:
-                    emby_api = self.api_manager.get_emby_api(
-                        emby_server["server"])
-                    if emby_api is not None:
-                        if emby_api.get_valid() and not emby_api.get_library_valid(emby_server["library_name"]):
-                            self.log_warning(
-                                f"No {utils.get_formatted_emby()}({emby_server['server']}) library found for {emby_server['library_name']}"
-                            )
-                        emby_server_list.append(
-                            MediaServerInfo(
-                                emby_server["server"],
-                                emby_server["library_name"],
-                                ""
-                            )
-                        )
-                    else:
-                        self.log_warning(
-                            f"No {utils.get_formatted_emby()} server found for {emby_server['server']} ... Skipping"
-                        )
+                emby_server_info = self.__read_emby_server_info(
+                    emby_server
+                )
+                if emby_server_info is not None:
+                    emby_server_list.append(emby_server_info)
 
             # Create the library config for this library
             library_config = LibraryConfig(
@@ -131,45 +103,9 @@ class DvrMaintainer(ServiceBase):
             current_library_id += 1
 
             for show in library["shows"]:
-                action: str = ""
-                action_value = 0
-                action_value_valid: bool = True
-
-                if "action" in show:
-                    show_action_name: str = show["action"]
-
-                    if show_action_name.find("KEEP_LAST_") != -1:
-                        action = "KEEP_LAST"
-                    elif show_action_name.find("KEEP_LENGTH_DAYS_") != -1:
-                        action = "KEEP_LENGTH_DAYS"
-                    else:
-                        self.log_error(
-                            f"Unknown show action {show_action_name} ... Skipping"
-                        )
-
-                    if action:
-                        action_value_str = show_action_name.replace(
-                            f"{action}_", ""
-                        )
-                        try:
-                            action_value = int(action_value_str)
-                        except (ValueError, TypeError):
-                            self.log_error(
-                                f"{action} action type found but {utils.get_tag("value", action_value_str)} not valid!"
-                            )
-
-                if action and action_value_valid:
-                    library_config.shows.append(
-                        ShowConfig(
-                            show["name"],
-                            action,
-                            action_value
-                        )
-                    )
-                else:
-                    self.log_error(
-                        f"Unknown show action {show_action_name} ... Skipping"
-                    )
+                show_config = self.__read_show_config(show)
+                if show_config is not None:
+                    library_config.shows.append(show_config)
 
             if len(library_config.shows) > 0:
                 self.library_configs.append(library_config)
@@ -179,6 +115,99 @@ class DvrMaintainer(ServiceBase):
                 )
 
             library_number += 1
+
+    def __read_plex_server_info(self, plex_server: dict) -> MediaServerInfo:
+        if "server" in plex_server and "library_name" in plex_server:
+            plex_api = self.api_manager.get_plex_api(plex_server["server"])
+            if plex_api is not None:
+                if (
+                    plex_api.get_valid()
+                    and not plex_api.get_library_valid(plex_server["library_name"])
+                ):
+                    self.log_warning(
+                        f"No {utils.get_formatted_plex()}({plex_server['server']}) "
+                        f"library found for {plex_server['library_name']}"
+                    )
+                return MediaServerInfo(
+                    plex_server["server"],
+                    plex_server["library_name"],
+                    ""
+                )
+
+            self.log_warning(
+                f"No {utils.get_formatted_plex()} server found for "
+                f"{plex_server['server']} ... Skipping"
+            )
+        else:
+            self.log_warning(
+                f"{utils.get_formatted_plex()} config must contain "
+                f"{utils.get_tag("tags", "server & library_name")}"
+            )
+        return None
+
+    def __read_emby_server_info(self, emby_server: dict) -> MediaServerInfo:
+        if "server" in emby_server and "library_name" in emby_server:
+            emby_api = self.api_manager.get_emby_api(emby_server["server"])
+            if emby_api is not None:
+                if (
+                    emby_api.get_valid()
+                    and not emby_api.get_library_valid(emby_server["library_name"])
+                ):
+                    self.log_warning(
+                        f"No {utils.get_formatted_emby()}({emby_server['server']}) "
+                        f"library found for {emby_server['library_name']}"
+                    )
+
+                return MediaServerInfo(
+                    emby_server["server"],
+                    emby_server["library_name"],
+                    ""
+                )
+
+            self.log_warning(
+                f"No {utils.get_formatted_emby()} server found for "
+                f"{emby_server['server']} ... Skipping"
+            )
+        else:
+            self.log_warning(
+                f"{utils.get_formatted_emby()} config must contain "
+                f"{utils.get_tag("tags", "server & library_name")}"
+            )
+        return None
+
+    def __read_show_config(self, show: dict) -> ShowConfig:
+        action: str = ""
+        action_value = 0
+
+        if "action" in show:
+            show_action_name: str = show["action"]
+
+            if show_action_name.find("KEEP_LAST_") != -1:
+                action = "KEEP_LAST"
+            elif show_action_name.find("KEEP_LENGTH_DAYS_") != -1:
+                action = "KEEP_LENGTH_DAYS"
+            else:
+                self.log_error(
+                    f"Unknown show action {show_action_name} ... Skipping"
+                )
+
+            if action:
+                action_value_str = show_action_name.replace(
+                    f"{action}_", ""
+                )
+                try:
+                    action_value = int(action_value_str)
+                    return ShowConfig(
+                        show["name"],
+                        action,
+                        action_value
+                    )
+                except (ValueError, TypeError):
+                    self.log_error(
+                        f"{action} action type found but "
+                        f"{utils.get_tag("value", action_value_str)} not valid!"
+                    )
+        return None
 
     def __get_files_in_path(self, path: str) -> List[FileInfo]:
         file_info: list[FileInfo] = []
@@ -199,7 +228,9 @@ class DvrMaintainer(ServiceBase):
                 os.remove(pathFileName)
             except OSError as e:
                 self.log_error(
-                    f"Problem deleting {utils.get_tag("file", pathFileName)} {utils.get_tag("error", e)}"
+                    f"Problem deleting "
+                    f"{utils.get_tag("file", pathFileName)} "
+                    f"{utils.get_tag("error", e)}"
                 )
 
     def __keep_last_delete(self, path: str, keep_last: int) -> bool:
@@ -207,7 +238,9 @@ class DvrMaintainer(ServiceBase):
         file_info = self.__get_files_in_path(path)
         if len(file_info) > keep_last:
             self.log_info(
-                f"KEEP_LAST_{keep_last} {utils.get_tag("episodes", len(file_info))} {utils.get_tag("path", utils.get_standout_text(utils.get_short_path(path)))}"
+                f"KEEP_LAST_{keep_last} "
+                f"{utils.get_tag("episodes", len(file_info))} "
+                f"{utils.get_tag("path", utils.get_standout_text(utils.get_short_path(path)))}"
             )
 
             sorted_file_info = sorted(
@@ -222,7 +255,8 @@ class DvrMaintainer(ServiceBase):
                     )
                 )
                 self.log_info(
-                    f"KEEP_LAST_{keep_last} deleting oldest {utils.get_tag("age days", int(round(file.age_days)))} {file_tag}"
+                    f"KEEP_LAST_{keep_last} deleting oldest "
+                    f"{utils.get_tag("age days", int(round(file.age_days)))} {file_tag}"
                 )
                 self.__delete_file(file.path)
                 shows_deleted = True
@@ -241,7 +275,8 @@ class DvrMaintainer(ServiceBase):
                 file_tag = utils.get_tag("file", utils.get_standout_text(
                     utils.get_short_path(file.path)))
                 self.log_info(
-                    f"KEEP_DAYS_{keep_days} deleting {utils.get_tag("age days", age_days_str)} {file_tag}"
+                    f"KEEP_DAYS_{keep_days} deleting "
+                    f"{utils.get_tag("age days", age_days_str)} {file_tag}"
                 )
                 self.__delete_file(file.path)
                 shows_deleted = True

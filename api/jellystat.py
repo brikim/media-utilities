@@ -40,7 +40,12 @@ class JellystatAPI(ApiBase):
         logger: Logger
     ):
         super().__init__(
-            server_name, url, api_key, utils.get_jellystat_ansi_code(), self.__module__, logger
+            server_name,
+            url,
+            api_key,
+            utils.get_jellystat_ansi_code(),
+            self.__module__,
+            logger
         )
 
     def get_server_name(self) -> str:
@@ -49,7 +54,11 @@ class JellystatAPI(ApiBase):
 
     def get_connection_error_log(self) -> str:
         """ Log for a jellystat connection error """
-        return f"Could not connect to {utils.get_formatted_jellystat()}:{self.server_name} {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return (
+            f"Could not connect to {utils.get_formatted_jellystat()}:{self.server_name} "
+            f"{utils.get_tag("url", self.url)} "
+            f"{utils.get_tag("api_key", self.api_key)}"
+        )
 
     def get_invalid_type(self) -> Any:
         """ Returns the invalid type for jellystat """
@@ -96,7 +105,9 @@ class JellystatAPI(ApiBase):
                     return lib["Id"]
         except RequestException as e:
             self.logger.error(
-                f"{self.log_header} get_library_id {utils.get_tag("library_id", libName)} {utils.get_tag("error", e)}"
+                f"{self.log_header} get_library_id "
+                f"{utils.get_tag("library_id", libName)} "
+                f"{utils.get_tag("error", e)}"
             )
 
         return self.get_invalid_type()
@@ -106,23 +117,23 @@ class JellystatAPI(ApiBase):
         item_name: str = ""
         if "NowPlayingItemName" in item:
             item_name = item["NowPlayingItemName"]
-            
+
         item_id: str = ""
         if "NowPlayingItemId" in item:
             item_id = item["NowPlayingItemId"]
-        
+
         item_user_name: str = ""
         if "UserName" in item:
             item_user_name = item["UserName"]
-            
+
         item_activity_date: str = ""
         if "ActivityDateInserted" in item:
             item_activity_date = item["ActivityDateInserted"]
-            
+
         item_series_name: str = ""
         if "SeriesName" in item:
             item_series_name = item["SeriesName"]
-            
+
         item_episode_id: str = ""
         if "EpisodeId" in item:
             item_episode_id = item["EpisodeId"]
@@ -162,7 +173,9 @@ class JellystatAPI(ApiBase):
                 return response
         except RequestException as e:
             self.logger.error(
-                f"{self.log_header} get_user_watch_history {utils.get_tag("user_id", user_id)} {utils.get_tag("error", e)}"
+                f"{self.log_header} get_user_watch_history "
+                f"{utils.get_tag("user_id", user_id)} "
+                f"{utils.get_tag("error", e)}"
             )
 
         return self.get_invalid_type()
@@ -181,7 +194,7 @@ class JellystatAPI(ApiBase):
             )
 
             response = r.json()
-            
+
             jellystat_history_items: JellystatHistoryItems = JellystatHistoryItems()
             if "results" in response:
                 for item in response["results"]:
@@ -192,11 +205,13 @@ class JellystatAPI(ApiBase):
                 jellystat_history_items.items.append(
                     self.__get_history_item(response)
                 )
-                
+
             return jellystat_history_items
         except RequestException as e:
             self.logger.error(
-                f"{self.log_header} get_library_history {utils.get_tag("lib_id", library_id)} {utils.get_tag("error", e)}"
+                f"{self.log_header} get_library_history "
+                f"{utils.get_tag("lib_id", library_id)} "
+                f"{utils.get_tag("error", e)}"
             )
 
         return self.get_invalid_type()

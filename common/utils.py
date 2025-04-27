@@ -98,8 +98,11 @@ def get_hours_since_play(
     play_date_time: datetime
 ) -> int:
     """ Get the hours since a play based on a time string """
-    current_date_time = datetime.now(
-        timezone.utc) if use_utc_time else datetime.now()
+    current_date_time = (
+        datetime.now(timezone.utc)
+        if use_utc_time else
+        datetime.now()
+    )
     time_difference = current_date_time - play_date_time
     return (time_difference.days * 24) + (time_difference.seconds / 3600)
 

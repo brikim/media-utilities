@@ -13,7 +13,7 @@ from common import utils
 from common.log_manager import LogManager
 from service.service_manager import ServiceManager
 
-MEDIA_UTILITIES_VERSION: str = "v3.3.3"
+MEDIA_UTILITIES_VERSION: str = "v3.4.0"
 
 log_manager = LogManager(__name__)
 api_manager: ApiManager = None
@@ -40,7 +40,7 @@ if "CONFIG_PATH" in os.environ:
             with open(conf_loc_path_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            log_manager.get_logger().info("Starting Media Utilities %s", MEDIA_UTILITIES_VERSION)
+            log_manager.get_logger().info(f"Starting Media Utilities {MEDIA_UTILITIES_VERSION}")
 
             # Main script run ####################################################
 

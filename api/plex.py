@@ -67,13 +67,17 @@ class PlexAPI(ApiBase):
 
     def get_connection_error_log(self) -> str:
         """ Log for a plex connection error """
-        return f"Could not connect to {utils.get_formatted_plex()}:{self.server_name} server {utils.get_tag("url", self.url)} {utils.get_tag("api_key", self.api_key)}"
+        return (
+            f"Could not connect to {utils.get_formatted_plex()}:{self.server_name} server "
+            f"{utils.get_tag("url", self.url)} "
+            f"{utils.get_tag("api_key", self.api_key)}"
+        )
 
     def get_media_type_show_name(self) -> str:
         """ The plex name for a show """
         return "show"
 
-    def get_media_type_movie_name(self) -> str:
+    def get_media_type_movie(self) -> str:
         """ The plex name for a movie """
         return "movie"
 
@@ -135,7 +139,14 @@ class PlexAPI(ApiBase):
             pass
         return False
 
-    def set_episode_watched(self, show_name: str, season_num: int, episode_num: int, show_location: str, episode_location: str) -> bool:
+    def set_episode_watched(
+        self,
+        show_name: str,
+        season_num: int,
+        episode_num: int,
+        show_location: str,
+        episode_location: str
+    ) -> bool:
         """ Set an episode as watched in plex. Returns if episode was set as watched """
         results = self.__search(
             show_name,
@@ -166,7 +177,7 @@ class PlexAPI(ApiBase):
         """ Set a movie as watched in plex. Returns if movie was set as watched """
         result_items = self.__search(
             movie_name,
-            self.get_media_type_movie_name()
+            self.get_media_type_movie()
         )
 
         for result_item in result_items.items:
@@ -188,7 +199,9 @@ class PlexAPI(ApiBase):
             library.update()
         except NotFound as e:
             self.logger.error(
-                f"{self.log_header} set_library_scan {utils.get_tag("library", library_name)} {utils.get_tag("error", e)}"
+                f"{self.log_header} set_library_scan "
+                f"{utils.get_tag("library", library_name)} "
+                f"{utils.get_tag("error", e)}"
             )
 
     def get_library_name_from_path(self, path: str) -> str:
@@ -201,7 +214,8 @@ class PlexAPI(ApiBase):
                     return library.title
 
         self.logger.warning(
-            f"{self.log_header} No library found with {utils.get_tag("path", path)}"
+            f"{self.log_header} No library found with "
+            f"{utils.get_tag("path", path)}"
         )
         return ""
 

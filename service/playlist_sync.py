@@ -324,6 +324,7 @@ class PlaylistSync(ServiceBase):
 
     def init_scheduler_jobs(self):
         if self.cron is not None:
+            self.__sync_playlists()
             self.log_service_enabled()
             self.scheduler.add_job(
                 self.__sync_playlists,
