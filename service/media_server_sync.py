@@ -285,7 +285,7 @@ class MediaServerSync(ServiceBase):
         self.log_info(
             f"{play_server_type}({play_server}):{play_user_name} watched {utils.get_standout_text(played_item_name)} sync {target_name} watch state"
         )
-        
+
     def __log_play_state_update(
         self,
         play_server_type: str,
@@ -299,7 +299,7 @@ class MediaServerSync(ServiceBase):
         self.log_info(
             f"{play_server_type}({play_server}):{play_user_name} played {percentage}% of {utils.get_standout_text(played_item_name)} sync {target_name} play state"
         )
-        
+
     def __sync_emby_with_plex_watched_state(
         self,
         plex_api: PlexAPI,
@@ -383,13 +383,15 @@ class MediaServerSync(ServiceBase):
                 emby_tick_location: int = int(emby_item.run_time_ticks * (
                     tautulli_item.playback_percentage / 100
                 ))
-                
+
                 # Set the emby play state for this user
                 sync_emby_api.set_play_state(
                     sync_emby_user.user_id,
                     sync_emby_item_id,
                     emby_tick_location,
-                    utils.convert_epoch_time_to_emby_time_string(tautulli_item.date_watched)
+                    utils.convert_epoch_time_to_emby_time_string(
+                        tautulli_item.date_watched
+                    )
                 )
 
                 return_target_name = utils.build_target_string(
@@ -399,7 +401,7 @@ class MediaServerSync(ServiceBase):
                 )
 
         return return_target_name
-    
+
     def __sync_emby_with_plex_play_state(
         self,
         plex_api: PlexAPI,
@@ -415,7 +417,7 @@ class MediaServerSync(ServiceBase):
             )
 
         return return_target_name
-    
+
     def __sync_plex_play_state(
         self,
         plex_api: PlexAPI,
@@ -433,7 +435,7 @@ class MediaServerSync(ServiceBase):
             user.emby_users,
             target_name
         )
-        
+
         if target_name:
             self.__log_play_state_update(
                 utils.get_formatted_plex(),
@@ -741,6 +743,10 @@ class MediaServerSync(ServiceBase):
                         current_user.user_id,
                         item.episode_id if item.series_name else item.id
                     )
+
+                    if current_play_state is None:
+                        continue
+
                     # Determine if we need to sync watch state or play state
                     if current_play_state.played:
                         self.__sync_emby_watched_state(

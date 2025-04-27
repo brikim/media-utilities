@@ -276,31 +276,42 @@ class EmbyAPI(ApiBase):
                 response = r.json()
                 if response["TotalRecordCount"] > 0:
                     item = response["Items"][0]
+
+                    # Don't process TV Channels
+                    if "Type" in item and item["Type"] == "TvChannel":
+                        return None
+
                     if "UserData" in item:
+                        user_data = item["UserData"]
+
+                        item_path: str = ""
+                        if "Path" in item:
+                            item_path = item["Path"]
+
                         played_percentage: float = 0.0
-                        if "PlayedPercentage" in item["UserData"]:
-                            played_percentage = item["UserData"]["PlayedPercentage"]
+                        if "PlayedPercentage" in user_data:
+                            played_percentage = user_data["PlayedPercentage"]
 
                         playback_position_ticks: int = 0
-                        if "PlaybackPositionTicks" in item["UserData"]:
-                            playback_position_ticks = item["UserData"]["PlaybackPositionTicks"]
+                        if "PlaybackPositionTicks" in user_data:
+                            playback_position_ticks = user_data["PlaybackPositionTicks"]
 
                         play_count: int = 0
-                        if "PlayCount" in item["UserData"]:
-                            play_count = item["UserData"]["PlayCount"]
+                        if "PlayCount" in user_data:
+                            play_count = user_data["PlayCount"]
 
                         is_favorite: bool = False
-                        if "IsFavorite" in item["UserData"]:
-                            is_favorite = item["UserData"]["IsFavorite"]
+                        if "IsFavorite" in user_data:
+                            is_favorite = user_data["IsFavorite"]
 
                         played: bool = False
-                        if "Played" in item["UserData"]:
-                            played = item["UserData"]["Played"]
+                        if "Played" in user_data:
+                            played = user_data["Played"]
 
                         return EmbyUserPlayState(
                             user_id,
                             item_id,
-                            item["Path"],
+                            item_path,
                             played_percentage,
                             playback_position_ticks,
                             play_count,
