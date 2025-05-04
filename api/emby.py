@@ -1,6 +1,5 @@
 """ The API to the Emby Media Server """
 
-from logging import Logger
 from dataclasses import dataclass, field
 
 import requests
@@ -8,6 +7,7 @@ from requests.exceptions import RequestException
 
 from api.api_base import ApiBase
 from common import utils
+from common.log_manager import LogManager
 
 
 @dataclass
@@ -79,19 +79,19 @@ class EmbyAPI(ApiBase):
         url: str,
         api_key: str,
         media_path: str,
-        logger: Logger
+        log_manager: LogManager
     ):
         """
-        Initializes the EmbyAPI with the server URL, API key, and logger.
+        Initializes the EmbyAPI with the server URL, API key, and LogManager.
 
         Args:
             server_name (str): The name of this emby server
             url (str): The base URL of the Emby Media Server.
             api_key (str): The API key for authenticating with the Emby server.
-            logger (Logger): The logger instance for logging messages.
+            log_manager (LogManager): The LogManager instance for logging messages.
         """
         super().__init__(
-            server_name, url, api_key, utils.get_emby_ansi_code(), self.__module__, logger
+            server_name, url, api_key, utils.get_emby_ansi_code(), self.__module__, log_manager
         )
 
         self.media_path = media_path
@@ -158,7 +158,7 @@ class EmbyAPI(ApiBase):
             response = r.json()
             return response["ServerName"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_name {utils.get_tag("error", e)}"
             )
 
@@ -178,13 +178,13 @@ class EmbyAPI(ApiBase):
                 if item["Name"] == user_name:
                     return item["Id"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_user_id "
                 f"{utils.get_tag("user", user_name)} "
                 f"{utils.get_tag("error", e)}"
             )
 
-        self.logger.warning(
+        self.log_manager.log_warning(
             f"{self.log_header} get_user_id no user found {utils.get_tag("user", user_name)}"
         )
         return self.get_invalid_item_id()
@@ -206,7 +206,7 @@ class EmbyAPI(ApiBase):
             response_length = len(response)
             if response_length > 0:
                 if response_length > 1:
-                    self.logger.warning(
+                    self.log_manager.log_warning(
                         f"{self.log_header} "
                         f"search_item returned multiple items "
                         f"{utils.get_tag("item", id)}"
@@ -255,11 +255,11 @@ class EmbyAPI(ApiBase):
                     item_run_time_ticks
                 )
             else:
-                self.logger.warning(
+                self.log_manager.log_warning(
                     f"{self.log_header} search_item returned no results {utils.get_tag("item", id)}"
                 )
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} search_item "
                 f"{utils.get_tag("item", id)} "
                 f"{utils.get_tag("error", e)}"
@@ -287,7 +287,7 @@ class EmbyAPI(ApiBase):
                 return response["Items"][0]["Id"]
 
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_item_id_from_path "
                 f"{utils.get_tag("path", path)} "
                 f"{utils.get_tag("error", e)}"
@@ -309,7 +309,7 @@ class EmbyAPI(ApiBase):
                 timeout=5
             )
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_user_play_state "
                 f"{utils.get_tag("user_id", user_id)} "
                 f"{utils.get_tag("item_id", item_id)} "
@@ -390,7 +390,7 @@ class EmbyAPI(ApiBase):
             if r.status_code < 300:
                 return r.json()["TotalRecordCount"] > 0
             else:
-                self.logger.error(
+                self.log_manager.log_error(
                     f"{self.log_header} get_watched_status api response error "
                     f"{utils.get_tag("code", r.status_code)} "
                     f"{utils.get_tag("user", user_id)} "
@@ -398,7 +398,7 @@ class EmbyAPI(ApiBase):
                     f"{utils.get_tag("error", r.reason)}"
                 )
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_watched_status failed for "
                 f"{utils.get_tag("user", user_id)} "
                 f"{utils.get_tag("item", item_id)} "
@@ -431,7 +431,7 @@ class EmbyAPI(ApiBase):
             if r.status_code < 300:
                 return True
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} set_play_state "
                 f"{utils.get_tag("user", user_id)} "
                 f"{utils.get_tag("item", item_id)} "
@@ -447,7 +447,7 @@ class EmbyAPI(ApiBase):
                 emby_url, headers=self.__get_default_header(),
                 params=self.__get_default_payload(), timeout=5)
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} set_watched_item "
                 f"{utils.get_tag("user", user_id)} "
                 f"{utils.get_tag("item", item_id)} "
@@ -469,7 +469,7 @@ class EmbyAPI(ApiBase):
             requests.post(
                 emby_url, headers=self.__get_default_header(), params=payload, timeout=5)
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} set_library_scan "
                 f"{utils.get_tag("library_id", library_id)} "
                 f"{utils.get_tag("error", e)}"
@@ -489,13 +489,13 @@ class EmbyAPI(ApiBase):
                 if library["Name"] == name:
                     return True
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_library_from_name "
                 f"{utils.get_tag("name", name)} "
                 f"{utils.get_tag("error", e)}"
             )
 
-        self.logger.warning(
+        self.log_manager.log_warning(
             f"{self.log_header} get_library_from_name no library found with "
             f"{utils.get_tag("name", name)}"
         )
@@ -540,7 +540,7 @@ class EmbyAPI(ApiBase):
                     return item["Id"]
 
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_playlist_id "
                 f"{utils.get_tag("name", playlist_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -572,7 +572,7 @@ class EmbyAPI(ApiBase):
                 response = r.json()
                 return response["Id"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} create_playlist "
                 f"{utils.get_tag("playlist", playlist_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -604,7 +604,7 @@ class EmbyAPI(ApiBase):
                 return emby_playlist
 
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_playlist_items "
                 f"{utils.get_tag("playlist_id", playlist_id)} "
                 f"{utils.get_tag("error", e)}"
@@ -625,7 +625,7 @@ class EmbyAPI(ApiBase):
             if r.status_code < 300:
                 return True
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} add_playlist_items "
                 f"{utils.get_tag("playlist_id", playlist_id)} "
                 f"{utils.get_tag("item_ids", item_ids)} "
@@ -650,7 +650,7 @@ class EmbyAPI(ApiBase):
             if r.status_code < 300:
                 return True
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} remove_playlist_item "
                 f"{utils.get_tag("playlist_id", playlist_id)} "
                 f"{utils.get_tag("playlist_item_ids", playlist_item_ids)} "
@@ -676,7 +676,7 @@ class EmbyAPI(ApiBase):
             if r.status_code < 300:
                 return True
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} set_move_playlist_item_to_index "
                 f"{utils.get_tag("playlist_id", playlist_id)} "
                 f"{utils.get_tag("playlist_item_id", playlist_item_id)} "

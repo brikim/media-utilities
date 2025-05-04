@@ -1,7 +1,7 @@
 """ Api Manager """
 
-from logging import Logger
 from common import utils
+from common.log_manager import LogManager
 
 from api.emby import EmbyAPI
 from api.jellystat import JellystatAPI
@@ -17,7 +17,7 @@ class ApiManager:
     def __init__(
         self,
         config: dict,
-        logger: Logger
+        log_manager: LogManager
     ):
         """
         Initializes the ApiManager and establishes connections to configured media servers.
@@ -26,7 +26,7 @@ class ApiManager:
         self.tautulli_api_list: list[TautulliAPI] = []
         self.emby_api_list: list[EmbyAPI] = []
         self.jellystat_api_list: list[JellystatAPI] = []
-        self.logger = logger
+        self.log_manager = log_manager
 
         if "plex" in config and "servers" in config["plex"]:
             for server in config["plex"]["servers"]:
@@ -44,7 +44,7 @@ class ApiManager:
                             server["plex_url"],
                             server["plex_api_key"],
                             server["media_path"],
-                            self.logger
+                            self.log_manager
                         )
                     )
                     self.tautulli_api_list.append(
@@ -52,12 +52,12 @@ class ApiManager:
                             server["server_name"],
                             server["tautulli_url"],
                             server["tautulli_api_key"],
-                            self.logger
+                            self.log_manager
                         )
                     )
 
                     if self.plex_api_list[-1].get_valid():
-                        self.logger.info(
+                        self.log_manager.log_info(
                             f"Connected to {utils.get_formatted_plex()}({self.plex_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
@@ -67,12 +67,12 @@ class ApiManager:
                         tag_plex_api = utils.get_tag(
                             "api_key", server["plex_api_key"]
                         )
-                        self.logger.warning(
+                        self.log_manager.log_warning(
                             f"{utils.get_formatted_plex()}({server["server_name"]}) server not available. Is this correct {tag_plex_url} {tag_plex_api}"
                         )
 
                     if self.tautulli_api_list[-1].get_valid():
-                        logger.info(
+                        self.log_manager.log_info(
                             f"Connected to {utils.get_formatted_tautulli()}({self.tautulli_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
@@ -80,12 +80,12 @@ class ApiManager:
                             "url", server["tautulli_url"])
                         tag_tautulli_api = utils.get_tag(
                             "api_key", server["tautulli_api_key"])
-                        logger.warning(
+                        self.log_manager.log_warning(
                             f"{utils.get_formatted_tautulli()}({server["server_name"]}) not available. Is this correct {tag_tautulli_url} {tag_tautulli_api}"
                         )
 
                 else:
-                    self.logger.warning(
+                    self.log_manager.log_warning(
                         f"{utils.get_formatted_plex()}:{utils.get_formatted_tautulli()} configuration error must define server_name, media_path, plex_url, plex_api_key, tautulli_url and tautulli_api_key for a server"
                     )
 
@@ -105,7 +105,7 @@ class ApiManager:
                             server["emby_url"],
                             server["emby_api_key"],
                             server["media_path"],
-                            self.logger
+                            self.log_manager
                         )
                     )
                     self.jellystat_api_list.append(
@@ -113,12 +113,12 @@ class ApiManager:
                             server["server_name"],
                             server["jellystat_url"],
                             server["jellystat_api_key"],
-                            self.logger
+                            self.log_manager
                         )
                     )
 
                     if self.emby_api_list[-1].get_valid():
-                        self.logger.info(
+                        self.log_manager.log_info(
                             f"Connected to {utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_reported_name()}) successfully"
                         )
                     else:
@@ -128,12 +128,12 @@ class ApiManager:
                         tag_emby_api = utils.get_tag(
                             "api_key", server["emby_api_key"]
                         )
-                        self.logger.warning(
+                        self.log_manager.log_warning(
                             f"{utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_name()}) server not available. Is this correct {tag_emby_url} {tag_emby_api}"
                         )
 
                     if self.jellystat_api_list[-1].get_valid():
-                        logger.info(
+                        self.log_manager.log_info(
                             f"Connected to {utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) successfully"
                         )
                     else:
@@ -141,12 +141,12 @@ class ApiManager:
                             "url", server["jellystat_url"])
                         tag_jellystat_api = utils.get_tag(
                             "api_key", server["jellystat_api_key"])
-                        logger.warning(
+                        self.log_manager.log_warning(
                             f"{utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) not available. Is this correct {tag_jellystat_url} {tag_jellystat_api}"
                         )
 
                 else:
-                    self.logger.warning(
+                    self.log_manager.log_warning(
                         f"{utils.get_formatted_emby()}:{utils.get_formatted_jellystat()} configuration error must define server_name, media_path, emby_url, emby_api_key, jellystat_url and jellystat_api_key for a server"
                     )
 

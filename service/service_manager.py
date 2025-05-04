@@ -1,10 +1,10 @@
 """ Service Manager """
 
-from logging import Logger
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from common import utils
 from api.api_manager import ApiManager
+from common.log_manager import LogManager
+from common import utils
 
 from service.service_base import ServiceBase
 from service.delete_watched import DeleteWatched
@@ -23,7 +23,7 @@ class ServiceManager:
         self,
         api_manager: ApiManager,
         config: dict,
-        logger: Logger,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         """ Initializes the Service Manager """
@@ -31,61 +31,81 @@ class ServiceManager:
         # Available Services
         self.services: list[ServiceBase] = []
         self.api_manager = api_manager
-        self.logger = logger
+        self.log_manager = log_manager
         self.scheduler = scheduler
 
         # Create the Media Server Sync Service
-        if "media_server_sync" in config and config["media_server_sync"]["enabled"] == "True":
+        if (
+            "media_server_sync" in config
+            and "enabled" in config["media_server_sync"]
+            and config["media_server_sync"]["enabled"] == "True"
+        ):
             self.services.append(
                 MediaServerSync(
-                    f"{utils.ANSI_CODE_START}45{utils.ANSI_CODE_END}",
+                    utils.get_service_media_server_sync_ansi_code(),
                     api_manager,
                     config["media_server_sync"],
-                    self.logger,
+                    self.log_manager,
                     scheduler
                 )
             )
 
-        if "delete_watched" in config and config["delete_watched"]["enabled"] == "True":
+        if (
+            "delete_watched" in config
+            and "enabled" in config["delete_watched"]
+            and config["delete_watched"]["enabled"] == "True"
+        ):
             self.services.append(
                 DeleteWatched(
-                    f"{utils.ANSI_CODE_START}142{utils.ANSI_CODE_END}",
+                    utils.get_service_delete_watched_ansi_code(),
                     api_manager,
                     config["delete_watched"],
-                    self.logger,
+                    self.log_manager,
                     scheduler
                 )
             )
 
-        if "dvr_maintainer" in config and config["dvr_maintainer"]["enabled"] == "True":
+        if (
+            "dvr_maintainer" in config
+            and "enabled" in config["dvr_maintainer"]
+            and config["dvr_maintainer"]["enabled"] == "True"
+        ):
             self.services.append(
                 DvrMaintainer(
-                    f"{utils.ANSI_CODE_START}210{utils.ANSI_CODE_END}",
+                    utils.get_service_dvr_maintainer_ansi_code(),
                     api_manager,
                     config["dvr_maintainer"],
-                    self.logger,
+                    self.log_manager,
                     scheduler
                 )
             )
 
-        if "folder_cleanup" in config and config["folder_cleanup"]["enabled"] == "True":
+        if (
+            "folder_cleanup" in config
+            and "enabled" in config["folder_cleanup"]
+            and config["folder_cleanup"]["enabled"] == "True"
+        ):
             self.services.append(
                 FolderCleanup(
-                    f"{utils.ANSI_CODE_START}70{utils.ANSI_CODE_END}",
+                    utils.get_service_folder_cleanup_ansi_code(),
                     api_manager,
                     config["folder_cleanup"],
-                    self.logger,
+                    self.log_manager,
                     scheduler
                 )
             )
 
-        if "playlist_sync" in config and config["playlist_sync"]["enabled"] == "True":
+        if (
+            "playlist_sync" in config
+            and "enabled" in config["playlist_sync"]
+            and config["playlist_sync"]["enabled"] == "True"
+        ):
             self.services.append(
                 PlaylistSync(
-                    f"{utils.ANSI_CODE_START}171{utils.ANSI_CODE_END}",
+                    utils.get_service_playlist_sync_ansi_code(),
                     api_manager,
                     config["playlist_sync"],
-                    self.logger,
+                    self.log_manager,
                     scheduler
                 )
             )

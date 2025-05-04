@@ -3,13 +3,13 @@
 import json
 from dataclasses import dataclass, field
 from typing import Any
-from logging import Logger
 
 import requests
 from requests.exceptions import RequestException
 
 from api.api_base import ApiBase
 from common import utils
+from common.log_manager import LogManager
 
 
 @dataclass
@@ -37,7 +37,7 @@ class JellystatAPI(ApiBase):
         server_name: str,
         url: str,
         api_key: str,
-        logger: Logger
+        log_manager: LogManager
     ):
         super().__init__(
             server_name,
@@ -45,7 +45,7 @@ class JellystatAPI(ApiBase):
             api_key,
             utils.get_jellystat_ansi_code(),
             self.__module__,
-            logger
+            log_manager
         )
 
     def get_server_name(self) -> str:
@@ -104,7 +104,7 @@ class JellystatAPI(ApiBase):
                 if "Name" in lib and lib["Name"] == libName and "Id" in lib and lib["Id"]:
                     return lib["Id"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_library_id "
                 f"{utils.get_tag("library_id", libName)} "
                 f"{utils.get_tag("error", e)}"
@@ -172,7 +172,7 @@ class JellystatAPI(ApiBase):
             else:
                 return response
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_user_watch_history "
                 f"{utils.get_tag("user_id", user_id)} "
                 f"{utils.get_tag("error", e)}"
@@ -208,7 +208,7 @@ class JellystatAPI(ApiBase):
 
             return jellystat_history_items
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_library_history "
                 f"{utils.get_tag("lib_id", library_id)} "
                 f"{utils.get_tag("error", e)}"

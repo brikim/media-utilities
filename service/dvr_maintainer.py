@@ -7,13 +7,13 @@ import os
 import glob
 from dataclasses import dataclass, field
 from datetime import datetime
-from logging import Logger
 from typing import List
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from api.api_manager import ApiManager
 from common import utils
+from common.log_manager import LogManager
 from service.service_base import ServiceBase
 
 
@@ -58,7 +58,7 @@ class DvrMaintainer(ServiceBase):
         ansi_code: str,
         api_manager: ApiManager,
         config: dict,
-        logger: Logger,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
@@ -66,7 +66,7 @@ class DvrMaintainer(ServiceBase):
             "DVR Maintainer",
             config,
             api_manager,
-            logger,
+            log_manager,
             scheduler
         )
 

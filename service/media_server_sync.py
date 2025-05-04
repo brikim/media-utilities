@@ -7,10 +7,10 @@ Uses Plex with Tautulli and Emby with Jellystat
 
 from datetime import datetime
 from dataclasses import dataclass, field
-from logging import Logger
 from typing import List
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+from common.log_manager import LogManager
 from common.types import UserInfo, UserEmbyInfo, UserPlexInfo
 from common import utils
 
@@ -53,7 +53,7 @@ class MediaServerSync(ServiceBase):
         ansi_code: str,
         api_manager: ApiManager,
         config: dict,
-        logger: Logger,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         """ Media Server Sync Initializer """
@@ -62,7 +62,7 @@ class MediaServerSync(ServiceBase):
             "Media Server Sync",
             config,
             api_manager,
-            logger,
+            log_manager,
             scheduler
         )
 

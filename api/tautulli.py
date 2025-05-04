@@ -1,6 +1,5 @@
 """ The API to the Tautulli Server """
 
-from logging import Logger
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -9,6 +8,7 @@ from requests.exceptions import RequestException
 
 from api.api_base import ApiBase
 from common import utils
+from common.log_manager import LogManager
 
 
 @dataclass
@@ -43,10 +43,10 @@ class TautulliAPI(ApiBase):
         server_name: str,
         url: str,
         api_key: str,
-        logger: Logger
+        log_manager: LogManager
     ):
         super().__init__(
-            server_name, url, api_key, utils.get_tautulli_ansi_code(), self.__module__, logger
+            server_name, url, api_key, utils.get_tautulli_ansi_code(), self.__module__, log_manager
         )
 
     def __get_api_url(self) -> str:
@@ -109,7 +109,7 @@ class TautulliAPI(ApiBase):
             )
             return r.json()["response"]["data"]["pms_name"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_server_info {utils.get_tag("error", e)}"
             )
         return self.get_invalid_type()
@@ -132,7 +132,7 @@ class TautulliAPI(ApiBase):
                     ):
                         return lib["section_id"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_library_id "
                 f"{utils.get_tag("library", lib_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -159,7 +159,7 @@ class TautulliAPI(ApiBase):
                     ):
                         return user_data["user_id"]
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_user_id "
                 f"{utils.get_tag("user", user_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -194,7 +194,7 @@ class TautulliAPI(ApiBase):
 
                         return TautulliUserInfo(user_id, user_friendly_name)
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_user_info "
                 f"{utils.get_tag("user", user_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -260,7 +260,7 @@ class TautulliAPI(ApiBase):
                         self.__pack_history_item(item)
                     )
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_watch_history_for_user "
                 f"{utils.get_tag("user_id", user_id)} "
                 f"{utils.get_tag("error", e)}"
@@ -298,7 +298,7 @@ class TautulliAPI(ApiBase):
                     )
 
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_watch_history_for_user_and_library "
                 f"{utils.get_tag("user_id", user_id)} "
                 f"{utils.get_tag("library_id", lib_id)} "
@@ -329,7 +329,7 @@ class TautulliAPI(ApiBase):
                     return res_data["media_info"][0]["parts"][0]["file"]
 
         except RequestException as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} get_filename "
                 f"{utils.get_tag("key", key)} "
                 f"{utils.get_tag("error", e)}"

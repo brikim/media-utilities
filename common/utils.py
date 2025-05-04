@@ -1,6 +1,5 @@
 """ Common Utilities """
 
-import logging
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -15,7 +14,13 @@ ANSI_CODE_PLEX = f"{ANSI_CODE_START}220{ANSI_CODE_END}"
 ANSI_CODE_TAUTULLI = f"{ANSI_CODE_START}136{ANSI_CODE_END}"
 ANSI_CODE_EMBY = f"{ANSI_CODE_START}77{ANSI_CODE_END}"
 ANSI_CODE_JELLYSTAT = f"{ANSI_CODE_START}63{ANSI_CODE_END}"
-ANSI_CODE_STANDOUT = f"{ANSI_CODE_START}159{ANSI_CODE_END}"
+ANSI_CODE_STANDOUT = f"{ANSI_CODE_START}158{ANSI_CODE_END}"
+
+ANSI_CODE_SERVICE_DELETE_WATCHED = f"{ANSI_CODE_START}142{ANSI_CODE_END}"
+ANSI_CODE_SERVICE_DVR_MAINTAINER = f"{ANSI_CODE_START}210{ANSI_CODE_END}"
+ANSI_CODE_SERVICE_FOLDER_CLEANUP = f"{ANSI_CODE_START}70{ANSI_CODE_END}"
+ANSI_CODE_SERVICE_MEDIA_SERVER_SYNC = f"{ANSI_CODE_START}45{ANSI_CODE_END}"
+ANSI_CODE_SERVICE_PLAYLIST_SYNC = f"{ANSI_CODE_START}171{ANSI_CODE_END}"
 
 
 def get_log_ansi_code() -> str:
@@ -46,6 +51,31 @@ def get_emby_ansi_code() -> str:
 def get_jellystat_ansi_code() -> str:
     """Get assigned Jellystat ANSI code."""
     return ANSI_CODE_JELLYSTAT
+
+
+def get_service_delete_watched_ansi_code() -> str:
+    """Get assigned Service Delete Watched ANSI code."""
+    return ANSI_CODE_SERVICE_DELETE_WATCHED
+
+
+def get_service_dvr_maintainer_ansi_code() -> str:
+    """Get assigned Service DVR Maintainer ANSI code."""
+    return ANSI_CODE_SERVICE_DVR_MAINTAINER
+
+
+def get_service_folder_cleanup_ansi_code() -> str:
+    """Get assigned Service Folder Cleanup ANSI code."""
+    return ANSI_CODE_SERVICE_FOLDER_CLEANUP
+
+
+def get_service_media_server_sync_ansi_code() -> str:
+    """Get assigned Service Media Server Sync ANSI code."""
+    return ANSI_CODE_SERVICE_MEDIA_SERVER_SYNC
+
+
+def get_service_playlist_sync_ansi_code() -> str:
+    """Get assigned Service Playlist Sync ANSI code."""
+    return ANSI_CODE_SERVICE_PLAYLIST_SYNC
 
 
 def get_log_header(module_ansi_code: str, module: str) -> str:
@@ -83,14 +113,14 @@ def get_standout_text(text: str) -> str:
     return f"{ANSI_CODE_STANDOUT}{text}{get_log_ansi_code()}"
 
 
-def get_datetime_for_history(deltaDays: float) -> datetime:
+def get_datetime_for_history(delta_days: float) -> datetime:
     """ From days get a date and time for plex history """
-    return datetime.now() - timedelta(deltaDays)
+    return datetime.now() - timedelta(delta_days)
 
 
-def get_datetime_for_history_plex_string(deltaDays: float) -> str:
+def get_datetime_for_history_plex_string(delta_days: float) -> str:
     """ From days get a date and time for plex history """
-    return get_datetime_for_history(deltaDays).strftime("%Y-%m-%d")
+    return get_datetime_for_history(delta_days).strftime("%Y-%m-%d")
 
 
 def get_hours_since_play(
@@ -117,19 +147,11 @@ def remove_year_from_name(name: str) -> str:
     return name
 
 
-def get_cron_from_string(
-    cron_string: str,
-    logger: logging,
-    module_name: str
-) -> CronInfo:
+def get_cron_from_string(cron_string: str) -> CronInfo:
     """ Get a CronInfo from a string """
     cron_params = cron_string.split()
     if len(cron_params) >= 2 and len(cron_params) <= 5:
         return CronInfo(cron_params[1], cron_params[0])
-    else:
-        logger.error(
-            f"{module_name}: Invalid Cron Expression {cron_string}"
-        )
     return None
 
 

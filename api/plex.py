@@ -1,6 +1,5 @@
 """ The API to the Plex Server """
 
-from logging import Logger
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -9,6 +8,7 @@ from plexapi.exceptions import BadRequest, NotFound, Unauthorized
 
 from api.api_base import ApiBase
 from common import utils
+from common.log_manager import LogManager
 
 
 @dataclass
@@ -48,10 +48,10 @@ class PlexAPI(ApiBase):
         url: str,
         api_key: str,
         media_path: str,
-        logger: Logger
+        log_manager: LogManager
     ):
         super().__init__(
-            server_name, url, api_key, utils.get_plex_ansi_code(), self.__module__, logger
+            server_name, url, api_key, utils.get_plex_ansi_code(), self.__module__, log_manager
         )
 
         self.plex_server = server.PlexServer(url.rstrip("/"), api_key)
@@ -198,7 +198,7 @@ class PlexAPI(ApiBase):
             library = self.plex_server.library.section(library_name)
             library.update()
         except NotFound as e:
-            self.logger.error(
+            self.log_manager.log_error(
                 f"{self.log_header} set_library_scan "
                 f"{utils.get_tag("library", library_name)} "
                 f"{utils.get_tag("error", e)}"
@@ -213,7 +213,7 @@ class PlexAPI(ApiBase):
                 if location == path:
                     return library.title
 
-        self.logger.warning(
+        self.log_manager.log_warning(
             f"{self.log_header} No library found with "
             f"{utils.get_tag("path", path)}"
         )

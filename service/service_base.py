@@ -1,10 +1,10 @@
 """ Service Base class for all services"""
 
-from logging import Logger
 from typing import Optional
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from common import utils
+from common.log_manager import LogManager
 from common.types import CronInfo
 
 from api.api_manager import ApiManager
@@ -19,33 +19,33 @@ class ServiceBase:
         service_name: str,
         config: dict,
         api_manager: ApiManager,
-        logger: Logger,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         self.api_manager = api_manager
-        self.logger = logger
+        self.log_manager = log_manager
         self.scheduler = scheduler
         self.cron: Optional[CronInfo] = None
         self.log_header = utils.get_log_header(ansi_code, service_name)
 
         if "cron_run_rate" in config:
-            self.cron = utils.get_cron_from_string(
-                config["cron_run_rate"],
-                self.logger,
-                self.__module__
-            )
+            self.cron = utils.get_cron_from_string(config["cron_run_rate"])
+            if self.cron is None:
+                self.log_warning(
+                    f"Invalid cron expression {utils.get_tag("cron_run_rate", config["cron_run_rate"])}"
+                )
 
     def log_info(self, message: str):
         """ Log an info message """
-        self.logger.info(f"{self.log_header} {message}")
+        self.log_manager.log_info(f"{self.log_header} {message}")
 
     def log_warning(self, message: str):
         """ Log a warning message """
-        self.logger.warning(f"{self.log_header} {message}")
+        self.log_manager.log_warning(f"{self.log_header} {message}")
 
     def log_error(self, message: str):
         """ Log an error message """
-        self.logger.error(f"{self.log_header} {message}")
+        self.log_manager.log_error(f"{self.log_header} {message}")
 
     def log_service_enabled(self):
         """ Log that the service is enabled """

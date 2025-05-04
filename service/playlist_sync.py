@@ -5,18 +5,15 @@ Playlist Sync Service
 
 from dataclasses import dataclass, field
 import time
-from typing import Any
 
-from logging import Logger
 from apscheduler.schedulers.blocking import BlockingScheduler
-
-from common import utils
-
-from service.service_base import ServiceBase
 
 from api.api_manager import ApiManager
 from api.plex import PlexAPI, PlexCollection
 from api.emby import EmbyAPI, EmbyPlaylist
+from common import utils
+from common.log_manager import LogManager
+from service.service_base import ServiceBase
 
 
 @dataclass
@@ -42,8 +39,8 @@ class PlaylistSync(ServiceBase):
         self,
         ansi_code: str,
         api_manager: ApiManager,
-        config: Any,
-        logger: Logger,
+        config: dict,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
@@ -51,7 +48,7 @@ class PlaylistSync(ServiceBase):
             "Playlist Sync",
             config,
             api_manager,
-            logger,
+            log_manager,
             scheduler
         )
 

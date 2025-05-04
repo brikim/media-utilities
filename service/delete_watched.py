@@ -5,15 +5,15 @@ Deletes watched shows set up from a config file.
 
 import os
 import math
-from datetime import datetime, timezone
+from datetime import datetime
 from dataclasses import dataclass, field
-from logging import Logger
-from typing import Any, List
+from typing import List
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from api.api_manager import ApiManager
 from common import utils
+from common.log_manager import LogManager
 from service.service_base import ServiceBase
 
 
@@ -84,7 +84,7 @@ class DeleteWatched(ServiceBase):
         ansi_code: str,
         api_manager: ApiManager,
         config: dict,
-        logger: Logger,
+        log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
@@ -92,7 +92,7 @@ class DeleteWatched(ServiceBase):
             "Delete Watched",
             config,
             api_manager,
-            logger,
+            log_manager,
             scheduler
         )
 
@@ -176,11 +176,11 @@ class DeleteWatched(ServiceBase):
 
                 if len(plex_server_config.user_name_list) > 0:
                     return plex_server_config
-                else:
-                    self.log_warning(
-                        f"{utils.get_formatted_plex()}({plex_library["server"]}) "
-                        f"config must contain users"
-                    )
+
+                self.log_warning(
+                    f"{utils.get_formatted_plex()}({plex_library["server"]}) "
+                    f"config must contain users"
+                )
             else:
                 if plex_api is None:
                     self.log_warning(
@@ -229,10 +229,10 @@ class DeleteWatched(ServiceBase):
 
                 if len(emby_server_config.user_name_list) > 0:
                     return emby_server_config
-                else:
-                    self.log_warning(
-                        f"{utils.get_formatted_emby()}({emby_library["server"]}) config must contain users"
-                    )
+
+                self.log_warning(
+                    f"{utils.get_formatted_emby()}({emby_library["server"]}) config must contain users"
+                )
             else:
                 if emby_api is None:
                     self.log_warning(
@@ -258,48 +258,41 @@ class DeleteWatched(ServiceBase):
         utilities_path: str
     ) -> List[DeleteFileInfo]:
         return_deletes: list[DeleteFileInfo] = []
-        try:
-            tautulli_api = self.api_manager.get_tautulli_api(lib.server_name)
-            date_time_string_for_history = utils.get_datetime_for_history_plex_string(
-                self.get_history_days)
-            for user in lib.user_list:
-                if (
-                    user.user_name != ""
-                    and lib.library_id != ""
-                    and lib.media_path != ""
-                ):
-                    watched_items = tautulli_api.get_watch_history_for_user_and_library(
-                        user.user_id_int,
-                        lib.library_id,
-                        date_time_string_for_history
-                    )
-                    for item in watched_items.items:
-                        if item.watched is not None and item.watched:
-                            file_name = tautulli_api.get_filename(item.id)
-                            if len(file_name) > 0:
-                                item_hours_since_play = utils.get_hours_since_play(
-                                    False,
-                                    datetime.fromtimestamp(
-                                        item.date_watched
+        tautulli_api = self.api_manager.get_tautulli_api(lib.server_name)
+        date_time_string_for_history = utils.get_datetime_for_history_plex_string(
+            self.get_history_days)
+        for user in lib.user_list:
+            if (
+                user.user_name != ""
+                and lib.library_id != ""
+                and lib.media_path != ""
+            ):
+                watched_items = tautulli_api.get_watch_history_for_user_and_library(
+                    user.user_id_int,
+                    lib.library_id,
+                    date_time_string_for_history
+                )
+                for item in watched_items.items:
+                    if item.watched is not None and item.watched:
+                        file_name = tautulli_api.get_filename(item.id)
+                        if len(file_name) > 0:
+                            item_hours_since_play = utils.get_hours_since_play(
+                                False,
+                                datetime.fromtimestamp(
+                                    item.date_watched
+                                )
+                            )
+                            if item_hours_since_play >= self.delete_time_hours:
+                                return_deletes.append(
+                                    DeleteFileInfo(
+                                        lib_id,
+                                        file_name.replace(
+                                            lib.media_path,
+                                            utilities_path),
+                                        user.friendly_name,
+                                        utils.get_formatted_plex()
                                     )
                                 )
-                                if item_hours_since_play >= self.delete_time_hours:
-                                    return_deletes.append(
-                                        DeleteFileInfo(
-                                            lib_id,
-                                            file_name.replace(
-                                                lib.media_path,
-                                                utilities_path),
-                                            user.friendly_name,
-                                            utils.get_formatted_plex()
-                                        )
-                                    )
-
-        except Exception as e:
-            self.log_error(
-                f"Find {utils.get_formatted_plex()}({lib.server_name}) watched media "
-                f"{utils.get_tag("error", e)}"
-            )
 
         return return_deletes
 
@@ -310,155 +303,160 @@ class DeleteWatched(ServiceBase):
         utilities_path: str
     ) -> List[DeleteFileInfo]:
         return_deletes: list[DeleteFileInfo] = []
-        try:
-            if (
-                lib.library_name != ""
-                and lib.library_id != ""
-                and lib.media_path != ""
-            ):
-                emby_api = self.api_manager.get_emby_api(lib.server_name)
-                js_api = self.api_manager.get_jellystat_api(lib.server_name)
 
-                watched_items = js_api.get_library_history(
-                    lib.library_id
-                )
+        if (
+            lib.library_name != ""
+            and lib.library_id != ""
+            and lib.media_path != ""
+        ):
+            emby_api = self.api_manager.get_emby_api(lib.server_name)
+            js_api = self.api_manager.get_jellystat_api(lib.server_name)
 
-                for item in watched_items.items:
-                    for user in lib.user_list:
-                        if user.user_name != "" and item.user_name == user.user_name:
-                            item_id = "0"
-                            if item.episode_id:
-                                item_id = item.episode_id
-                            else:
-                                item_id = item.id
-
-                            emby_watched_status = emby_api.get_watched_status(
-                                user.user_id, item_id
-                            )
-                            if emby_watched_status is not None and emby_watched_status:
-                                item_hours_since_play = utils.get_hours_since_play(
-                                    True,
-                                    datetime.fromisoformat(item.date_watched)
-                                )
-
-                                if item_hours_since_play >= self.delete_time_hours:
-                                    emby_item = emby_api.search_item(item_id)
-                                    if emby_item is not None:
-                                        return_deletes.append(
-                                            DeleteFileInfo(
-                                                lib_id,
-                                                emby_item.path.replace(
-                                                    lib.media_path,
-                                                    utilities_path),
-                                                user.user_name,
-                                                utils.get_formatted_emby()
-                                            )
-                                        )
-                            break
-
-        except Exception as e:
-            self.log_error(
-                f"Find {utils.get_formatted_emby()}({lib.server_name}) "
-                f"watched media {utils.get_tag("error", e)}"
+            watched_items = js_api.get_library_history(
+                lib.library_id
             )
 
+            for item in watched_items.items:
+                for user in lib.user_list:
+                    if user.user_name != "" and item.user_name == user.user_name:
+                        item_id = "0"
+                        if item.episode_id:
+                            item_id = item.episode_id
+                        else:
+                            item_id = item.id
+
+                        emby_watched_status = emby_api.get_watched_status(
+                            user.user_id, item_id
+                        )
+                        if emby_watched_status is not None and emby_watched_status:
+                            item_hours_since_play = utils.get_hours_since_play(
+                                True,
+                                datetime.fromisoformat(item.date_watched)
+                            )
+
+                            if item_hours_since_play >= self.delete_time_hours:
+                                emby_item = emby_api.search_item(item_id)
+                                if emby_item is not None:
+                                    return_deletes.append(
+                                        DeleteFileInfo(
+                                            lib_id,
+                                            emby_item.path.replace(
+                                                lib.media_path,
+                                                utilities_path),
+                                            user.user_name,
+                                            utils.get_formatted_emby()
+                                        )
+                                    )
+                        break
+
         return return_deletes
+
+    def __get_plex_libraries(
+        self,
+        library_config: LibraryConfigInfo
+    ) -> List[MediaServerLibraryInfo]:
+        plex_library_list: list[MediaServerLibraryInfo] = []
+        for plex_library_config in library_config.plex_library_list:
+            tautulli_api = self.api_manager.get_tautulli_api(
+                plex_library_config.server_name
+            )
+            if tautulli_api is not None and tautulli_api.get_valid():
+                library_id = tautulli_api.get_library_id(
+                    plex_library_config.library_name
+                )
+                if library_id != tautulli_api.get_invalid_type():
+                    plex_library_list.append(
+                        MediaServerLibraryInfo(
+                            plex_library_config.server_name,
+                            plex_library_config.library_name,
+                            library_id,
+                            plex_library_config.media_path
+                        )
+                    )
+
+                    for plex_user in plex_library_config.user_name_list:
+                        plex_user_info = tautulli_api.get_user_info(
+                            plex_user
+                        )
+                        if plex_user_info != tautulli_api.get_invalid_type():
+                            friendly_name = plex_user
+                            plex_user_id = plex_user_info.id
+                            if plex_user_info.friendly_name:
+                                friendly_name = plex_user_info.friendly_name
+
+                            plex_library_list[-1].user_list.append(
+                                UserLibraryInfo(
+                                    plex_user,
+                                    friendly_name,
+                                    "",
+                                    plex_user_id
+                                )
+                            )
+                        else:
+                            self.log_warning(
+                                f"{utils.get_formatted_tautulli()}({tautulli_api.get_server_name()}) "
+                                f"could not find {utils.get_tag("user", plex_user)}"
+                            )
+
+        return plex_library_list
+
+    def __get_emby_libraries(
+        self,
+        library_config: LibraryConfigInfo
+    ) -> List[MediaServerLibraryInfo]:
+        emby_library_list: list[MediaServerLibraryInfo] = []
+        for emby_library_config in library_config.emby_library_list:
+            emby_api = self.api_manager.get_emby_api(
+                emby_library_config.server_name)
+            jellystat_api = self.api_manager.get_jellystat_api(
+                emby_library_config.server_name)
+            if (
+                emby_api is not None
+                and emby_api.get_valid()
+                and jellystat_api is not None
+                and jellystat_api.get_valid()
+            ):
+                library_id = jellystat_api.get_library_id(
+                    emby_library_config.library_name)
+                if library_id != jellystat_api.get_invalid_type():
+                    emby_library_list.append(
+                        MediaServerLibraryInfo(
+                            emby_library_config.server_name,
+                            emby_library_config.library_name,
+                            library_id,
+                            emby_library_config.media_path
+                        )
+                    )
+
+                    for emby_user in emby_library_config.user_name_list:
+                        emby_user_id = emby_api.get_user_id(emby_user)
+                        if emby_user_id != emby_api.get_invalid_item_id():
+                            emby_library_list[-1].user_list.append(
+                                UserLibraryInfo(
+                                    emby_user,
+                                    emby_user,
+                                    emby_user_id,
+                                    None
+                                )
+                            )
+                        else:
+                            self.log_warning(
+                                f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) "
+                                f"could not find {utils.get_tag("user", emby_user)}"
+                            )
+
+        return emby_library_list
 
     def __get_libraries(self) -> List[LibraryInfo]:
         libraries: list[LibraryInfo] = []
 
         for library_config in self.library_configs:
-            plex_library_list: list[MediaServerLibraryInfo] = []
-            emby_library_list: list[MediaServerLibraryInfo] = []
-
-            for plex_library_config in library_config.plex_library_list:
-                tautulli_api = self.api_manager.get_tautulli_api(
-                    plex_library_config.server_name
-                )
-                if tautulli_api is not None and tautulli_api.get_valid():
-                    library_id = tautulli_api.get_library_id(
-                        plex_library_config.library_name
-                    )
-                    if library_id != tautulli_api.get_invalid_type():
-                        plex_library_list.append(
-                            MediaServerLibraryInfo(
-                                plex_library_config.server_name,
-                                plex_library_config.library_name,
-                                library_id,
-                                plex_library_config.media_path
-                            )
-                        )
-
-                        for plex_user in plex_library_config.user_name_list:
-                            plex_user_info = tautulli_api.get_user_info(
-                                plex_user
-                            )
-                            if plex_user_info != tautulli_api.get_invalid_type():
-                                friendly_name = plex_user
-                                plex_user_id = plex_user_info.id
-                                if plex_user_info.friendly_name:
-                                    friendly_name = plex_user_info.friendly_name
-
-                                plex_library_list[-1].user_list.append(
-                                    UserLibraryInfo(
-                                        plex_user,
-                                        friendly_name,
-                                        "",
-                                        plex_user_id
-                                    )
-                                )
-                            else:
-                                self.log_warning(
-                                    f"{utils.get_formatted_tautulli()}({tautulli_api.get_server_name()}) "
-                                    f"could not find {utils.get_tag("user", plex_user)}"
-                                )
-
-            for emby_library_config in library_config.emby_library_list:
-                emby_api = self.api_manager.get_emby_api(
-                    emby_library_config.server_name)
-                jellystat_api = self.api_manager.get_jellystat_api(
-                    emby_library_config.server_name)
-                if (
-                    emby_api is not None
-                    and emby_api.get_valid()
-                    and jellystat_api is not None
-                    and jellystat_api.get_valid()
-                ):
-                    library_id = jellystat_api.get_library_id(
-                        emby_library_config.library_name)
-                    if library_id != jellystat_api.get_invalid_type():
-                        emby_library_list.append(
-                            MediaServerLibraryInfo(
-                                emby_library_config.server_name,
-                                emby_library_config.library_name,
-                                library_id,
-                                emby_library_config.media_path
-                            )
-                        )
-
-                        for emby_user in emby_library_config.user_name_list:
-                            emby_user_id = emby_api.get_user_id(emby_user)
-                            if emby_user_id != emby_api.get_invalid_item_id():
-                                emby_library_list[-1].user_list.append(
-                                    UserLibraryInfo(
-                                        emby_user,
-                                        emby_user,
-                                        emby_user_id,
-                                        None
-                                    )
-                                )
-                            else:
-                                self.log_warning(
-                                    f"{utils.get_formatted_emby()}({emby_api.get_server_name()}) "
-                                    f"could not find {utils.get_tag("user", emby_user)}"
-                                )
-
             libraries.append(
                 LibraryInfo(
                     library_config.id,
                     library_config.utilities_path,
-                    plex_library_list,
-                    emby_library_list
+                    self.__get_plex_libraries(library_config),
+                    self.__get_emby_libraries(library_config)
                 )
             )
 
@@ -484,11 +482,20 @@ class DeleteWatched(ServiceBase):
                             break
                     if not notify_lib_found:
                         return_libraries.append(media.id)
-                except Exception as e:
+                except FileNotFoundError:
                     self.log_error(
-                        f"Failed to delete "
-                        f"{utils.get_tag("file", media.file_path)} "
-                        f"{utils.get_tag("error", e)}"
+                        f"Failed to delete {utils.get_tag("file", media.file_path)} not found."
+                    )
+                except PermissionError:
+                    self.log_error(
+                        f"Failed to delete {utils.get_tag("file", media.file_path)} permission denied")
+                except IsADirectoryError:
+                    self.log_error(
+                        f"Failed to delete {utils.get_tag("file", media.file_path)} is a directory, not a file."
+                    )
+                except (OSError, Exception) as e:
+                    self.log_error(
+                        f"Failed to delete {utils.get_tag("file", media.file_path)} {utils.get_tag("error", e)}"
                     )
 
         return return_libraries
