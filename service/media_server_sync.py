@@ -50,7 +50,6 @@ class MediaServerSync(ServiceBase):
 
     def __init__(
         self,
-        ansi_code: str,
         api_manager: ApiManager,
         config: dict,
         log_manager: LogManager,
@@ -58,7 +57,7 @@ class MediaServerSync(ServiceBase):
     ):
         """ Media Server Sync Initializer """
         super().__init__(
-            ansi_code,
+            utils.get_service_media_server_sync_ansi_code(),
             "Media Server Sync",
             config,
             api_manager,

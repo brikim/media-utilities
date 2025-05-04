@@ -81,14 +81,13 @@ class DeleteWatched(ServiceBase):
 
     def __init__(
         self,
-        ansi_code: str,
         api_manager: ApiManager,
         config: dict,
         log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            ansi_code,
+            utils.get_service_delete_watched_ansi_code(),
             "Delete Watched",
             config,
             api_manager,

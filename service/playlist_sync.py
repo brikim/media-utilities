@@ -37,14 +37,13 @@ class PlaylistSync(ServiceBase):
 
     def __init__(
         self,
-        ansi_code: str,
         api_manager: ApiManager,
         config: dict,
         log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            ansi_code,
+            utils.get_service_playlist_sync_ansi_code(),
             "Playlist Sync",
             config,
             api_manager,
@@ -321,7 +320,6 @@ class PlaylistSync(ServiceBase):
 
     def init_scheduler_jobs(self):
         if self.cron is not None:
-            self.__sync_playlists()
             self.log_service_enabled()
             self.scheduler.add_job(
                 self.__sync_playlists,

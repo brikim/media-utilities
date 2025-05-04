@@ -42,7 +42,6 @@ class ServiceManager:
         ):
             self.services.append(
                 MediaServerSync(
-                    utils.get_service_media_server_sync_ansi_code(),
                     api_manager,
                     config["media_server_sync"],
                     self.log_manager,
@@ -57,7 +56,6 @@ class ServiceManager:
         ):
             self.services.append(
                 DeleteWatched(
-                    utils.get_service_delete_watched_ansi_code(),
                     api_manager,
                     config["delete_watched"],
                     self.log_manager,
@@ -72,7 +70,6 @@ class ServiceManager:
         ):
             self.services.append(
                 DvrMaintainer(
-                    utils.get_service_dvr_maintainer_ansi_code(),
                     api_manager,
                     config["dvr_maintainer"],
                     self.log_manager,
@@ -87,7 +84,6 @@ class ServiceManager:
         ):
             self.services.append(
                 FolderCleanup(
-                    utils.get_service_folder_cleanup_ansi_code(),
                     api_manager,
                     config["folder_cleanup"],
                     self.log_manager,
@@ -102,7 +98,6 @@ class ServiceManager:
         ):
             self.services.append(
                 PlaylistSync(
-                    utils.get_service_playlist_sync_ansi_code(),
                     api_manager,
                     config["playlist_sync"],
                     self.log_manager,

@@ -55,14 +55,13 @@ class DvrMaintainer(ServiceBase):
 
     def __init__(
         self,
-        ansi_code: str,
         api_manager: ApiManager,
         config: dict,
         log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            ansi_code,
+            utils.get_service_dvr_maintainer_ansi_code(),
             "DVR Maintainer",
             config,
             api_manager,

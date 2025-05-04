@@ -36,14 +36,13 @@ class FolderCleanup(ServiceBase):
 
     def __init__(
         self,
-        ansi_code: str,
         api_manager: ApiManager,
         config: dict,
         log_manager: LogManager,
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            ansi_code,
+            utils.get_service_folder_cleanup_ansi_code(),
             "Folder Cleanup",
             config,
             api_manager,
