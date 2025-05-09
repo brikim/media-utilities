@@ -1,8 +1,12 @@
 """ Api Manager """
 
+from datetime import datetime
+import time
+
 from common import utils
 from common.log_manager import LogManager
 
+from api.api_base import ApiBase
 from api.emby import EmbyAPI
 from api.jellystat import JellystatAPI
 from api.plex import PlexAPI
@@ -30,125 +34,118 @@ class ApiManager:
 
         if "plex" in config and "servers" in config["plex"]:
             for server in config["plex"]["servers"]:
-                if (
-                    "server_name" in server
-                    and "media_path" in server
-                    and "plex_url" in server
-                    and "plex_api_key" in server
-                    and "tautulli_url" in server
-                    and "tautulli_api_key" in server
-                ):
-                    self.plex_api_list.append(
-                        PlexAPI(
-                            server["server_name"],
-                            server["plex_url"],
-                            server["plex_api_key"],
-                            server["media_path"],
-                            self.log_manager
-                        )
-                    )
-                    self.tautulli_api_list.append(
-                        TautulliAPI(
-                            server["server_name"],
-                            server["tautulli_url"],
-                            server["tautulli_api_key"],
-                            self.log_manager
-                        )
-                    )
-
-                    if self.plex_api_list[-1].get_valid():
-                        self.log_manager.log_info(
-                            f"Connected to {utils.get_formatted_plex()}({self.plex_api_list[-1].get_server_reported_name()}) successfully"
-                        )
-                    else:
-                        tag_plex_url = utils.get_tag(
-                            "url", server["plex_url"]
-                        )
-                        tag_plex_api = utils.get_tag(
-                            "api_key", server["plex_api_key"]
-                        )
-                        self.log_manager.log_warning(
-                            f"{utils.get_formatted_plex()}({server["server_name"]}) server not available. Is this correct {tag_plex_url} {tag_plex_api}"
-                        )
-
-                    if self.tautulli_api_list[-1].get_valid():
-                        self.log_manager.log_info(
-                            f"Connected to {utils.get_formatted_tautulli()}({self.tautulli_api_list[-1].get_server_reported_name()}) successfully"
-                        )
-                    else:
-                        tag_tautulli_url = utils.get_tag(
-                            "url", server["tautulli_url"])
-                        tag_tautulli_api = utils.get_tag(
-                            "api_key", server["tautulli_api_key"])
-                        self.log_manager.log_warning(
-                            f"{utils.get_formatted_tautulli()}({server["server_name"]}) not available. Is this correct {tag_tautulli_url} {tag_tautulli_api}"
-                        )
-
-                else:
-                    self.log_manager.log_warning(
-                        f"{utils.get_formatted_plex()}:{utils.get_formatted_tautulli()} configuration error must define server_name, media_path, plex_url, plex_api_key, tautulli_url and tautulli_api_key for a server"
-                    )
+                self.__create_plex_server(server)
 
         if "emby" in config and "servers" in config["emby"]:
             for server in config["emby"]["servers"]:
-                if (
-                    "server_name" in server
-                    and "media_path" in server
-                    and "emby_url" in server
-                    and "emby_api_key" in server
-                    and "jellystat_url" in server
-                    and "jellystat_api_key" in server
-                ):
-                    self.emby_api_list.append(
-                        EmbyAPI(
-                            server["server_name"],
-                            server["emby_url"],
-                            server["emby_api_key"],
-                            server["media_path"],
-                            self.log_manager
-                        )
-                    )
-                    self.jellystat_api_list.append(
-                        JellystatAPI(
-                            server["server_name"],
-                            server["jellystat_url"],
-                            server["jellystat_api_key"],
-                            self.log_manager
-                        )
-                    )
+                self.__create_emby_server(server)
 
-                    if self.emby_api_list[-1].get_valid():
-                        self.log_manager.log_info(
-                            f"Connected to {utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_reported_name()}) successfully"
-                        )
-                    else:
-                        tag_emby_url = utils.get_tag(
-                            "url", server["emby_url"]
-                        )
-                        tag_emby_api = utils.get_tag(
-                            "api_key", server["emby_api_key"]
-                        )
-                        self.log_manager.log_warning(
-                            f"{utils.get_formatted_emby()}({self.emby_api_list[-1].get_server_name()}) server not available. Is this correct {tag_emby_url} {tag_emby_api}"
-                        )
+    def __wait_api_valid(
+        self,
+        api: ApiBase,
+        formatted_name: str
+    ) -> bool:
+        start_time: datetime = datetime.now()
+        current_time: datetime = start_time
+        while (current_time - start_time).total_seconds() < 10:
+            if api.get_valid():
+                server_name = (
+                    api.get_server_reported_name()
+                    if api.get_server_reported_name()
+                    else api.get_server_name()
+                )
+                self.log_manager.log_info(
+                    f"Connected to {formatted_name}({server_name}) successfully"
+                )
+                return True
 
-                    if self.jellystat_api_list[-1].get_valid():
-                        self.log_manager.log_info(
-                            f"Connected to {utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) successfully"
-                        )
-                    else:
-                        tag_jellystat_url = utils.get_tag(
-                            "url", server["jellystat_url"])
-                        tag_jellystat_api = utils.get_tag(
-                            "api_key", server["jellystat_api_key"])
-                        self.log_manager.log_warning(
-                            f"{utils.get_formatted_jellystat()}({self.jellystat_api_list[-1].get_server_name()}) not available. Is this correct {tag_jellystat_url} {tag_jellystat_api}"
-                        )
+            # Sleep to wait for validity
+            time.sleep(1)
+            current_time = datetime.now()
 
-                else:
-                    self.log_manager.log_warning(
-                        f"{utils.get_formatted_emby()}:{utils.get_formatted_jellystat()} configuration error must define server_name, media_path, emby_url, emby_api_key, jellystat_url and jellystat_api_key for a server"
-                    )
+        tag_url = utils.get_tag("url", api.get_url())
+        tag_api = utils.get_tag("api_key", api.get_api_key())
+        self.log_manager.log_warning(
+            f"{formatted_name}({api.get_server_name()}) server not available. Is this correct {tag_url} {tag_api}"
+        )
+        return False
+
+    def __create_plex_server(self, config: dict):
+        if (
+            "server_name" in config
+            and "media_path" in config
+            and "plex_url" in config
+            and "plex_api_key" in config
+            and "tautulli_url" in config
+            and "tautulli_api_key" in config
+        ):
+            plex_api = PlexAPI(
+                config["server_name"],
+                config["plex_url"],
+                config["plex_api_key"],
+                config["media_path"],
+                self.log_manager
+            )
+            self.__wait_api_valid(
+                plex_api,
+                utils.get_formatted_plex()
+            )
+            self.plex_api_list.append(plex_api)
+
+            tautulli_api = TautulliAPI(
+                config["server_name"],
+                config["tautulli_url"],
+                config["tautulli_api_key"],
+                self.log_manager
+            )
+            self.__wait_api_valid(
+                tautulli_api,
+                utils.get_formatted_tautulli()
+            )
+            self.tautulli_api_list.append(tautulli_api)
+        else:
+            self.log_manager.log_warning(
+                f"{utils.get_formatted_plex()}:{utils.get_formatted_tautulli()} configuration error must define server_name, media_path, plex_url, plex_api_key, tautulli_url and tautulli_api_key for a server"
+            )
+
+    def __create_emby_server(self, config: dict):
+        if (
+            "server_name" in config
+            and "media_path" in config
+            and "emby_url" in config
+            and "emby_api_key" in config
+            and "jellystat_url" in config
+            and "jellystat_api_key" in config
+        ):
+            # Setup the emby api
+            emby_api = EmbyAPI(
+                config["server_name"],
+                config["emby_url"],
+                config["emby_api_key"],
+                config["media_path"],
+                self.log_manager
+            )
+            self.__wait_api_valid(
+                emby_api,
+                utils.get_formatted_emby()
+            )
+            self.emby_api_list.append(emby_api)
+
+            js_api = JellystatAPI(
+                config["server_name"],
+                config["jellystat_url"],
+                config["jellystat_api_key"],
+                self.log_manager
+            )
+            self.__wait_api_valid(
+                js_api,
+                utils.get_formatted_jellystat()
+            )
+            self.jellystat_api_list.append(js_api)
+        else:
+            self.log_manager.log_warning(
+                f"{utils.get_formatted_emby()}:{utils.get_formatted_jellystat()} configuration error must define server_name, media_path, emby_url, emby_api_key, jellystat_url and jellystat_api_key for a server"
+            )
 
     def get_plex_api(self, name: str) -> PlexAPI:
         """

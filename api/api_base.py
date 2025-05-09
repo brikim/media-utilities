@@ -47,6 +47,18 @@ class ApiBase:
         """
         return False
 
+    def get_url(self) -> str:
+        """
+        Retrieves the URL of the media server.
+        """
+        return self.url
+
+    def get_api_key(self) -> str:
+        """
+        Retrieves the API key for authentication.
+        """
+        return self.api_key
+
     def get_server_name(self) -> str:
         """
         Retrieves the server name

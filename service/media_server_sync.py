@@ -19,8 +19,8 @@ from service.service_base import ServiceBase
 from api.api_manager import ApiManager
 from api.emby import EmbyAPI, EmbyItem, EmbyUserPlayState
 from api.plex import PlexAPI
-from api.jellystat import JellystatHistoryItem
-from api.tautulli import TautulliHistoryItem
+from api.jellystat import JellystatAPI, JellystatHistoryItem, JellystatHistoryItems
+from api.tautulli import TautulliHistoryItem, TautulliHistoryItems
 
 
 @dataclass
@@ -497,6 +497,37 @@ class MediaServerSync(ServiceBase):
                 target_name
             )
 
+    def __consolidate_plex_history(
+        self,
+        history_items: TautulliHistoryItems
+    ) -> List[TautulliHistoryItem]:
+        return_history: list[TautulliHistoryItem] = []
+        compare_groups: list[list[TautulliHistoryItem]] = []
+        for item in history_items.items:
+            item_found: bool = False
+            for group in compare_groups:
+                for group_item in group:
+                    if group_item.id == item.id:
+                        group.append(item)
+                        item_found = True
+                        break
+            if not item_found:
+                new_group_list: list[TautulliHistoryItem] = []
+                new_group_list.append(item)
+                compare_groups.append(new_group_list)
+
+        for compare_group in compare_groups:
+            item_candidate: TautulliHistoryItem = None
+            for group_item in compare_group:
+                if item_candidate is None:
+                    item_candidate = group_item
+                elif group_item.date_watched > item_candidate.date_watched:
+                    item_candidate = group_item
+            if item_candidate is not None:
+                return_history.append(item_candidate)
+
+        return return_history
+
     def __sync_plex_state(
         self,
         current_user: UserPlexInfo,
@@ -514,7 +545,14 @@ class MediaServerSync(ServiceBase):
             date_time_for_history
         )
 
-        for history_item in watch_history_data.items:
+        watch_history_data = self.__consolidate_plex_history(
+            tautulli_api.get_watch_history_for_user(
+                current_user.user_id,
+                date_time_for_history
+            )
+        )
+
+        for history_item in watch_history_data:
             if history_item.watched is not None and history_item.watched:
                 self.__sync_plex_watch_state(
                     plex_api,
@@ -783,47 +821,90 @@ class MediaServerSync(ServiceBase):
                 target_name
             )
 
-    def __sync_emby_state(self, current_user: UserEmbyInfo, user: UserInfo):
-        """ Sync the state of an Emby user to configured media servers """
-        emby_api = self.api_manager.get_emby_api(current_user.server_name)
+    def __get_emby_history_for_user(
+        self,
+        current_user: UserEmbyInfo
+    ) -> List[JellystatHistoryItem]:
+        return_history: list[JellystatHistoryItem] = []
+
         js_api = self.api_manager.get_jellystat_api(
             current_user.server_name
         )
-        history_items = js_api.get_user_watch_history(
-            current_user.user_id
+
+        history_items = js_api.get_user_watch_history(current_user.user_id)
+        if history_items == js_api.get_invalid_type():
+            return return_history
+
+        compare_groups: list[list[JellystatHistoryItem]] = []
+        for item in history_items.items:
+            hours_since_play = utils.get_hours_since_play(
+                True,
+                item.date_time
+            )
+
+            if hours_since_play >= 24:
+                continue
+
+            item_found: bool = False
+            for group in compare_groups:
+                for group_item in group:
+                    if group_item.id == item.id:
+                        group.append(item)
+                        item_found = True
+                        break
+            if not item_found:
+                new_group_list: list[JellystatHistoryItem] = []
+                new_group_list.append(item)
+                compare_groups.append(new_group_list)
+
+        for compare_group in compare_groups:
+            item_candidate: JellystatHistoryItem = None
+            for group_item in compare_group:
+                if item_candidate is None:
+                    item_candidate = group_item
+                elif (
+                    group_item.date_time
+                    >= item_candidate.date_time
+                ):
+                    item_candidate = group_item
+            if item_candidate is not None:
+                return_history.append(item_candidate)
+
+        return return_history
+
+    def __sync_emby_state(self, current_user: UserEmbyInfo, user: UserInfo):
+        """ Sync the state of an Emby user to configured media servers """
+        emby_api = self.api_manager.get_emby_api(current_user.server_name)
+
+        history_items = self.__get_emby_history_for_user(
+            current_user
         )
 
-        if history_items != js_api.get_invalid_type():
-            for item in history_items.items:
-                hours_since_play = utils.get_hours_since_play(
-                    True,
-                    datetime.fromisoformat(item.date_watched)
+        for item in history_items:
+            current_play_state: EmbyUserPlayState = emby_api.get_user_play_state(
+                current_user.user_id,
+                item.episode_id if item.series_name else item.id
+            )
+
+            if current_play_state is None:
+                continue
+
+            # Determine if we need to sync watch state or play state
+            if current_play_state.state.played:
+                self.__sync_emby_watched_state(
+                    emby_api,
+                    current_user,
+                    item,
+                    user
                 )
-                if hours_since_play <= 24:
-                    current_play_state: EmbyUserPlayState = emby_api.get_user_play_state(
-                        current_user.user_id,
-                        item.episode_id if item.series_name else item.id
-                    )
-
-                    if current_play_state is None:
-                        continue
-
-                    # Determine if we need to sync watch state or play state
-                    if current_play_state.state.played:
-                        self.__sync_emby_watched_state(
-                            emby_api,
-                            current_user,
-                            item,
-                            user
-                        )
-                    else:
-                        self.__sync_emby_play_state(
-                            emby_api,
-                            current_user,
-                            current_play_state,
-                            item,
-                            user.emby_users
-                        )
+            else:
+                self.__sync_emby_play_state(
+                    emby_api,
+                    current_user,
+                    current_play_state,
+                    item,
+                    user.emby_users
+                )
 
     def __sync_state(self):
         """ Sync all the configured states """

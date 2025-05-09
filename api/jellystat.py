@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -19,6 +20,7 @@ class JellystatHistoryItem:
     id: str
     user_name: str
     date_watched: str
+    date_time: datetime
     series_name: str
     episode_id: str
 
@@ -47,10 +49,6 @@ class JellystatAPI(ApiBase):
             self.__module__,
             log_manager
         )
-
-    def get_server_name(self) -> str:
-        """ Name of the jellystat server """
-        return self.server_name
 
     def get_connection_error_log(self) -> str:
         """ Log for a jellystat connection error """
@@ -89,7 +87,7 @@ class JellystatAPI(ApiBase):
             pass
         return False
 
-    def get_library_id(self, libName: str) -> str:
+    def get_library_id(self, lib_name: str) -> str:
         """ Get the id of a library by name """
         try:
             payload = {}
@@ -101,12 +99,12 @@ class JellystatAPI(ApiBase):
             )
             response = r.json()
             for lib in response:
-                if "Name" in lib and lib["Name"] == libName and "Id" in lib and lib["Id"]:
+                if "Name" in lib and lib["Name"] == lib_name and "Id" in lib and lib["Id"]:
                     return lib["Id"]
         except RequestException as e:
             self.log_manager.log_error(
                 f"{self.log_header} get_library_id "
-                f"{utils.get_tag("library_id", libName)} "
+                f"{utils.get_tag("library_name", lib_name)} "
                 f"{utils.get_tag("error", e)}"
             )
 
@@ -127,8 +125,16 @@ class JellystatAPI(ApiBase):
             item_user_name = item["UserName"]
 
         item_activity_date: str = ""
+        item_date_time: datetime = None
         if "ActivityDateInserted" in item:
             item_activity_date = item["ActivityDateInserted"]
+            item_date_time = datetime.fromisoformat(item_activity_date)
+        else:
+            item_date_time = datetime.now()
+            self.log_manager.log_warning(
+                f"{self.log_header} __get_history_item "
+                f"no ActivityDateInserted for item {item_name}"
+            )
 
         item_series_name: str = ""
         if "SeriesName" in item:
@@ -143,6 +149,7 @@ class JellystatAPI(ApiBase):
             item_id,
             item_user_name,
             item_activity_date,
+            item_date_time,
             item_series_name,
             item_episode_id
         )
