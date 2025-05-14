@@ -353,11 +353,11 @@ class MediaServerSync(ServiceBase):
         emby_users: List[UserEmbyInfo],
         target_name: str
     ) -> str:
-        return_target_name: str = ""
+        return_target_name: str = target_name
 
         for sync_emby_user in emby_users:
             return_target_name = self.__sync_emby_user_with_plex_watch_state(
-                plex_api, history_item, sync_emby_user, target_name
+                plex_api, history_item, sync_emby_user, return_target_name
             )
 
         return return_target_name
