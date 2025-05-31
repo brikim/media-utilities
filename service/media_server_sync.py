@@ -540,10 +540,6 @@ class MediaServerSync(ServiceBase):
         plex_api = self.api_manager.get_plex_api(current_user.server_name)
         tautulli_api = self.api_manager.get_tautulli_api(
             current_user.server_name)
-        watch_history_data = tautulli_api.get_watch_history_for_user(
-            current_user.user_id,
-            date_time_for_history
-        )
 
         watch_history_data = self.__consolidate_plex_history(
             tautulli_api.get_watch_history_for_user(

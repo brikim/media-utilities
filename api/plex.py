@@ -61,10 +61,6 @@ class PlexAPI(ApiBase):
         """ Name of the plex server """
         return self.server_name
 
-    def get_name(self) -> str:
-        """ The name reported by the plex server """
-        return self.plex_server.friendlyName
-
     def get_connection_error_log(self) -> str:
         """ Log for a plex connection error """
         return (
@@ -105,29 +101,36 @@ class PlexAPI(ApiBase):
         Returns:
             str: The friendly name of the Plex server.
         """
-        return self.plex_server.friendlyName
+        try:
+            return self.plex_server.friendlyName
+        except (BadRequest, NotFound, Unauthorized):
+            return "Server Error"
 
     def get_item_path(self, rating_key: Any) -> str:
         """ Retrieves the path of an item in plex """
         try:
             item = self.plex_server.fetchItem(rating_key)
             return item.locations[0]
-        except NotFound:
+        except (BadRequest, NotFound, Unauthorized):
             pass
         return self.get_invalid_type()
 
     def __search(self, search_str: str, media_type: str) -> PlexSearchResults:
         """ Search the plex server for a string and media type """
         return_results: PlexSearchResults = PlexSearchResults()
-        search_results = self.plex_server.search(search_str, media_type)
-        for item in search_results:
-            return_results.items.append(
-                PlexSearchResult(
-                    item.locations[0],
-                    item.title,
-                    item.librarySectionTitle
+
+        try:
+            search_results = self.plex_server.search(search_str, media_type)
+            for item in search_results:
+                return_results.items.append(
+                    PlexSearchResult(
+                        item.locations[0],
+                        item.title,
+                        item.librarySectionTitle
+                    )
                 )
-            )
+        except (BadRequest, NotFound, Unauthorized):
+            pass
         return return_results
 
     def get_library_valid(self, library_name: str) -> bool:
@@ -135,7 +138,7 @@ class PlexAPI(ApiBase):
         try:
             self.plex_server.library.section(library_name)
             return True
-        except NotFound:
+        except (BadRequest, NotFound, Unauthorized):
             pass
         return False
 
@@ -169,7 +172,7 @@ class PlexAPI(ApiBase):
                         ):
                             episode.markWatched()
                             return True
-                except NotFound:
+                except (BadRequest, NotFound, Unauthorized):
                     pass
         return False
 
@@ -188,7 +191,7 @@ class PlexAPI(ApiBase):
                     if not library_item.isWatched:
                         library_item.markWatched()
                         return True
-                except NotFound:
+                except (BadRequest, NotFound, Unauthorized):
                     pass
         return False
 
@@ -197,7 +200,7 @@ class PlexAPI(ApiBase):
         try:
             library = self.plex_server.library.section(library_name)
             library.update()
-        except NotFound as e:
+        except (BadRequest, NotFound, Unauthorized) as e:
             self.log_manager.log_error(
                 f"{self.log_header} set_library_scan "
                 f"{utils.get_tag("library", library_name)} "
@@ -206,17 +209,20 @@ class PlexAPI(ApiBase):
 
     def get_library_name_from_path(self, path: str) -> str:
         """ Returns the name of the plex library from a path """
-        # Get all libraries
-        libraries = self.plex_server.library.sections()
-        for library in libraries:
-            for location in library.locations:
-                if location == path:
-                    return library.title
+        try:
+            # Get all libraries
+            libraries = self.plex_server.library.sections()
+            for library in libraries:
+                for location in library.locations:
+                    if location == path:
+                        return library.title
 
-        self.log_manager.log_warning(
-            f"{self.log_header} No library found with "
-            f"{utils.get_tag("path", path)}"
-        )
+            self.log_manager.log_warning(
+                f"{self.log_header} No library found with "
+                f"{utils.get_tag("path", path)}"
+            )
+        except (BadRequest, NotFound, Unauthorized):
+            pass
         return ""
 
     def get_collection_valid(
@@ -230,7 +236,7 @@ class PlexAPI(ApiBase):
             for collection in library.collections():
                 if collection.title == collection_name:
                     return True
-        except NotFound:
+        except (BadRequest, NotFound, Unauthorized):
             pass
         return False
 
@@ -250,6 +256,6 @@ class PlexAPI(ApiBase):
                                 )
                             )
                     return PlexCollection(collection.title, items)
-        except NotFound:
+        except (BadRequest, NotFound, Unauthorized):
             pass
         return self.get_invalid_type()

@@ -159,7 +159,7 @@ class EmbyAPI(ApiBase):
             return response["ServerName"]
         except RequestException as e:
             self.log_manager.log_error(
-                f"{self.log_header} get_name {utils.get_tag("error", e)}"
+                f"{self.log_header} get_server_reported_name {utils.get_tag("error", e)}"
             )
 
         return self.get_invalid_item_id()

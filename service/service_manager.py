@@ -4,7 +4,6 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from api.api_manager import ApiManager
 from common.log_manager import LogManager
-from common import utils
 
 from service.service_base import ServiceBase
 from service.delete_watched import DeleteWatched
