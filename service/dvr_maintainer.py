@@ -61,7 +61,7 @@ class DvrMaintainer(ServiceBase):
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            utils.get_service_dvr_maintainer_ansi_code(),
+            utils.ANSI_CODE_SERVICE_DVR_MAINTAINER,
             "DVR Maintainer",
             config,
             api_manager,

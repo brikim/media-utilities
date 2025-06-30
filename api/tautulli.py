@@ -46,7 +46,7 @@ class TautulliAPI(ApiBase):
         log_manager: LogManager
     ):
         super().__init__(
-            server_name, url, api_key, utils.get_tautulli_ansi_code(), self.__module__, log_manager
+            server_name, url, api_key, utils.ANSI_CODE_TAUTULLI, self.__module__, log_manager
         )
 
     def __get_api_url(self) -> str:

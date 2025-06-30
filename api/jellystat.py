@@ -45,7 +45,7 @@ class JellystatAPI(ApiBase):
             server_name,
             url,
             api_key,
-            utils.get_jellystat_ansi_code(),
+            utils.ANSI_CODE_JELLYSTAT,
             self.__module__,
             log_manager
         )

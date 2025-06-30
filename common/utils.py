@@ -23,94 +23,39 @@ ANSI_CODE_SERVICE_MEDIA_SERVER_SYNC = f"{ANSI_CODE_START}45{ANSI_CODE_END}"
 ANSI_CODE_SERVICE_PLAYLIST_SYNC = f"{ANSI_CODE_START}171{ANSI_CODE_END}"
 
 
-def get_log_ansi_code() -> str:
-    """Get assigned log ANSI code."""
-    return ANSI_CODE_LOG
-
-
-def get_tag_ansi_code() -> str:
-    """Get assigned tag ANSI code."""
-    return ANSI_CODE_TAG
-
-
-def get_plex_ansi_code() -> str:
-    """Get assigned Plex ANSI code."""
-    return ANSI_CODE_PLEX
-
-
-def get_tautulli_ansi_code() -> str:
-    """Get assigned Tautulli ANSI code."""
-    return ANSI_CODE_TAUTULLI
-
-
-def get_emby_ansi_code() -> str:
-    """Get assigned Emby ANSI code."""
-    return ANSI_CODE_EMBY
-
-
-def get_jellystat_ansi_code() -> str:
-    """Get assigned Jellystat ANSI code."""
-    return ANSI_CODE_JELLYSTAT
-
-
-def get_service_delete_watched_ansi_code() -> str:
-    """Get assigned Service Delete Watched ANSI code."""
-    return ANSI_CODE_SERVICE_DELETE_WATCHED
-
-
-def get_service_dvr_maintainer_ansi_code() -> str:
-    """Get assigned Service DVR Maintainer ANSI code."""
-    return ANSI_CODE_SERVICE_DVR_MAINTAINER
-
-
-def get_service_folder_cleanup_ansi_code() -> str:
-    """Get assigned Service Folder Cleanup ANSI code."""
-    return ANSI_CODE_SERVICE_FOLDER_CLEANUP
-
-
-def get_service_media_server_sync_ansi_code() -> str:
-    """Get assigned Service Media Server Sync ANSI code."""
-    return ANSI_CODE_SERVICE_MEDIA_SERVER_SYNC
-
-
-def get_service_playlist_sync_ansi_code() -> str:
-    """Get assigned Service Playlist Sync ANSI code."""
-    return ANSI_CODE_SERVICE_PLAYLIST_SYNC
-
-
 def get_log_header(module_ansi_code: str, module: str) -> str:
     """ Get a log header formatted string """
-    return f"{module_ansi_code}{module}{get_log_ansi_code()}:"
+    return f"{module_ansi_code}{module}{ANSI_CODE_LOG}:"
 
 
 def get_tag(tag_name: str, tag_value) -> str:
     """ Get a tag formatted string """
-    return f"{get_tag_ansi_code()}{tag_name}={get_log_ansi_code()}{tag_value}"
+    return f"{ANSI_CODE_TAG}{tag_name}={ANSI_CODE_LOG}{tag_value}"
 
 
 def get_formatted_plex() -> str:
     """ Get an ANSI code formatted Plex string """
-    return f"{get_plex_ansi_code()}Plex{get_log_ansi_code()}"
+    return f"{ANSI_CODE_PLEX}Plex{ANSI_CODE_LOG}"
 
 
 def get_formatted_tautulli() -> str:
     """ Get an ANSI code formatted Tautulli string """
-    return f"{get_tautulli_ansi_code()}Tautulli{get_log_ansi_code()}"
+    return f"{ANSI_CODE_TAUTULLI}Tautulli{ANSI_CODE_LOG}"
 
 
 def get_formatted_emby() -> str:
     """ Get an ANSI code formatted Emby string """
-    return f"{get_emby_ansi_code()}Emby{get_log_ansi_code()}"
+    return f"{ANSI_CODE_EMBY}Emby{ANSI_CODE_LOG}"
 
 
 def get_formatted_jellystat() -> str:
     """ Get an ANSI code formatted Jellystat string """
-    return f"{get_jellystat_ansi_code()}Jellystat{get_log_ansi_code()}"
+    return f"{ANSI_CODE_JELLYSTAT}Jellystat{ANSI_CODE_LOG}"
 
 
 def get_standout_text(text: str) -> str:
     """ Get an ANSI code formatted standout text string """
-    return f"{ANSI_CODE_STANDOUT}{text}{get_log_ansi_code()}"
+    return f"{ANSI_CODE_STANDOUT}{text}{ANSI_CODE_LOG}"
 
 
 def get_datetime_for_history(delta_days: float) -> datetime:
@@ -190,3 +135,8 @@ def get_short_path(path: str) -> str:
         else:
             return short_path
     return path
+
+
+def get_comma_separated_list(list_to_separate: list[str]) -> str:
+    """ Get a comma separated string from a list """
+    return ",".join(list_to_separate)

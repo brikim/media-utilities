@@ -51,7 +51,7 @@ class PlexAPI(ApiBase):
         log_manager: LogManager
     ):
         super().__init__(
-            server_name, url, api_key, utils.get_plex_ansi_code(), self.__module__, log_manager
+            server_name, url, api_key, utils.ANSI_CODE_PLEX, self.__module__, log_manager
         )
 
         self.plex_server = server.PlexServer(url.rstrip("/"), api_key)

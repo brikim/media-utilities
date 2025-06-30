@@ -87,7 +87,7 @@ class DeleteWatched(ServiceBase):
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            utils.get_service_delete_watched_ansi_code(),
+            utils.ANSI_CODE_SERVICE_DELETE_WATCHED,
             "Delete Watched",
             config,
             api_manager,

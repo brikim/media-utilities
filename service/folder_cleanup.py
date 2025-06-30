@@ -42,7 +42,7 @@ class FolderCleanup(ServiceBase):
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            utils.get_service_folder_cleanup_ansi_code(),
+            utils.ANSI_CODE_SERVICE_FOLDER_CLEANUP,
             "Folder Cleanup",
             config,
             api_manager,

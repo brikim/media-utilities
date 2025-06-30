@@ -43,7 +43,7 @@ class PlaylistSync(ServiceBase):
         scheduler: BlockingScheduler
     ):
         super().__init__(
-            utils.get_service_playlist_sync_ansi_code(),
+            utils.ANSI_CODE_SERVICE_PLAYLIST_SYNC,
             "Playlist Sync",
             config,
             api_manager,

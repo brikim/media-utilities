@@ -91,7 +91,7 @@ class EmbyAPI(ApiBase):
             log_manager (LogManager): The LogManager instance for logging messages.
         """
         super().__init__(
-            server_name, url, api_key, utils.get_emby_ansi_code(), self.__module__, log_manager
+            server_name, url, api_key, utils.ANSI_CODE_EMBY, self.__module__, log_manager
         )
 
         self.media_path = media_path
@@ -548,10 +548,6 @@ class EmbyAPI(ApiBase):
 
         return self.get_invalid_item_id()
 
-    def __get_comma_separated_list(self, list_to_separate: list[str]) -> str:
-        """ Get a comma separated string from a list """
-        return ",".join(list_to_separate)
-
     def create_playlist(
         self,
         playlist_name: str,
@@ -562,7 +558,7 @@ class EmbyAPI(ApiBase):
             # Setup the required payload
             payload = self.__get_default_payload()
             payload["Name"] = playlist_name
-            payload["Ids"] = self.__get_comma_separated_list(ids)
+            payload["Ids"] = utils.get_comma_separated_list(ids)
             payload["MediaType"] = "Movies"
 
             emby_url = f"{self.__get_api_url()}/Playlists"
@@ -617,7 +613,7 @@ class EmbyAPI(ApiBase):
         try:
             # Setup the required payload
             payload = self.__get_default_payload()
-            payload["Ids"] = self.__get_comma_separated_list(item_ids)
+            payload["Ids"] = utils.get_comma_separated_list(item_ids)
 
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items"
             r = requests.post(
@@ -638,7 +634,7 @@ class EmbyAPI(ApiBase):
         try:
             # Setup the required payload
             payload = self.__get_default_payload()
-            payload["EntryIds"] = self.__get_comma_separated_list(
+            payload["EntryIds"] = utils.get_comma_separated_list(
                 playlist_item_ids)
 
             emby_url = f"{self.__get_api_url()}/Playlists/{playlist_id}/Items/Delete"

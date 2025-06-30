@@ -57,7 +57,7 @@ class MediaServerSync(ServiceBase):
     ):
         """ Media Server Sync Initializer """
         super().__init__(
-            utils.get_service_media_server_sync_ansi_code(),
+            utils.ANSI_CODE_SERVICE_MEDIA_SERVER_SYNC,
             "Media Server Sync",
             config,
             api_manager,
@@ -423,9 +423,10 @@ class MediaServerSync(ServiceBase):
             if (
                 sync_user_play_state is not None
                 and emby_item is not None
-                and (
-                    tautulli_item.playback_percentage
-                    != round(sync_user_play_state.state.percentage)
+                and emby_item.run_time_ticks is not None
+                and tautulli_item.playback_percentage is not None
+                and (tautulli_item.playback_percentage != round(
+                    sync_user_play_state.state.percentage)
                 )
             ):
                 # Get the play location ticks
