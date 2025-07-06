@@ -122,13 +122,14 @@ class PlexAPI(ApiBase):
         try:
             search_results = self.plex_server.search(search_str, media_type)
             for item in search_results:
-                return_results.items.append(
-                    PlexSearchResult(
-                        item.locations[0],
-                        item.title,
-                        item.librarySectionTitle
+                for location in item.locations:
+                    return_results.items.append(
+                        PlexSearchResult(
+                            location,
+                            item.title,
+                            item.librarySectionTitle
+                        )
                     )
-                )
         except (BadRequest, NotFound, Unauthorized):
             pass
         return return_results
