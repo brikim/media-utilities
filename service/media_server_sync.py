@@ -709,9 +709,10 @@ class MediaServerSync(ServiceBase):
         target_name: str = ""
 
         for sync_plex_user in user.plex_users:
-            target_name = self.__sync_plex_with_emby_watched_state(
-                emby_api, js_item, sync_plex_user, target_name
-            )
+            if sync_plex_user.can_sync:
+                target_name = self.__sync_plex_with_emby_watched_state(
+                    emby_api, js_item, sync_plex_user, target_name
+                )
 
         for sync_emby_user in user.emby_users:
             if current_user.server_name != sync_emby_user.server_name:
