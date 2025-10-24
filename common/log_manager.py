@@ -3,6 +3,7 @@
 import logging
 from logging import Logger
 from logging.handlers import RotatingFileHandler
+import sys
 
 import colorlog
 
@@ -28,16 +29,13 @@ class LogManager:
             log_name (str): The name of the logger.
         """
         self.logger = logging.getLogger(log_name)
+        
+        """ Create a logger for logging errors"""
+        log_error_name = log_name + "_stderr";
+        self.logger_error = logging.getLogger(log_error_name)
+        
         self.handler_list: list[logging.Handler] = []
-
-        log_date_format = "%Y-%m-%d %H:%M:%S"
-        log_colors = {
-            "DEBUG": "cyan",
-            "INFO": "light_green",
-            "WARNING": "light_yellow",
-            "ERROR": "light_red",
-            "CRITICAL": "bold_red",
-        }
+        self.error_handler_list: list[logging.Handler] = []
 
         # Set up the logger
         self.logger.setLevel(logging.INFO)
@@ -51,26 +49,49 @@ class LogManager:
         self.file_rotating_handler.setFormatter(self.file_formatter)
 
         # Create a stream handler to print logs to the console
-        self.console_info_handler = colorlog.StreamHandler()
-        self.console_info_handler.setLevel(logging.INFO)
-        self.console_info_handler.setFormatter(
+        self.console_info_handler = self.__create_color_log_handler(logging.INFO)
+        self.console_error_handler = self.__create_color_log_handler(logging.WARNING);
+
+        # Setup a place holder gotify handler
+        self.gotify_handler: GotifyHandler = None
+        self.gotify_formatter: GotifyPlainTextFormatter = None
+        
+        """ Add handles for INFO processing """
+        self.logger.addHandler(self.file_rotating_handler)
+        self.handler_list.append(self.file_rotating_handler)
+        
+        self.logger.addHandler(self.console_info_handler)
+        self.handler_list.append(self.console_info_handler)
+        
+        """ Add handles for WARNING/ERROR processing """
+        self.logger_error.addHandler(self.file_rotating_handler)
+        self.error_handler_list.append(self.file_rotating_handler)
+        
+        self.logger_error.addHandler(self.console_error_handler)
+        self.error_handler_list.append(self.console_error_handler)
+
+    def __create_color_log_handler(self, log_level: int) -> logging.Handler:
+        log_colors = {
+            "DEBUG": "cyan",
+            "INFO": "light_green",
+            "WARNING": "light_yellow",
+            "ERROR": "light_red",
+            "CRITICAL": "bold_red",
+        }
+        log_date_format = "%Y-%m-%d %H:%M:%S"
+        
+        color_log_handler = colorlog.StreamHandler(sys.stdout if log_level == logging.INFO else sys.stderr)
+        color_log_handler.setLevel(log_level)
+        color_log_handler.setFormatter(
             colorlog.ColoredFormatter(
                 "%(white)s%(asctime)s %(light_white)s- %(log_color)s%(levelname)s %(light_white)s- %(message)s",
                 log_date_format,
                 log_colors=log_colors,
             )
         )
-
-        # Setup a place holder gotify handler
-        self.gotify_handler: GotifyHandler = None
-        self.gotify_formatter: GotifyPlainTextFormatter = None
         
-        self.logger.addHandler(self.file_rotating_handler)
-        self.handler_list.append(self.file_rotating_handler)
+        return color_log_handler
         
-        self.logger.addHandler(self.console_info_handler)
-        self.handler_list.append(self.console_info_handler)
-
     def configure_gotify(self, config: dict) -> None:
         """Configures Gotify logging if enabled in the configuration."""
         # Create a Gotify log handler if set to log warnings
@@ -96,9 +117,13 @@ class LogManager:
                 self.gotify_handler.setLevel(logging.WARNING)
                 self.gotify_handler.setFormatter(self.gotify_formatter)
 
-                # Add the gotify handler to the logger
+                """ Add handles for INFO processing """# Add the gotify handler to the logger
                 self.logger.addHandler(self.gotify_handler)
                 self.handler_list.append(self.gotify_handler)
+                
+                """ Add handles for WARNING/ERROR processing """# Add the gotify handler to the logger
+                self.logger_error.addHandler(self.gotify_handler)
+                self.error_handler_list.append(self.gotify_handler)
             else:
                 self.logger.warning(
                     "Configuration gotify_logging enabled is True but missing an attribute url, app_token, message_title or priority"
@@ -121,12 +146,12 @@ class LogManager:
 
     def log_warning(self, message: str):
         """ Log an warning message. """
-        self.logger.warning(message)
-        for handler in self.handler_list:
+        self.logger_error.warning(message)
+        for handler in self.error_handler_list:
             handler.flush()
 
     def log_error(self, message: str):
         """ Log an error message. """
-        self.logger.error(message)
-        for handler in self.handler_list:
+        self.logger_error.error(message)
+        for handler in self.error_handler_list:
             handler.flush()
